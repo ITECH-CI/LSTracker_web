@@ -93,8 +93,8 @@ services:
       JWT_REFRESH_TTL_DAYS: ${JWT_REFRESH_TTL_DAYS:-60}
       JAVA_OPTS: "-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -XX:+ExitOnOutOfMemoryError -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp"
     ports:
-      # Port public DEMO : 9201 (mappé sur le port interne 9200).
-      - "${DEMO_PORT:-9201}:9200"
+      # Bind sur 127.0.0.1 : seul nginx (sur l'host) peut atteindre l'app.
+      - "127.0.0.1:${DEMO_PORT:-9201}:9200"
     volumes:
       - ./logs/demo:/app/logs
     healthcheck:

@@ -97,9 +97,9 @@ services:
       # Tuning JVM : MaxRAMPercentage respecte la limite du conteneur.
       JAVA_OPTS: "-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -XX:+ExitOnOutOfMemoryError -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp"
     ports:
-      # Port public PROD : 9200 (mappé sur le port interne 9200).
-      # Si Nginx/Traefik en frontal, bind sur 127.0.0.1 pour cacher l'app.
-      - "${PROD_PORT:-9200}:9200"
+      # Bind sur 127.0.0.1 : seul nginx (sur l'host) peut atteindre l'app.
+      # Le port public 443 est exposé par nginx, pas par Docker.
+      - "127.0.0.1:${PROD_PORT:-9200}:9200"
     volumes:
       # Persiste les logs hors conteneur pour rotation/analyse externe.
       - ./logs/prod:/app/logs

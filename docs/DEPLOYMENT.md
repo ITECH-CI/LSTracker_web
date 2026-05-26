@@ -202,18 +202,43 @@ docker logs lst_demo_app -f --tail 50
 ### 1.4 Vérifications post-démarrage DEMO
 
 ```bash
-# Healthcheck interne
-curl -fsS http://localhost:9201/actuator/health
+# Healthcheck interne (loopback uniquement — l'app n'est PAS exposée publiquement
+# directement, nginx prend le relais cf. étape 1.5)
+curl -fsS http://127.0.0.1:9201/actuator/health
 # {"status":"UP"}
 
-# Port public ouvert ?
-curl -fsS http://<ip-publique-serveur>:9201/actuator/health
+# Le port n'est PAS exposé publiquement (Docker bind 127.0.0.1:9201)
+ss -tlnp | grep :9201
+# Doit afficher 127.0.0.1:9201, pas 0.0.0.0
 
 # DB accessible (loopback only)
 docker exec -it lst_demo_db psql -U $POSTGRES_USER -d $POSTGRES_DB -c "SELECT version();"
 
 # Resource usage
 docker stats --no-stream lst_demo_app lst_demo_db
+```
+
+### 1.5 Configurer nginx pour exposer la DEMO en HTTPS
+
+> Voir **[NGINX.md](NGINX.md)** pour la procédure complète (vhosts, certs, migration apache2).
+
+Résumé pour la DEMO :
+
+```bash
+# 1. DNS : créer A record lstracker-demo.itech-civ.org → IP serveur
+
+# 2. Placer le cert wildcard *.itech-civ.org sur le serveur
+sudo mkdir -p /etc/ssl/itech-civ
+# (uploader wildcard.itech-civ.org.fullchain.pem et .key)
+
+# 3. Déployer le vhost demo
+sudo cp config/nginx/lstracker-demo.conf /etc/nginx/sites-available/
+sudo ln -sf /etc/nginx/sites-available/lstracker-demo.conf /etc/nginx/sites-enabled/
+sudo nginx -t && sudo systemctl reload nginx
+
+# 4. Tester
+curl -fsS https://lstracker-demo.itech-civ.org/actuator/health   # doit retourner 403 (bloqué public)
+curl -fsS https://lstracker-demo.itech-civ.org/                  # doit charger la page login
 ```
 
 ---
@@ -315,8 +340,11 @@ docker logs lst_prod_app -f --tail 100
 ### 3.3 Vérifier PROD
 
 ```bash
-curl -fsS http://localhost:9200/actuator/health
-curl -fsS http://<ip-publique>:9200/actuator/health
+curl -fsS http://127.0.0.1:9200/actuator/health
+
+# Le port n'est PAS exposé publiquement (Docker bind 127.0.0.1:9200)
+ss -tlnp | grep :9200
+# Doit afficher 127.0.0.1:9200, pas 0.0.0.0
 
 # Vérifier qu'on est bien sur la DB PROD (pas demo)
 docker exec lst_prod_db psql -U $POSTGRES_USER -d $POSTGRES_DB -c "SELECT current_database();"
@@ -327,7 +355,29 @@ docker ps --filter "name=lst_"
 # Doit montrer : lst_demo_app, lst_demo_db, lst_prod_app, lst_prod_db
 ```
 
-### 3.4 Importer les données de production (si migration depuis ancien serveur)
+### 3.4 Configurer nginx pour exposer la PROD en HTTPS
+
+> Voir **[NGINX.md](NGINX.md)** pour le détail, en particulier la section [Migration apache2 → nginx](NGINX.md#migration-apache2--nginx) si apache2 servait déjà la prod.
+
+```bash
+# 1. Placer le cert lstracker.org sur le serveur (cf. NGINX.md §Prérequis)
+sudo mkdir -p /etc/ssl/lstracker
+# (uploader lstracker.org.fullchain.pem et .key, permissions 644/600)
+
+# 2. Déployer le vhost prod
+sudo cp config/nginx/lstracker-prod.conf /etc/nginx/sites-available/
+# Adapter les chemins des certs dans /etc/nginx/sites-available/lstracker-prod.conf
+sudo ln -sf /etc/nginx/sites-available/lstracker-prod.conf /etc/nginx/sites-enabled/
+
+# 3. Test syntaxe + reload
+sudo nginx -t && sudo systemctl reload nginx
+
+# 4. Tester
+curl -fsS https://lstracker.org/
+curl -sI -k https://lstracker.org/actuator/health   # doit être 403 publiquement
+```
+
+### 3.5 Importer les données de production (si migration depuis ancien serveur)
 
 Si tu migres depuis une ancienne installation :
 

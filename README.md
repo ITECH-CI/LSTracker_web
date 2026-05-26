@@ -11,8 +11,9 @@ Stack : **Spring Boot 3.2** · **Java 17** · **PostgreSQL 14** · **Thymeleaf**
 | Document | Quand le lire |
 |---|---|
 | [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Runbook complet de déploiement initial (DEMO puis PROD) |
+| [docs/NGINX.md](docs/NGINX.md) | Reverse proxy nginx (host) : migration apache2, vhosts, certs SSL |
 | [docs/OPERATIONS.md](docs/OPERATIONS.md) | Procédures d'opérations courantes (backups, updates, rotation secrets, monitoring, troubleshooting) |
-| [scripts/](scripts/) | Scripts d'automatisation : `backup-db.sh`, `restore-db.sh`, `rotate-secrets.sh` |
+| [scripts/](scripts/) | Scripts d'automatisation : `backup-db.sh`, `restore-db.sh`, `rotate-secrets.sh`, `check-cert-expiry.sh` |
 
 ---
 
