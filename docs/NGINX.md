@@ -84,10 +84,18 @@ Si tu vois `-----BEGIN CERTIFICATE-----` ou `-----BEGIN PRIVATE KEY-----` → c'
 Construire le fullchain :
 
 ```bash
-# Ordre IMPORTANT : ton cert d'abord, puis la chaîne intermédiaire
-cat /home/itech/ssl/itech-civ.org/itech-civ.org.crt \
-    /home/itech/ssl/itech-civ.org/itech-civ.org.ca-bundle \
-  | sudo tee /home/itech/ssl/itech-civ.org/fullchain.pem > /dev/null
+# Ordre IMPORTANT : ton cert d'abord, puis la chaîne intermédiaire.
+# Le "echo" intercalé garantit une newline entre les blocs PEM même si
+# le .crt ne se termine pas par \n (sans ça, le END du cert et le BEGIN
+# de la chaîne se collent sur une seule ligne → openssl rejette le fichier
+# avec "bad end line").
+sudo bash -c '
+{
+  cat /home/itech/ssl/itech-civ.org/itech-civ.org.crt
+  echo ""
+  cat /home/itech/ssl/itech-civ.org/itech-civ.org.ca-bundle
+} > /home/itech/ssl/itech-civ.org/fullchain.pem
+'
 
 # La clé privée : juste copier/renommer (pas de transformation)
 sudo cp /home/itech/ssl/itech-civ.org/itech-civ.org.key \
@@ -95,6 +103,22 @@ sudo cp /home/itech/ssl/itech-civ.org/itech-civ.org.key \
 ```
 
 Tu peux aussi pointer le vhost directement sur `.crt` et `.key` sans rien créer — il suffit d'ajuster les deux directives dans le vhost. Mais il faut **inclure le `.ca-bundle`** dans le `.crt` (cf. plus loin §"Concaténer dans le `.crt` directement").
+
+**Vérification après construction :**
+
+```bash
+# Lignes contenant END et BEGIN doivent être différentes (pas collées)
+grep -c '^-----BEGIN CERTIFICATE-----' /home/itech/ssl/itech-civ.org/fullchain.pem
+grep -c '^-----END CERTIFICATE-----'   /home/itech/ssl/itech-civ.org/fullchain.pem
+# Les 2 nombres doivent être égaux (3 typiquement : 1 cert + 2 intermédiaires)
+
+# Si tu vois "-----END CERTIFICATE----------BEGIN CERTIFICATE-----" dans le fichier,
+# la concaténation est cassée → recommencer avec la version "echo" ci-dessus.
+awk '/-----END CERTIFICATE-----/{print NR": "$0}' \
+  /home/itech/ssl/itech-civ.org/fullchain.pem
+# Chaque ligne END doit se terminer juste par "-----END CERTIFICATE-----"
+# (et non "...END CERTIFICATE----------BEGIN CERTIFICATE-----")
+```
 
 #### Cas Let's Encrypt / déjà au bon format
 
@@ -134,9 +158,13 @@ Si tu préfères ne pas créer de fichier `fullchain.pem` et garder les noms d'o
 sudo cp /home/itech/ssl/itech-civ.org/itech-civ.org.crt \
         /home/itech/ssl/itech-civ.org/itech-civ.org.crt.bak
 
-# Ajouter le bundle à la fin du .crt
-sudo bash -c 'cat /home/itech/ssl/itech-civ.org/itech-civ.org.ca-bundle \
-              >> /home/itech/ssl/itech-civ.org/itech-civ.org.crt'
+# Ajouter le bundle à la fin du .crt, avec newline garantie
+sudo bash -c '
+{
+  echo ""
+  cat /home/itech/ssl/itech-civ.org/itech-civ.org.ca-bundle
+} >> /home/itech/ssl/itech-civ.org/itech-civ.org.crt
+'
 ```
 
 Puis pointer le vhost vers le `.crt` et le `.key` directement (cf. §"Adapter les chemins dans le vhost").
@@ -449,6 +477,48 @@ Causes typiques :
 - Container down → `docker compose up -d` depuis le bundle
 - Healthcheck encore en démarrage (60-90s après `up -d`) → attendre
 - Le port n'est pas en loopback (override `public.yml` actif par erreur) → recréer sans l'override
+
+### `openssl: bad end line` ou `unable to load PKCS7 object`
+
+Symptôme typique :
+
+```
+error reading the file, /home/itech/ssl/itech-civ.org/fullchain.pem
+error loading certificates
+... PEM routines:get_header_and_data:bad end line ...
+unable to load PKCS7 object
+```
+
+**Cause :** la concaténation `.crt + .ca-bundle` (ou similaire) a produit un fichier où deux blocs PEM se touchent sans newline entre eux. Ça arrive quand le premier fichier ne se termine pas par `\n` :
+
+```
+-----END CERTIFICATE----------BEGIN CERTIFICATE-----
+```
+
+**Diagnostic :**
+
+```bash
+awk '/-----END CERTIFICATE-----/{print NR": "$0}' \
+  /home/itech/ssl/itech-civ.org/fullchain.pem
+```
+
+Si tu vois une ligne du genre `...END CERTIFICATE----------BEGIN CERTIFICATE-----` → c'est cassé.
+
+**Fix :** reconstruire avec un `echo` explicite entre les deux fichiers :
+
+```bash
+sudo bash -c '
+{
+  cat /home/itech/ssl/itech-civ.org/itech-civ.org.crt
+  echo ""
+  cat /home/itech/ssl/itech-civ.org/itech-civ.org.ca-bundle
+} > /home/itech/ssl/itech-civ.org/fullchain.pem
+'
+
+# Re-vérifier
+grep -c '^-----BEGIN CERTIFICATE-----' /home/itech/ssl/itech-civ.org/fullchain.pem
+# Doit retourner ≥ 2 (cert + au moins une intermédiaire)
+```
 
 ### `SSL: certificate verify failed`
 
