@@ -1,6 +1,6 @@
 # LSTracker — Installation rapide
 
-> Si tu lis ce fichier, tu as extrait le bundle `lstracker-deploy-vX.Y.Z.tar.gz` sur un serveur Linux. Voici les 4-5 commandes pour démarrer.
+> Voici les ~5 commandes pour démarrer une instance (demo ou prod). Si tu veux le runbook complet avec validation, migration de données, rollback : [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
 ## Prérequis
 
@@ -19,6 +19,38 @@ curl -fsSL https://get.docker.com | sudo sh
 sudo usermod -aG docker $USER
 newgrp docker
 ```
+
+## Récupérer le bundle de déploiement
+
+Toutes les releases sont sur https://github.com/ITECH-CI/LSTracker_web/releases. Choisir la version voulue et l'installer :
+
+```bash
+VERSION=2.2.0
+URL=https://github.com/ITECH-CI/LSTracker_web/releases/download/v${VERSION}
+
+# Dossier de déploiement (au choix, ex: /opt/lstracker)
+sudo mkdir -p /opt/lstracker
+sudo chown $USER:$USER /opt/lstracker
+cd /opt/lstracker
+
+# Télécharger bundle + checksum
+curl -fsSLO ${URL}/lstracker-deploy-${VERSION}.tar.gz
+curl -fsSLO ${URL}/lstracker-deploy-${VERSION}.tar.gz.sha256
+
+# Vérifier l'intégrité
+sha256sum -c lstracker-deploy-${VERSION}.tar.gz.sha256
+# lstracker-deploy-2.2.0.tar.gz: OK
+
+# Extraire et entrer dans le dossier
+tar -xzf lstracker-deploy-${VERSION}.tar.gz
+cd lstracker-deploy-${VERSION}
+
+# Vérifier
+cat VERSION
+ls -la
+```
+
+Le dossier contient : composes, `.env.example`, configs nginx & postgres, scripts ops, docs.
 
 ## Démarrer la DEMO
 

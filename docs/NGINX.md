@@ -56,34 +56,138 @@ Le cert wildcard est dans `/home/itech/ssl/itech-civ.org/`. Vérifier les noms e
 ls -la /home/itech/ssl/itech-civ.org/
 ```
 
-Conventions :
+Selon le CA, les noms et formats varient. **nginx exige 2 fichiers** :
 
-| Type | Noms possibles |
-|---|---|
-| Cert + chaîne | `fullchain.pem`, `<domain>.crt` + `chain.crt` |
-| Clé privée | `privkey.pem`, `<domain>.key` |
+1. **`ssl_certificate`** : ton certificat **+** la chaîne intermédiaire concaténés (le fameux "fullchain")
+2. **`ssl_certificate_key`** : la clé privée
 
-Si cert + intermédiaire séparés → construire le fullchain :
+Cas courants reconnus par convention :
+
+| Tu as reçu | Format | Action |
+|---|---|---|
+| `fullchain.pem` + `privkey.pem` (Let's Encrypt) | PEM | ✅ Rien à faire |
+| `<domain>.crt` + `<domain>.ca-bundle` + `<domain>.key` (Sectigo, GoDaddy, etc.) | PEM avec extensions différentes | Construire le fullchain (voir ci-dessous) |
+| `cert.pem` + `intermediate.pem` + `key.pem` | PEM séparés | Construire le fullchain |
+| `<domain>.pfx` ou `<domain>.p12` | PKCS#12 (un seul fichier chiffré) | Extraire (voir ci-dessous) |
+
+**Important** : `.crt`, `.cer`, `.pem` désignent souvent le **même format** (PEM, en base64 avec entêtes `-----BEGIN CERTIFICATE-----`). Vérifier avec :
 
 ```bash
-cat /home/itech/ssl/itech-civ.org/cert.crt \
-    /home/itech/ssl/itech-civ.org/intermediate.crt \
+file /home/itech/ssl/itech-civ.org/*
+head -1 /home/itech/ssl/itech-civ.org/<fichier>
+```
+
+Si tu vois `-----BEGIN CERTIFICATE-----` ou `-----BEGIN PRIVATE KEY-----` → c'est du PEM, peu importe l'extension.
+
+#### Cas typique ITECH-CI : `.crt` + `.ca-bundle` + `.key`
+
+Construire le fullchain :
+
+```bash
+# Ordre IMPORTANT : ton cert d'abord, puis la chaîne intermédiaire
+cat /home/itech/ssl/itech-civ.org/itech-civ.org.crt \
+    /home/itech/ssl/itech-civ.org/itech-civ.org.ca-bundle \
   | sudo tee /home/itech/ssl/itech-civ.org/fullchain.pem > /dev/null
+
+# La clé privée : juste copier/renommer (pas de transformation)
+sudo cp /home/itech/ssl/itech-civ.org/itech-civ.org.key \
+        /home/itech/ssl/itech-civ.org/privkey.pem
 ```
 
-Permissions :
+Tu peux aussi pointer le vhost directement sur `.crt` et `.key` sans rien créer — il suffit d'ajuster les deux directives dans le vhost. Mais il faut **inclure le `.ca-bundle`** dans le `.crt` (cf. plus loin §"Concaténer dans le `.crt` directement").
+
+#### Cas Let's Encrypt / déjà au bon format
 
 ```bash
+# Rien à construire — fullchain.pem et privkey.pem sont déjà prêts
+ls /home/itech/ssl/itech-civ.org/fullchain.pem
+ls /home/itech/ssl/itech-civ.org/privkey.pem
+```
+
+#### Cas `.pfx` ou `.p12` (PKCS#12)
+
+```bash
+# Extraire le cert (sans la clé privée)
+sudo openssl pkcs12 -in /home/itech/ssl/itech-civ.org/itech-civ.org.pfx \
+  -clcerts -nokeys -out /home/itech/ssl/itech-civ.org/cert.pem
+
+# Extraire la chaîne intermédiaire
+sudo openssl pkcs12 -in /home/itech/ssl/itech-civ.org/itech-civ.org.pfx \
+  -cacerts -nokeys -chain -out /home/itech/ssl/itech-civ.org/chain.pem
+
+# Extraire la clé privée (mot de passe demandé)
+sudo openssl pkcs12 -in /home/itech/ssl/itech-civ.org/itech-civ.org.pfx \
+  -nocerts -nodes -out /home/itech/ssl/itech-civ.org/privkey.pem
+
+# Construire le fullchain
+sudo cat /home/itech/ssl/itech-civ.org/cert.pem \
+         /home/itech/ssl/itech-civ.org/chain.pem \
+  > /home/itech/ssl/itech-civ.org/fullchain.pem
+```
+
+#### Alternative : concaténer dans le `.crt` directement
+
+Si tu préfères ne pas créer de fichier `fullchain.pem` et garder les noms d'origine, tu peux concaténer le `.ca-bundle` dans le `.crt` :
+
+```bash
+# ⚠️ Backup d'abord
+sudo cp /home/itech/ssl/itech-civ.org/itech-civ.org.crt \
+        /home/itech/ssl/itech-civ.org/itech-civ.org.crt.bak
+
+# Ajouter le bundle à la fin du .crt
+sudo bash -c 'cat /home/itech/ssl/itech-civ.org/itech-civ.org.ca-bundle \
+              >> /home/itech/ssl/itech-civ.org/itech-civ.org.crt'
+```
+
+Puis pointer le vhost vers le `.crt` et le `.key` directement (cf. §"Adapter les chemins dans le vhost").
+
+### Permissions
+
+```bash
+# Cert (lecture par tous OK, ne contient pas de secret)
 sudo chmod 644 /home/itech/ssl/itech-civ.org/fullchain.pem
+# (ou itech-civ.org.crt si tu n'as pas créé fullchain.pem)
+
+# Clé privée (lecture root uniquement)
 sudo chmod 600 /home/itech/ssl/itech-civ.org/privkey.pem
+# (ou itech-civ.org.key)
+
+# Owner root
+sudo chown root:root /home/itech/ssl/itech-civ.org/*
 ```
 
-Vérifier validité :
+### Vérifier validité
 
 ```bash
+# Date d'expiration + sujet
 openssl x509 -noout -dates -subject -in /home/itech/ssl/itech-civ.org/fullchain.pem
-# notAfter=...
+# notBefore=... notAfter=...
 # subject=CN = *.itech-civ.org
+
+# Vérifier que la chaîne est complète (≥ 2 certs : le tien + au moins 1 intermédiaire)
+openssl crl2pkcs7 -nocrl -certfile /home/itech/ssl/itech-civ.org/fullchain.pem \
+  | openssl pkcs7 -print_certs -noout | grep -c '^subject='
+# Doit retourner 2 (ou plus). Si "1" → la chaîne intermédiaire n'est pas incluse.
+
+# Vérifier que la clé privée matche bien le cert (les 2 hashes doivent être identiques)
+openssl x509 -noout -modulus -in /home/itech/ssl/itech-civ.org/fullchain.pem | openssl md5
+openssl rsa  -noout -modulus -in /home/itech/ssl/itech-civ.org/privkey.pem  | openssl md5
+```
+
+### Adapter les chemins dans le vhost
+
+Si tes fichiers ne s'appellent **pas** `fullchain.pem` / `privkey.pem`, éditer `/etc/nginx/sites-available/lstracker-demo.conf` :
+
+```nginx
+# Exemple avec les noms d'origine .crt + .ca-bundle dans le .crt :
+ssl_certificate     /home/itech/ssl/itech-civ.org/itech-civ.org.crt;
+ssl_certificate_key /home/itech/ssl/itech-civ.org/itech-civ.org.key;
+```
+
+Puis :
+
+```bash
+sudo nginx -t && sudo systemctl reload nginx
 ```
 
 ### Cert lstracker.org
