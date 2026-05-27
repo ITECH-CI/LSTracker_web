@@ -19,6 +19,15 @@ if [[ "$ENV_NAME" != "demo" && "$ENV_NAME" != "prod" ]] || [[ -z "$BACKUP_FILE" 
 fi
 [[ -f "$BACKUP_FILE" ]] || { echo "ERROR: $BACKUP_FILE not found" >&2; exit 1; }
 
+# Vérifier l'accès au socket Docker (cause cryptique sinon : "permission denied
+# while trying to connect to the Docker daemon socket").
+if ! docker info >/dev/null 2>&1; then
+  echo "ERROR: cannot access Docker daemon. Options :" >&2
+  echo "  - Add your user to the docker group :  sudo usermod -aG docker \$USER && newgrp docker" >&2
+  echo "  - Or run with sudo :  sudo APP_ROOT=. $0 $*" >&2
+  exit 1
+fi
+
 # APP_ROOT = dossier contenant .env.<env> et docker-compose.<env>.yml.
 # Défaut "." = CWD (cas typique : on lance depuis le dossier du bundle extrait).
 # Override si besoin : APP_ROOT=/chemin/autre ./scripts/restore-db.sh ...

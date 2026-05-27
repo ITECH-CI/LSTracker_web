@@ -20,6 +20,17 @@ sudo usermod -aG docker $USER
 newgrp docker
 ```
 
+Si Docker est déjà là mais que ton user n'est pas dans le groupe `docker`
+(symptôme : `docker ps` demande `sudo`), ajoute-le maintenant — sinon les
+scripts `scripts/*.sh` du bundle échoueront avec "permission denied while
+trying to connect to the Docker daemon socket" :
+
+```bash
+sudo usermod -aG docker $USER
+newgrp docker
+docker ps   # doit marcher sans sudo
+```
+
 ## Récupérer le bundle de déploiement
 
 Toutes les releases sont sur https://github.com/ITECH-CI/LSTracker_web/releases. Choisir la version voulue et l'installer :

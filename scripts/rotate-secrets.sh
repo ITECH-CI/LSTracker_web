@@ -57,6 +57,12 @@ if [[ ! -f "$COMPOSE_FILE" ]]; then
   exit 1
 fi
 
+if ! docker info >/dev/null 2>&1; then
+  echo "ERROR: cannot access Docker daemon. Add user to docker group :" >&2
+  echo "  sudo usermod -aG docker \$USER && newgrp docker" >&2
+  exit 1
+fi
+
 # Containers must be running
 if ! docker ps --format '{{.Names}}' | grep -q "^${DB_CONTAINER}$"; then
   echo "ERROR: $DB_CONTAINER is not running" >&2

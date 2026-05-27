@@ -39,6 +39,12 @@ BACKUP_FILE="${BACKUP_DIR}/lstracker-${ENV_NAME}-${TIMESTAMP}.sql.gz"
 [[ -f "$ENV_FILE" ]] || { echo "ERROR: $ENV_FILE not found" >&2; exit 1; }
 mkdir -p "$BACKUP_DIR"
 
+if ! docker info >/dev/null 2>&1; then
+  echo "ERROR: cannot access Docker daemon. Add user to docker group :" >&2
+  echo "  sudo usermod -aG docker \$USER && newgrp docker" >&2
+  exit 1
+fi
+
 # Load DB creds
 POSTGRES_USER=$(grep '^POSTGRES_USER=' "$ENV_FILE" | cut -d= -f2-)
 POSTGRES_DB=$(grep '^POSTGRES_DB=' "$ENV_FILE" | cut -d= -f2-)
