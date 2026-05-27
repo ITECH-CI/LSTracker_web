@@ -58,9 +58,14 @@ fi
 
 echo "[$(date -Iseconds)] Backing up $ENV_NAME → $BACKUP_FILE"
 
-# Dump + gzip in one pipe (no tempfile)
+# Dump + gzip in one pipe (no tempfile).
+# Flags choisis pour produire un dump PORTABLE entre environnements :
+#   --no-owner       : pas de "ALTER ... OWNER TO appuser" (le user diffère par env)
+#   --no-privileges  : pas de "GRANT ... TO appuser" (idem)
+#   --clean --if-exists : DROP TABLE IF EXISTS avant CREATE → re-restore idempotent
 docker exec -e PGPASSWORD="$POSTGRES_PASSWORD" "$DB_CONTAINER" \
-  pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" --no-owner --clean --if-exists \
+  pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
+    --no-owner --no-privileges --clean --if-exists \
   | gzip -9 > "$BACKUP_FILE"
 
 # Verify backup is non-empty
