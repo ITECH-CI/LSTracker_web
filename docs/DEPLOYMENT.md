@@ -168,7 +168,7 @@ curl -fsS http://127.0.0.1:9201/actuator/health
 curl -fsS http://<ip-serveur>:9201/actuator/health   # depuis ton poste
 
 # DB accessible
-docker exec lst_demo_db psql -U appuser_demo -d sample_tracker_demo \
+docker exec lst_demo_db psql -U appuser -d sample_tracker_demo \
   -c "SELECT version();"
 ```
 
@@ -229,8 +229,11 @@ echo "JWT_SECRET=$(openssl rand -hex 64)"
 
 nano .env.prod
 # Remplacer CHANGE_ME_*. IMPORTANT :
-#   - POSTGRES_DB et POSTGRES_USER différents de la demo
+#   - POSTGRES_DB différent de la demo (sample_tracker_prod vs _demo)
+#   - POSTGRES_PASSWORD différent de la demo
 #   - JWT_SECRET différent de la demo
+# Note : POSTGRES_USER reste "appuser" partout (envs isolés par network
+# Docker, pas par user). Dumps pg_dump portables entre envs.
 
 grep CHANGE_ME .env.prod   # aucune sortie attendue
 chmod 600 .env.prod
@@ -270,11 +273,11 @@ pg_dump -h localhost -U appuser sample_tracker > /tmp/prod-dump-$(date +%Y%m%d).
 scp ancien-serveur:/tmp/prod-dump-*.sql /tmp/
 
 # Restaurer dans le nouveau container
-docker exec -i lst_prod_db psql -U appuser_prod -d sample_tracker_prod \
+docker exec -i lst_prod_db psql -U appuser -d sample_tracker_prod \
   < /tmp/prod-dump-YYYYMMDD.sql
 
 # Vérifier
-docker exec lst_prod_db psql -U appuser_prod -d sample_tracker_prod \
+docker exec lst_prod_db psql -U appuser -d sample_tracker_prod \
   -c "SELECT count(*) FROM sample_tracker.app_user;"
 ```
 
