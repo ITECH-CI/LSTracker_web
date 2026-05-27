@@ -1,0 +1,34 @@
+# CODEOWNERS — LSTracker Web
+# https://docs.github.com/en/repositories/managing-your-repositories-settings-and-security/customizing-your-repository/about-code-owners
+#
+# Chaque ligne associe un pattern de fichiers à un ou plusieurs owners
+# qui seront automatiquement assignés comme reviewers sur les PR
+# touchant ces fichiers.
+#
+# Le DERNIER pattern qui matche un fichier détermine les owners.
+
+# ---------- Default owner (tout le repo) ----------
+*                                   @Pkom17
+
+# ---------- CI/CD et release ----------
+# Toute modification du pipeline ou du Dockerfile mérite une attention
+# particulière (impact sur tous les déploiements).
+/.github/workflows/                 @Pkom17
+/Dockerfile                         @Pkom17
+
+# ---------- Sécurité et secrets ----------
+# Tout ce qui touche aux secrets, à l'auth, ou aux compose prod.
+/.env.*.example                     @Pkom17
+/docker-compose.prod.yml            @Pkom17
+/src/main/java/**/SecurityConfig.*  @Pkom17
+/src/main/resources/application.properties  @Pkom17
+
+# ---------- Ops scripts ----------
+# Scripts qui touchent à la prod : backup, restore, rotation.
+/scripts/                           @Pkom17
+
+# ---------- Documentation ----------
+# Plus permissif : pas de gate strict sur la doc.
+/docs/                              @Pkom17
+/README.md                          @Pkom17
+/INSTALL.md                         @Pkom17
