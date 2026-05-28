@@ -39,33 +39,45 @@ public class MetaService {
 	@Autowired
 	private SampleRejectionTypeService rejectionTypeService;
 
+	// Détermine le "type effectif" en regardant role ET user_type. Historiquement
+	// le code ne lisait que user_type, mais un admin dont user_type était mal
+	// saisi (ex: "AUTRE") tombait dans la branche non-admin → métadonnées filtrées
+	// par affectation géo (vide pour un admin) → impossible de saisir une collecte.
+	// On considère donc qu'un user EST d'un type donné si role OU user_type matche.
+	private boolean isType(AppUser user, UserType type) {
+		String t = type.getType();
+		return t.equalsIgnoreCase(user.getUserType()) || t.equalsIgnoreCase(user.getRole());
+	}
+
 	public MetaFullResponse loadAll(AppUser user) {
 
+		boolean isAdmin = isType(user, UserType.ADMIN);
+
 		List<Map<String, Object>> circuitList = new ArrayList<Map<String, Object>>();
-		if (user.getUserType().equalsIgnoreCase(UserType.ADMIN.getType())) {
+		if (isAdmin) {
 			circuitList = circuitService.getCircuitIdAndNumber();
 		} else {
 			circuitList = circuitService.getCircuitIdAndNumberByUser(user.getId());
 		}
 
 		List<Map<String, Object>> labList = new ArrayList<Map<String, Object>>();
-		if (user.getUserType().equalsIgnoreCase(UserType.BIOLOGIST.getType())) {
+		if (isType(user, UserType.BIOLOGIST)) {
 			labList = labService.getAllLabIdAndNamesByLabUser(user.getId());
-		} else if (user.getUserType().equalsIgnoreCase(UserType.RIDER.getType())) {
+		} else if (isType(user, UserType.RIDER)) {
 			labList = labService.getAllLabIdAndNamesByRider(user.getId());
 		} else {
 			labList = labService.getLabIdAndNames();
 		}
-		
+
 		List<Map<String, Object>> siteList = new ArrayList<Map<String, Object>>();
-		if (user.getUserType().equalsIgnoreCase(UserType.ADMIN.getType())) {
+		if (isAdmin) {
 			siteList = siteService.getSiteIdAndNames();
 		} else {
 			siteList = siteService.getSiteIdAndCodeAndNamesByUser(user.getId());
 		}
 
 		List<Map<String, Object>> circuitSiteList = new ArrayList<Map<String, Object>>();
-		if (user.getUserType().equalsIgnoreCase(UserType.ADMIN.getType())) {
+		if (isAdmin) {
 			circuitSiteList = circuitSiteService.getAllCircuitSite();
 		} else {
 			circuitSiteList = circuitSiteService.getCircuitSiteByUser(user.getId());
