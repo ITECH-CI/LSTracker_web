@@ -358,9 +358,9 @@
 					<i class="fas fa-question-circle"></i> Aide
 				</a>
 				<ul class="dropdown-menu">
-					<li><a class="dropdown-item disabled" href="#" tabindex="-1" aria-disabled="true">
+					<li><a class="dropdown-item"
+						th:href="@{/pdf/Manuel_user_Septembre_2025_vf.pdf}" target="_blank" rel="noopener">
 						<i class="fas fa-book"></i> Manuel utilisateur
-						<span class="badge bg-secondary ms-1" style="font-size:.65rem;">Bientôt</span>
 					</a></li>
 					<li><a class="dropdown-item disabled" href="#" tabindex="-1" aria-disabled="true">
 						<i class="fas fa-clipboard-list"></i> Procédures
@@ -429,9 +429,8 @@
 			</a>
 
 			<div class="nav-section">Aide</div>
-			<a href="#" class="nav-link disabled" tabindex="-1" aria-disabled="true">
+			<a th:href="@{/pdf/Manuel_user_Septembre_2025_vf.pdf}" target="_blank" rel="noopener" class="nav-link">
 				<i class="fas fa-book"></i> Manuel utilisateur
-				<span class="badge bg-secondary ms-1" style="font-size:.65rem;">Bientôt</span>
 			</a>
 			<a href="#" class="nav-link disabled" tabindex="-1" aria-disabled="true">
 				<i class="fas fa-clipboard-list"></i> Procédures
