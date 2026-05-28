@@ -235,6 +235,17 @@
 	transform: translateY(-2px);
 	border-color: #cbd5e1;
 }
+/* Carte "snapshot" (ex: En transit) : fond bleuté + bordure pointillée pour
+   signaler qu'elle mesure un état temps réel, PAS un flux sur la période —
+   donc non comparable directement aux autres cartes. */
+.kpi-card-snapshot {
+	background: #ecfeff;
+	border-style: dashed;
+	border-color: #67e8f9;
+}
+.kpi-card-snapshot:hover {
+	border-color: #22d3ee;
+}
 .kpi-card .kpi-icon {
 	grid-area: icon;
 	width: 42px;
@@ -599,7 +610,7 @@
 					<i class="fas fa-info-circle"></i>
 					<div>
 						<strong>Activité par étape sur la période.</strong>
-						Chaque carte compte les échantillons dont l'étape correspondante a eu lieu dans la période — ce ne sont donc pas les mêmes cohortes. Survolez <span class="help-tip" data-tip="Exemple de tooltip : passe le curseur sur les ? pour voir la définition exacte de chaque chiffre.">?</span> pour la définition exacte.
+						Chaque carte compte les échantillons dont l'étape correspondante a eu lieu dans la période — ce ne sont donc pas les mêmes cohortes. La carte <em>En transit</em> (fond bleuté) est un <strong>snapshot temps réel</strong>, non lié à la période. Survolez <span class="help-tip" data-tip="Exemple de tooltip : passe le curseur sur les ? pour voir la définition exacte de chaque chiffre.">?</span> pour la définition exacte.
 					</div>
 				</div>
 				<div class="kpi-grid">
@@ -609,9 +620,9 @@
 						<span class="value" data-kpi="total">0</span>
 						<span class="trend" data-trend="total"></span>
 					</div>
-					<div class="kpi-card accent-cyan">
+					<div class="kpi-card accent-cyan kpi-card-snapshot">
 						<div class="kpi-icon"><i class="fas fa-motorcycle"></i></div>
-						<span class="label">En transit<span class="help-tip" data-tip="Échantillons actuellement en transit (snapshot global, non lié à la période).">?</span></span>
+						<span class="label">En transit<span class="help-tip" data-tip="Échantillons dont le statut courant est ON_TRANSIT. Snapshot global temps réel, NON lié à la période sélectionnée — c'est pourquoi ce chiffre ne se compare pas directement aux autres cartes.">?</span></span>
 						<span class="value" data-kpi="in_transit">0</span>
 						<span class="trend" data-trend="in_transit"></span>
 					</div>
@@ -890,7 +901,8 @@
 			});
 		});
 
-		// Date presets
+		// Date presets — remplissent les champs PUIS rechargent l'URL pour
+		// persister les filtres (cf. applyFiltersToUrl).
 		$('.date-presets .btn').on('click', function() {
 			const p = $(this).data('preset');
 			const today = new Date();
@@ -906,14 +918,15 @@
 			else if (p === 'ytd')   { start = fmt(new Date(today.getFullYear(), 0, 1)); }
 			$('#input_start_date').val(start);
 			$('#input_end_date').val(end);
-			loadAll();
+			applyFiltersToUrl();
 		});
 
-		$('#btnApplyFilters').on('click', loadAll);
+		// Appliquer / Reset : on PERSISTE les filtres dans l'URL (reload) plutôt
+		// que de faire un loadAll() AJAX. Avantage : F5 / partage de lien
+		// conservent les filtres.
+		$('#btnApplyFilters').on('click', applyFiltersToUrl);
 		$('#btnResetFilters').on('click', function() {
-			$('#input_start_date, #input_end_date').val('');
-			$('#select_region, #select_district, #select_site, #select_lab').val(null).trigger('change.select2');
-			loadAll();
+			window.location = '/dashboard';
 		});
 
 		// Toggle collapse du panneau filtres (clic sur l'en-tête)
@@ -931,8 +944,92 @@
 			renderDrillRegions();
 		});
 
-		loadAll();
+		// Initialise les filtres depuis l'URL (pré-remplit les champs + selects
+		// en cascade), PUIS charge les widgets. La cascade region→district→site
+		// est asynchrone, d'où le chaînage par callbacks.
+		initFiltersFromUrlThenLoad();
 	});
+
+	// --- Persistance des filtres dans l'URL ---
+
+	// Construit l'URL avec les filtres actifs et recharge la page.
+	function applyFiltersToUrl() {
+		const p = new URLSearchParams();
+		const sd = isoFromFr($('#input_start_date').val());
+		const ed = isoFromFr($('#input_end_date').val());
+		if (sd) p.set('startDate', sd);
+		if (ed) p.set('endDate', ed);
+		const region = $('#select_region').val();
+		const district = $('#select_district').val();
+		const site = $('#select_site').val();
+		const lab = $('#select_lab').val();
+		if (region) p.set('region', region);
+		if (district) p.set('district', district);
+		if (site) p.set('site', site);
+		if (lab) p.set('lab', lab);
+		const qs = p.toString();
+		window.location = '/dashboard' + (qs ? '?' + qs : '');
+	}
+
+	// ISO yyyy-MM-dd → format datepicker dd/mm/yyyy. Null-safe.
+	function frFromIso(s) {
+		if (!s) return '';
+		const m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+		return m ? (m[3] + '/' + m[2] + '/' + m[1]) : '';
+	}
+
+	// Lit les params de l'URL, pré-remplit les champs date + selects (cascade
+	// async region→district→site), puis lance loadAll().
+	function initFiltersFromUrlThenLoad() {
+		const u = new URLSearchParams(window.location.search);
+		const region = u.get('region');
+		const district = u.get('district');
+		const site = u.get('site');
+		const lab = u.get('lab');
+
+		// Dates (converties ISO→FR pour le datepicker)
+		$('#input_start_date').val(frFromIso(u.get('startDate')));
+		$('#input_end_date').val(frFromIso(u.get('endDate')));
+
+		// Lab : indépendant de la cascade
+		if (lab) $('#select_lab').val(lab).trigger('change.select2');
+
+		// Cascade géographique : il faut charger les options enfant avant de
+		// pouvoir sélectionner district puis site. On chaîne les $.get.
+		if (!region) {
+			// Pas de filtre géo dans l'URL → charge direct
+			loadAll();
+			return;
+		}
+
+		$('#select_region').val(region).trigger('change.select2');
+
+		if (!district) {
+			loadAll();
+			return;
+		}
+
+		// Charger les districts de la région, sélectionner, puis (si besoin) sites
+		$.get('district/names_by_regions?regions=' + region, function(districts) {
+			const $d = $('#select_district');
+			$d.empty().append('<option value=""></option>');
+			$.each(districts, (i, d) => $d.append('<option value="' + d.id + '">' + d.name + '</option>'));
+			$d.val(district).trigger('change.select2');
+
+			if (!site) {
+				loadAll();
+				return;
+			}
+
+			$.get('site/names_by_districts?districts=' + district, function(sites) {
+				const $s = $('#select_site');
+				$s.empty().append('<option value=""></option>');
+				$.each(sites, (i, s) => $s.append('<option value="' + s.id + '">' + s.name + '</option>'));
+				$s.val(site).trigger('change.select2');
+				loadAll();
+			});
+		});
+	}
 
 	function currentFilters() {
 		return {
