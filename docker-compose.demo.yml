@@ -91,6 +91,14 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       JWT_EXPIRATION_MINUTES: ${JWT_EXPIRATION_MINUTES:-43200}
       JWT_REFRESH_TTL_DAYS: ${JWT_REFRESH_TTL_DAYS:-60}
+      # Intégration oedatarepo (OpenELIS consolidé)
+      OEDATAREPO_ENABLED: ${OEDATAREPO_ENABLED:-false}
+      OEDATAREPO_URL: ${OEDATAREPO_URL:-}
+      OEDATAREPO_USER: ${OEDATAREPO_USER:-}
+      OEDATAREPO_PASSWORD: ${OEDATAREPO_PASSWORD:-}
+      OEDATAREPO_BATCH_SIZE: ${OEDATAREPO_BATCH_SIZE:-200}
+      OEDATAREPO_INTERVAL_MS: ${OEDATAREPO_INTERVAL_MS:-1800000}
+      OEDATAREPO_MAX_ATTEMPTS: ${OEDATAREPO_MAX_ATTEMPTS:-5}
       JAVA_OPTS: "-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -XX:+ExitOnOutOfMemoryError -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp"
     ports:
       # Bind sur 127.0.0.1 : seul nginx (sur l'host) peut atteindre l'app.
