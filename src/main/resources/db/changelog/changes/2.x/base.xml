@@ -20,6 +20,8 @@
 		relativeToChangelogFile="true" />
 	<include file="./add-oe-sync-lastat-index.xml"
 		relativeToChangelogFile="true" />
+	<include file="./align_sample_type_referential.xml"
+		relativeToChangelogFile="true" />
 
 
 

@@ -14,6 +14,8 @@ import org.itech.labSampleTracker.dao.SampleTypeRepository;
 import org.itech.labSampleTracker.entities.SampleType;
 import org.itech.labSampleTracker.service.SampleTypeService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -140,6 +142,35 @@ public class SampleTypeServiceImpl implements SampleTypeService {
 			e.printStackTrace();
 		}
 		return response;
+	}
+
+	@Override
+	public Page<Map<String, Object>> findForAdmin(Pageable pageable, String searchText) {
+		String search = (searchText == null || searchText.isBlank()) ? null : searchText.trim();
+		return sampletypeRepo.findForAdmin(pageable, search);
+	}
+
+	@Override
+	public long countSamples(Integer typeId) {
+		if (typeId == null) {
+			return 0L;
+		}
+		try {
+			return sampletypeRepo.countSamples(typeId);
+		} catch (Exception ex) {
+			// En cas de doute on renvoie une valeur non nulle : la garde de
+			// suppression doit echouer en securite, pas laisser passer.
+			return Long.MAX_VALUE;
+		}
+	}
+
+	@Override
+	public List<Map<String, Object>> getActiveIdAndName() {
+		try {
+			return sampletypeRepo.findActiveIdAndName();
+		} catch (Exception ex) {
+			return Collections.emptyList();
+		}
 	}
 
 }

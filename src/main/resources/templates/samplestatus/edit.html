@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="fr" xmlns="http://www.w3.org/1999/xhtml"
+	xmlns:th="http://www.thymeleaf.org"
+	xmlns:sec="http://www.thymeleaf.org/thymeleaf-extras-springsecurity6">
+
+<head th:replace="~{fragments/header :: head}">
+<title>Modifier le libellé du statut</title>
+</head>
+
+<body class="sb-nav-fixed">
+
+<style>
+.form-wrap { max-width: 900px; margin: 0 auto; padding-bottom: 5rem; }
+.form-header {
+	display: flex; flex-wrap: wrap; gap: 1rem; align-items: center;
+	padding: 1rem 1.25rem; background: #fff;
+	border: 1px solid #e6e9f3; border-radius: 6px;
+	margin-bottom: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,.03);
+}
+.form-header h1 { font-size: 1.05rem; margin: 0; color: #1f2937; font-weight: 600; }
+.form-header h1 i { color: #4f46e5; margin-right: .35rem; }
+.form-header .meta { font-size: .75rem; color: #6b7280; margin-top: .15rem; }
+
+.section-card {
+	background: #fff; border: 1px solid #e6e9f3; border-radius: 6px;
+	margin-bottom: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,.03);
+}
+.section-card .section-header {
+	padding: .75rem 1.25rem; border-bottom: 1px solid #e6e9f3;
+	background: #f8fafc; border-radius: 6px 6px 0 0;
+}
+.section-card .section-header h2 { font-size: .95rem; margin: 0; color: #1f2937; font-weight: 600; }
+.section-card .section-header h2 i { color: #4f46e5; margin-right: .35rem; }
+.section-card .section-body { padding: 1.25rem; }
+
+.field { margin-bottom: .75rem; }
+.field label {
+	display: block; font-size: .72rem; text-transform: uppercase;
+	font-weight: 600; color: #6b7280; letter-spacing: .03em; margin-bottom: .25rem;
+}
+.field label .req { color: #dc2626; }
+
+.code-pill {
+	display: inline-block; font-family: monospace; font-size: .8rem;
+	font-weight: 600; background: #f1f5f9; color: #334155;
+	border: 1px solid #e2e8f0; border-radius: 4px; padding: .3rem .6rem;
+}
+
+.save-bar {
+	background: #f8fafc;
+	border-top: 1px solid #e6e9f3;
+	padding: .85rem 1.25rem;
+	margin-top: .5rem;
+	border-radius: 6px;
+	display: flex;
+	justify-content: flex-end;
+	gap: .5rem;
+}
+</style>
+
+	<div class="d-flex" id="wrapper">
+		<div id="page-content-wrapper">
+
+			<div th:insert="~{fragments/header :: header(content='Modifier le libellé du statut', module='samplestatus')}"></div>
+
+			<div class="container-fluid py-3 form-wrap">
+
+				<div class="form-header">
+					<div>
+						<h1><i class="fas fa-tasks"></i>Modifier le libellé du statut</h1>
+						<div class="meta">
+							ID : <strong th:text="${samplestatus?.id}">—</strong>
+						</div>
+					</div>
+					<div class="ms-auto">
+						<a th:href="@{/samplestatus}" class="btn btn-sm btn-outline-secondary">
+							<i class="fas fa-arrow-left me-1"></i> Retour à la liste
+						</a>
+					</div>
+				</div>
+
+				<div th:if="${message_error != null}" class="alert alert-danger" th:text="${message_error}"></div>
+				<div th:if="${message_success != null}" class="alert alert-success" th:text="${message_success}"></div>
+
+				<div class="alert alert-info d-flex align-items-start gap-2">
+					<i class="fas fa-info-circle mt-1"></i>
+					<div>
+						Le <strong>code technique</strong> du statut ne peut pas être modifié : il est utilisé par
+						le suivi des échantillons, les tableaux de bord, les rapports et l'application mobile.
+						Seul le <strong>libellé affiché</strong> aux utilisateurs est modifiable ici.
+					</div>
+				</div>
+
+				<form th:action="@{'/samplestatus/update/'+${samplestatus?.id}}" method="post" id="statusForm">
+
+					<div class="section-card">
+						<div class="section-header"><h2><i class="fas fa-tag"></i> Statut</h2></div>
+						<div class="section-body">
+							<div class="row">
+								<div class="col-md-6 field">
+									<label>Code technique (non modifiable)</label>
+									<div><span class="code-pill" th:text="${samplestatus?.status}">—</span></div>
+								</div>
+								<div class="col-md-6 field">
+									<label for="inputDescription">Libellé affiché <span class="req">*</span></label>
+									<input type="text" id="inputDescription" name="description"
+										th:value="${samplestatus?.description}"
+										class="form-control form-control-sm" maxlength="100" required/>
+								</div>
+							</div>
+						</div>
+					</div>
+
+				</form>
+
+				<div class="save-bar">
+					<a th:href="@{/samplestatus}" class="btn btn-outline-secondary">Annuler</a>
+					<button type="submit" form="statusForm" class="btn btn-primary">
+						<i class="fas fa-save"></i> Enregistrer les modifications
+					</button>
+				</div>
+
+			</div>
+		</div>
+	</div>
+	<footer class="py-4 bg-light mt-auto" th:insert="~{fragments/footer :: footer}"></footer>
+
+	<script th:src="@{/webjars/jquery/3.6.0/jquery.min.js}"></script>
+	<script th:src="@{/webjars/bootstrap/5.1.3/js/bootstrap.bundle.min.js}"></script>
+	<script th:src="@{/webjars/font-awesome/5.15.4/js/all.js}"></script>
+
+</body>
+</html>

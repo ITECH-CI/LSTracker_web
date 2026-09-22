@@ -4,6 +4,8 @@
 */
 package org.itech.labSampleTracker.service_impl;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -128,6 +130,34 @@ public class SampleRejectionTypeServiceImpl implements SampleRejectionTypeServic
 			e.printStackTrace();
 		}
 		return response;
+	}
+
+	@Override
+	public Page<Map<String, Object>> findForAdmin(Pageable pageable, String searchText) {
+		String search = (searchText == null || searchText.isBlank()) ? null : searchText.trim();
+		return samplerejectiontypeRepo.findForAdmin(pageable, search);
+	}
+
+	@Override
+	public long countRejections(Integer typeId) {
+		if (typeId == null) {
+			return 0L;
+		}
+		try {
+			return samplerejectiontypeRepo.countRejections(typeId);
+		} catch (Exception ex) {
+			// Echec en securite : on bloque la suppression en cas de doute.
+			return Long.MAX_VALUE;
+		}
+	}
+
+	@Override
+	public List<Map<String, Object>> getActiveIdAndLabel() {
+		try {
+			return samplerejectiontypeRepo.findActiveIdAndLabel();
+		} catch (Exception ex) {
+			return Collections.emptyList();
+		}
 	}
 
 }

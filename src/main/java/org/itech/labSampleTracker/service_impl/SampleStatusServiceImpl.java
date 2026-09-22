@@ -113,4 +113,25 @@ public class SampleStatusServiceImpl implements SampleStatusService {
 		return t;
 	}
 
+	@Override
+	public java.util.List<java.util.Map<String, Object>> findAllForAdmin() {
+		try {
+			return samplestatusRepo.findAllForAdmin();
+		} catch (Exception ex) {
+			return java.util.Collections.emptyList();
+		}
+	}
+
+	@Override
+	public SampleStatus updateDescription(int id, String description) {
+		SampleStatus entity = samplestatusRepo.findById(id).orElse(null);
+		if (entity == null) {
+			return null;
+		}
+		// Seul le libelle est modifiable : le code `status` est la machine
+		// d'etat referencee en dur cote web et cote mobile.
+		entity.setDescription(description);
+		return samplestatusRepo.saveAndFlush(entity);
+	}
+
 }

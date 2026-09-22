@@ -5,6 +5,8 @@
 package org.itech.labSampleTracker.service;
 
 import org.itech.labSampleTracker.entities.SampleType;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 import java.util.Map;
@@ -26,6 +28,21 @@ public interface SampleTypeService {
 	boolean delete(int id);
 
 	SampleType findByName(String name);
-	
+
 	List<Map<String, Object>> getSampleTypeIdAndName();
+
+	/**
+	 * Liste paginee pour l'administration, avec recherche plein texte.
+	 */
+	Page<Map<String, Object>> findForAdmin(Pageable pageable, String searchText);
+
+	/**
+	 * Nombre d'echantillons rattaches a ce type (garde de suppression).
+	 */
+	long countSamples(Integer typeId);
+
+	/**
+	 * Types actifs seulement, pour les listes deroulantes de saisie.
+	 */
+	List<Map<String, Object>> getActiveIdAndName();
 }

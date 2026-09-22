@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="fr" xmlns="http://www.w3.org/1999/xhtml"
+	xmlns:th="http://www.thymeleaf.org"
+	xmlns:sec="http://www.thymeleaf.org/thymeleaf-extras-springsecurity6">
+
+<head th:replace="~{fragments/header :: head}">
+<title>Nouveau type d'échantillon</title>
+</head>
+
+<body class="sb-nav-fixed">
+
+<style>
+.form-wrap {
+	max-width: 900px;
+	margin: 0 auto;
+	padding-bottom: 5rem;
+}
+.form-header {
+	display: flex; flex-wrap: wrap; gap: 1rem; align-items: center;
+	padding: 1rem 1.25rem; background: #fff;
+	border: 1px solid #e6e9f3; border-radius: 6px;
+	margin-bottom: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,.03);
+}
+.form-header h1 {
+	font-size: 1.05rem; margin: 0; color: #1f2937; font-weight: 600;
+}
+.form-header h1 i { color: #4f46e5; margin-right: .35rem; }
+
+.section-card {
+	background: #fff; border: 1px solid #e6e9f3; border-radius: 6px;
+	margin-bottom: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,.03);
+}
+.section-card .section-header {
+	padding: .75rem 1.25rem; border-bottom: 1px solid #e6e9f3;
+	background: #f8fafc; border-radius: 6px 6px 0 0;
+}
+.section-card .section-header h2 {
+	font-size: .95rem; margin: 0; color: #1f2937; font-weight: 600;
+}
+.section-card .section-header h2 i { color: #4f46e5; margin-right: .35rem; }
+.section-card .section-body { padding: 1.25rem; }
+
+.field { margin-bottom: .75rem; }
+.field label {
+	display: block; font-size: .72rem; text-transform: uppercase;
+	font-weight: 600; color: #6b7280; letter-spacing: .03em;
+	margin-bottom: .25rem;
+}
+.field label .req { color: #dc2626; }
+.field .form-check label {
+	text-transform: none; font-size: .85rem; color: #374151;
+	font-weight: 500; letter-spacing: 0; margin-bottom: 0;
+	display: inline-block;
+}
+.field .hint { font-size: .75rem; color: #6b7280; margin-top: .2rem; }
+
+.save-bar {
+	background: #f8fafc;
+	border-top: 1px solid #e6e9f3;
+	padding: .85rem 1.25rem;
+	margin-top: .5rem;
+	border-radius: 6px;
+	display: flex;
+	justify-content: flex-end;
+	gap: .5rem;
+}
+</style>
+
+	<div class="d-flex" id="wrapper">
+		<div id="page-content-wrapper">
+
+			<div th:insert="~{fragments/header :: header(content='Nouveau type d\'échantillon', module='sampletype')}"></div>
+
+			<div class="container-fluid py-3 form-wrap">
+
+				<div class="form-header">
+					<h1><i class="fas fa-vial"></i>Nouveau type d'échantillon</h1>
+					<div class="ms-auto">
+						<a th:href="@{/sampletype}" class="btn btn-sm btn-outline-secondary">
+							<i class="fas fa-arrow-left me-1"></i> Retour à la liste
+						</a>
+					</div>
+				</div>
+
+				<div th:if="${message_error != null}" class="alert alert-danger" th:text="${message_error}"></div>
+				<div th:if="${message_success != null}" class="alert alert-success" th:text="${message_success}"></div>
+
+				<form th:object="${sampletype}" th:action="@{/sampletype/new}" method="post" id="sampletypeForm">
+
+					<div class="section-card">
+						<div class="section-header">
+							<h2><i class="fas fa-vial"></i> Informations générales</h2>
+						</div>
+						<div class="section-body">
+							<div class="row">
+								<div class="col-md-12 field">
+									<label for="inputSampleTypeName">Nom du type <span class="req">*</span></label>
+									<input th:field="*{name}" type="text" id="inputSampleTypeName"
+										class="form-control form-control-sm" maxlength="50" required/>
+								</div>
+							</div>
+							<div class="row">
+								<div class="col-md-12 field">
+									<label for="inputSampleTypeDescription">Description</label>
+									<input th:field="*{description}" type="text" id="inputSampleTypeDescription"
+										class="form-control form-control-sm" maxlength="100"/>
+								</div>
+							</div>
+							<div class="row">
+								<div class="col-md-12 field">
+									<label>Statut</label>
+									<div class="form-check">
+										<input th:field="*{isActive}" type="checkbox" id="inputSampleTypeIsActive"
+											class="form-check-input"/>
+										<label class="form-check-label" for="inputSampleTypeIsActive">Actif</label>
+									</div>
+									<div class="hint">Un type inactif n'apparaît plus dans les listes de saisie.</div>
+								</div>
+							</div>
+						</div>
+					</div>
+
+				</form>
+
+				<div class="save-bar">
+					<a th:href="@{/sampletype}" class="btn btn-outline-secondary">Annuler</a>
+					<button type="submit" form="sampletypeForm" class="btn btn-primary">
+						<i class="fas fa-save"></i> Enregistrer
+					</button>
+				</div>
+
+			</div>
+		</div>
+	</div>
+	<footer class="py-4 bg-light mt-auto" th:insert="~{fragments/footer :: footer}"></footer>
+
+	<script th:src="@{/webjars/jquery/3.6.0/jquery.min.js}"></script>
+	<script th:src="@{/webjars/bootstrap/5.1.3/js/bootstrap.bundle.min.js}"></script>
+	<script th:src="@{/webjars/font-awesome/5.15.4/js/all.js}"></script>
+
+</body>
+</html>
