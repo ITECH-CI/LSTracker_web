@@ -455,7 +455,20 @@ public interface SampleRepository extends JpaRepository<Sample, Integer>, JpaSpe
 			+ "s.analysis_completed_date, s.analysis_released_date, "
 			+ "s.result_collection_date, s.result_delivery_date, "
 			+ "sr2.comment AS rejection_comment, "
-			+ "CAST(FLOOR(EXTRACT(EPOCH FROM (NOW() - s.collection_date)) / 86400) AS INT) AS tat_days, "
+			// TAT : se FIGE sur les statuts terminaux (la date de fin depend du
+			// statut), sinon court depuis la collecte. Sans cela le TAT d'un
+			// dossier clos continue d'augmenter indefiniment.
+			// Cas limite assume : un dossier terminal dont la date de fin n'a
+			// jamais ete saisie retombe sur LOCALTIMESTAMP et continue donc de
+			// courir. C'est voulu : le TAT anormal signale la donnee manquante
+			// plutot que de la masquer derriere une date technique.
+			+ "CAST(FLOOR(EXTRACT(EPOCH FROM (COALESCE("
+			+ "    CASE ss2.status "
+			+ "      WHEN 'RESULT_ON_SITE' THEN CAST(s.result_delivery_date AS TIMESTAMP) "
+			+ "      WHEN 'NON_CONFORM' THEN CAST(s.rejection_date AS TIMESTAMP) "
+			+ "      WHEN 'ANALYSIS_FAILED' THEN CAST(s.analysis_completed_date AS TIMESTAMP) "
+			+ "      ELSE NULL END, LOCALTIMESTAMP)"
+			+ "    - CAST(s.collection_date AS TIMESTAMP))) / 86400) AS INT) AS tat_days, "
 			+ "CAST(FLOOR(EXTRACT(EPOCH FROM (NOW() - GREATEST(s.collection_date, "
 			+ "    COALESCE(s.deliver_at_hub_date, s.collection_date), "
 			+ "    COALESCE(s.deliver_at_lab_date, s.collection_date), "
@@ -465,6 +478,9 @@ public interface SampleRepository extends JpaRepository<Sample, Integer>, JpaSpe
 			+ "    COALESCE(s.result_collection_date, s.collection_date), "
 			+ "    COALESCE(s.result_delivery_date, s.collection_date)"
 			+ "))) / 86400) AS INT) AS days_since_last_movement, "
+			// Les statuts terminaux sont traites par les deux premieres branches,
+			// donc les seuils 3/7 j ne concernent que les dossiers encore en
+			// cours : NOW() y est la bonne reference.
 			+ "CASE WHEN ss2.status IN ('RESULT_ON_SITE') THEN 'green' "
 			+ "     WHEN ss2.status IN ('NON_CONFORM','ANALYSIS_FAILED') THEN 'red' "
 			+ "     WHEN FLOOR(EXTRACT(EPOCH FROM (NOW() - s.collection_date)) / 86400) < 3 THEN 'green' "
