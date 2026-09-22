@@ -55,7 +55,7 @@
 	width: 34px;
 	height: 34px;
 	object-fit: contain;
-	border-radius: .35rem;
+	border-radius: 4px;
 }
 .ls-brand .brand-text { display: flex; flex-direction: column; line-height: 1.1; }
 .ls-brand .brand-title {
@@ -99,7 +99,7 @@
 	font-size: .88rem;
 	font-weight: 500;
 	color: #374151;
-	border-radius: .5rem;
+	border-radius: 6px;
 	text-decoration: none;
 	transition: background .15s, color .15s;
 	white-space: nowrap;
@@ -119,14 +119,14 @@
 /* Dropdowns */
 .ls-menu .dropdown-menu {
 	border: 1px solid #e6e9f3;
-	border-radius: .65rem;
+	border-radius: 6px;
 	box-shadow: 0 12px 28px rgba(0, 0, 0, .08);
 	padding: .35rem;
 	min-width: 240px;
 }
 .ls-menu .dropdown-menu .dropdown-item {
 	padding: .45rem .65rem;
-	border-radius: .35rem;
+	border-radius: 4px;
 	font-size: .85rem;
 	color: #374151;
 	display: flex;
@@ -156,14 +156,14 @@
 /* User dropdown (right of navbar) — same look as main menu dropdowns */
 .ls-user-menu {
 	border: 1px solid #e6e9f3;
-	border-radius: .65rem;
+	border-radius: 6px;
 	box-shadow: 0 12px 28px rgba(0, 0, 0, .08);
 	padding: .35rem;
 	min-width: 220px;
 }
 .ls-user-menu .dropdown-item {
 	padding: .45rem .65rem;
-	border-radius: .35rem;
+	border-radius: 4px;
 	font-size: .85rem;
 	color: #374151;
 	display: flex;
@@ -231,7 +231,7 @@
 	display: none;
 	background: none;
 	border: 1px solid #e6e9f3;
-	border-radius: .45rem;
+	border-radius: 6px;
 	width: 38px;
 	height: 38px;
 	color: #233B8B;
@@ -348,6 +348,11 @@
 					<li><a class="dropdown-item" th:href="@{/lab}"><i class="fas fa-flask"></i> Laboratoires</a></li>
 					<li><a class="dropdown-item" th:href="@{/circuit}"><i class="fas fa-route"></i> Circuits</a></li>
 					<li><hr class="dropdown-divider"/></li>
+					<li><h6 class="dropdown-header"><i class="fas fa-list-ul"></i> Référentiels</h6></li>
+					<li><a class="dropdown-item" th:href="@{/sampletype}"><i class="fas fa-vial"></i> Types d'échantillon</a></li>
+					<li><a class="dropdown-item" th:href="@{/samplestatus}"><i class="fas fa-tasks"></i> Statuts</a></li>
+					<li><a class="dropdown-item" th:href="@{/samplerejectiontype}"><i class="fas fa-ban"></i> Types de rejet</a></li>
+					<li><hr class="dropdown-divider"/></li>
 					<li><h6 class="dropdown-header"><i class="fas fa-plug"></i> Interopérabilité</h6></li>
 					<li><a class="dropdown-item" th:href="@{/sync-openelis}"><i class="fas fa-sync"></i> Suivi Synchro. OpenELIS</a></li>
 				</ul>
@@ -412,6 +417,8 @@
 	</div>
 </nav>
 
+<div th:replace="~{fragments/header :: pagetitle(${content}, ${module})}"></div>
+
 <!-- Mobile offcanvas -->
 <div class="offcanvas offcanvas-start" tabindex="-1" id="mobileMenu" aria-labelledby="mobileMenuLabel">
 	<div class="offcanvas-header">
@@ -474,6 +481,65 @@
 	</div>
 </div>
 
+</div>
+
+<!--
+	Banniere de page + fil d'Ariane.
+
+	Usage : on relaie les memes variables que le fragment `header`, en
+	reprenant les expressions ${content} / ${module} plutot que des litteraux.
+	  th:insert="~{fragments/header :: pagetitle(${content}, ${module})}"
+
+	Passer ${content} et non un libelle litteral est volontaire : un litteral
+	SpEL d'appel de fragment n'accepte pas l'apostrophe, frequente en
+	francais ("Types d'echantillon"), et fait echouer le rendu de la page.
+
+	`content` fournit le titre affiche ; `module` sert a deduire l'icone et
+	la presence de la rubrique "Administration" dans le fil d'Ariane.
+-->
+<div th:fragment="pagetitle(content, module)" class="ls-pagetitle">
+	<div class="ls-pagetitle-inner">
+		<nav aria-label="Fil d'Ariane" class="ls-breadcrumb">
+			<ol class="breadcrumb mb-0">
+				<li class="breadcrumb-item">
+					<a th:href="@{/}"><i class="fas fa-home"></i> Accueil</a>
+				</li>
+				<li class="breadcrumb-item"
+					th:if="${module != null and #strings.contains(
+						',user,setting,org,lab,circuit,site,region,district,sampletype,samplestatus,samplerejectiontype,approle,convoyeur,oedatarepo,',
+						',' + module + ',')}">
+					<span>Administration</span>
+				</li>
+				<li class="breadcrumb-item active" aria-current="page"
+					th:text="${content != null ? content : 'Page'}">Page</li>
+			</ol>
+		</nav>
+
+		<div class="ls-pagetitle-head">
+			<span class="ls-pagetitle-icon">
+				<i class="fas"
+					th:classappend="${module == 'home'} ? 'fa-chart-pie'
+						: (${module == 'sample'} ? 'fa-vials'
+						: (${module == 'report'} ? 'fa-file-pdf'
+						: (${module == 'region'} ? 'fa-globe-africa'
+						: (${module == 'district'} ? 'fa-map'
+						: (${module == 'site'} ? 'fa-clinic-medical'
+						: (${module == 'lab'} ? 'fa-flask'
+						: (${module == 'circuit'} ? 'fa-route'
+						: (${module == 'convoyeur'} ? 'fa-motorcycle'
+						: (${module == 'sampletype'} ? 'fa-vial'
+						: (${module == 'samplestatus'} ? 'fa-tasks'
+						: (${module == 'samplerejectiontype'} ? 'fa-ban'
+						: (${module == 'oedatarepo'} ? 'fa-sync'
+						: (${module == 'user'} ? 'fa-users'
+						: (${module == 'setting'} ? 'fa-cog' : 'fa-folder-open'))))))))))))))">
+				</i>
+			</span>
+			<div class="ls-pagetitle-text">
+				<h1 th:text="${content != null ? content : 'LSTracker'}">Titre de la page</h1>
+			</div>
+		</div>
+	</div>
 </div>
 
 <!-- Scripts -->

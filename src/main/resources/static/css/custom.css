@@ -223,3 +223,169 @@ footer a:hover {
 .form-select+.select2 .select2-selection--single {
 	border: 1px solid #ced4da !important;
 }
+
+/* ==================================================================
+   Rayons de bordure — valeur unique pour toute l'application.
+   Les feuilles Bootstrap/DataTables et les <style> inline des pages
+   utilisaient des valeurs disparates (.25 / .35 / .45 / .5 / .65 /
+   .75rem). On les ramene a 6px, sauf pour les elements volontairement
+   circulaires (avatars, pastilles) qui gardent leur 999px.
+   ================================================================== */
+:root {
+	--ls-radius: 6px;
+	--ls-radius-sm: 4px;
+	--ls-border: #e6e9f3;
+	--ls-ink: #1f2937;
+	--ls-ink-soft: #6b7280;
+	--ls-primary: #233B8B;
+	--ls-primary-alt: #4f46e5;
+}
+
+.card,
+.modal-content,
+.alert,
+.dropdown-menu,
+.form-control,
+.form-select,
+.input-group-text,
+.btn,
+.nav-pills .nav-link,
+.list-group-item,
+.toast,
+.ls-navbar .dropdown-menu,
+.ls-user-menu,
+.section-card,
+.admin-sidebar,
+.admin-toolbar,
+.form-header,
+.save-bar,
+.ls-burger,
+table.dataTable tbody td,
+.dataTables_wrapper .dataTables_paginate .paginate_button {
+	border-radius: var(--ls-radius) !important;
+}
+
+.badge,
+.count-pill,
+.code-pill,
+.row-actions .btn-action,
+.form-control-sm,
+.form-select-sm,
+.btn-sm {
+	border-radius: var(--ls-radius-sm) !important;
+}
+
+/* Elements volontairement circulaires : on les preserve. */
+.ls-user,
+.ls-brand .brand-version,
+.rounded-pill,
+.rounded-circle,
+.ls-user .avatar {
+	border-radius: 999px !important;
+}
+
+/* ==================================================================
+   Banniere de page + fil d'Ariane
+   (fragment ~{fragments/header :: pagetitle})
+   ================================================================== */
+.ls-pagetitle {
+	position: relative;
+	background: linear-gradient(135deg, #fbfcff 0%, #f4f6fd 100%);
+	border: 1px solid var(--ls-border);
+	border-radius: var(--ls-radius);
+	margin-bottom: 1.25rem;
+	overflow: hidden;
+	box-shadow: 0 1px 2px rgba(16, 24, 40, .04);
+}
+
+/* Filet colore a gauche : rappelle la charte sans alourdir. */
+.ls-pagetitle::before {
+	content: '';
+	position: absolute;
+	left: 0;
+	top: 0;
+	bottom: 0;
+	width: 4px;
+	background: linear-gradient(180deg, var(--ls-primary) 0%, var(--ls-primary-alt) 100%);
+}
+
+.ls-pagetitle-inner {
+	padding: 1rem 1.5rem 1.15rem;
+}
+
+.ls-pagetitle .ls-breadcrumb .breadcrumb {
+	font-size: .75rem;
+	background: transparent;
+	padding: 0;
+	margin-bottom: .5rem;
+}
+
+.ls-pagetitle .ls-breadcrumb a {
+	color: var(--ls-ink-soft);
+	text-decoration: none;
+	transition: color .15s;
+}
+
+.ls-pagetitle .ls-breadcrumb a:hover {
+	color: var(--ls-primary-alt);
+	text-decoration: underline;
+}
+
+.ls-pagetitle .ls-breadcrumb .breadcrumb-item + .breadcrumb-item::before {
+	color: #cbd5e1;
+}
+
+.ls-pagetitle .ls-breadcrumb .breadcrumb-item.active {
+	color: #374151;
+	font-weight: 600;
+}
+
+.ls-pagetitle .ls-breadcrumb i { margin-right: .25rem; }
+
+.ls-pagetitle-head {
+	display: flex;
+	align-items: center;
+	gap: .85rem;
+}
+
+/* Pastille d'icone : donne du relief a un bandeau sinon tres plat. */
+.ls-pagetitle-icon {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 42px;
+	height: 42px;
+	flex-shrink: 0;
+	border-radius: var(--ls-radius);
+	background: linear-gradient(135deg, var(--ls-primary) 0%, var(--ls-primary-alt) 100%);
+	color: #fff;
+	font-size: 1.05rem;
+	box-shadow: 0 3px 8px rgba(35, 59, 139, .22);
+}
+
+.ls-pagetitle-icon i { color: #fff; }
+
+.ls-pagetitle-text h1 {
+	font-size: 1.2rem;
+	font-weight: 650;
+	color: var(--ls-ink);
+	margin: 0;
+	letter-spacing: -.01em;
+}
+
+@media (max-width: 576px) {
+	.ls-pagetitle-inner { padding: .75rem 1rem .9rem; }
+	.ls-pagetitle-icon { width: 36px; height: 36px; font-size: .95rem; }
+	.ls-pagetitle-text h1 { font-size: 1.05rem; }
+}
+
+/* ==================================================================
+   Tables d'administration : eviter l'etirement des colonnes sur les
+   grands ecrans (colonnes de comptage et d'actions calees a droite,
+   colonnes de libelle qui absorbent l'espace restant).
+   ================================================================== */
+.card-body > .dataTables_wrapper table.dataTable {
+	table-layout: auto;
+}
+
+table.dataTable td .count-pill { display: inline-block; }
