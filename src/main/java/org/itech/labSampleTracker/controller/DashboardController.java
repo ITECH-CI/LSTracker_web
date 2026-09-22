@@ -346,7 +346,7 @@ public class DashboardController {
 	@GetMapping(value = "/data/by-district", produces = "application/json")
 	@ResponseBody
 	public List<Map<String, Object>> statsByDistrict(
-			@RequestParam("region") Integer regionId,
+			@RequestParam(name = "region", required = false) Integer regionId,
 			@RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate startDate,
 			@RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate endDate,
 			@RequestParam(name = "lab", required = false) Integer labId) {
@@ -360,7 +360,7 @@ public class DashboardController {
 	@GetMapping(value = "/data/by-site", produces = "application/json")
 	@ResponseBody
 	public List<Map<String, Object>> statsBySite(
-			@RequestParam("district") Integer districtId,
+			@RequestParam(name = "district", required = false) Integer districtId,
 			@RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate startDate,
 			@RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate endDate,
 			@RequestParam(name = "lab", required = false) Integer labId) {

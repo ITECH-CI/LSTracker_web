@@ -150,8 +150,10 @@
 	border-radius: 50%;
 	background: #d1d5db;
 	color: #1f2937;
-	font-size: .6rem;
+	font-size: .65rem;
 	font-weight: 700;
+	font-style: italic;
+	font-family: Georgia, "Times New Roman", serif;
 	cursor: help;
 	margin-left: .25rem;
 }
@@ -308,6 +310,30 @@
 .kpi-card.accent-gray   .kpi-icon { background: #f1f5f9; color: #334155; }
 
 /* ===== Coverage section ===== */
+.drill-parent {
+	font-size: .7rem;
+	color: #9ca3af;
+	margin-left: .4rem;
+}
+.drill-level .btn { font-size: .72rem; padding: .18rem .5rem; }
+.drill-level .btn i { font-size: .68rem; margin-right: .2rem; }
+
+.cov-note {
+	font-size: .68rem;
+	color: #9ca3af;
+	margin-top: .15rem;
+	font-style: italic;
+}
+.cov-warn {
+	font-size: .68rem;
+	color: #b45309;
+	margin-top: .2rem;
+	display: flex;
+	align-items: center;
+	gap: .25rem;
+}
+.cov-warn i { font-size: .62rem; }
+
 .coverage-grid {
 	display: grid;
 	grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -610,49 +636,49 @@
 					<i class="fas fa-info-circle"></i>
 					<div>
 						<strong>Activité par étape sur la période.</strong>
-						Chaque carte compte les échantillons dont l'étape correspondante a eu lieu dans la période — ce ne sont donc pas les mêmes cohortes. La carte <em>En transit</em> (fond bleuté) est un <strong>snapshot temps réel</strong>, non lié à la période. Survolez <span class="help-tip" data-tip="Exemple de tooltip : passe le curseur sur les ? pour voir la définition exacte de chaque chiffre.">?</span> pour la définition exacte.
+						Chaque carte compte les échantillons dont l'étape correspondante a eu lieu dans la période — ce ne sont donc pas les mêmes cohortes. La carte <em>En transit</em> (fond bleuté) est un <strong>snapshot temps réel</strong>, non lié à la période. Survolez <span class="help-tip" data-tip="Exemple d'info-bulle : passez le curseur sur les i pour voir la définition exacte de chaque chiffre.">i</span> pour la définition exacte.
 					</div>
 				</div>
 				<div class="kpi-grid">
 					<div class="kpi-card accent-blue">
 						<div class="kpi-icon"><i class="fas fa-vials"></i></div>
-						<span class="label">Total collectés<span class="help-tip" data-tip="Échantillons collectés (collection_date) dans la période.">?</span></span>
+						<span class="label">Total collectés<span class="help-tip" data-tip="Échantillons collectés (collection_date) dans la période.">i</span></span>
 						<span class="value" data-kpi="total">0</span>
 						<span class="trend" data-trend="total"></span>
 					</div>
 					<div class="kpi-card accent-cyan kpi-card-snapshot">
 						<div class="kpi-icon"><i class="fas fa-motorcycle"></i></div>
-						<span class="label">En transit<span class="help-tip" data-tip="Échantillons dont le statut courant est ON_TRANSIT. Snapshot global temps réel, NON lié à la période sélectionnée — c'est pourquoi ce chiffre ne se compare pas directement aux autres cartes.">?</span></span>
+						<span class="label">En transit<span class="help-tip" data-tip="Échantillons dont le statut courant est ON_TRANSIT. Snapshot global temps réel, NON lié à la période sélectionnée — c'est pourquoi ce chiffre ne se compare pas directement aux autres cartes.">i</span></span>
 						<span class="value" data-kpi="in_transit">0</span>
 						<span class="trend" data-trend="in_transit"></span>
 					</div>
 					<div class="kpi-card accent-orange">
 						<div class="kpi-icon"><i class="fas fa-warehouse"></i></div>
-						<span class="label">Au hub<span class="help-tip" data-tip="Déposés à un hub-relais (deliver_at_hub_date) dans la période.">?</span></span>
+						<span class="label">Déposés labo relais<span class="help-tip" data-tip="Échantillons déposés dans un laboratoire relais (hub) pendant la période — date de dépôt au relais. N'inclut pas ceux directement déposés au laboratoire de référence.">i</span></span>
 						<span class="value" data-kpi="at_hub">0</span>
 						<span class="trend" data-trend="at_hub"></span>
 					</div>
 					<div class="kpi-card accent-purple">
 						<div class="kpi-icon"><i class="fas fa-flask"></i></div>
-						<span class="label">Au labo<span class="help-tip" data-tip="Déposés au laboratoire final (deliver_at_lab_date) dans la période. N'inclut pas ceux encore au hub.">?</span></span>
+						<span class="label">Déposés labo référence<span class="help-tip" data-tip="Échantillons déposés au laboratoire de référence (laboratoire d'analyse final) pendant la période — date de dépôt au laboratoire. N'inclut pas ceux encore en attente dans un laboratoire relais.">i</span></span>
 						<span class="value" data-kpi="at_lab">0</span>
 						<span class="trend" data-trend="at_lab"></span>
 					</div>
 					<div class="kpi-card accent-indigo">
 						<div class="kpi-icon"><i class="fas fa-microscope"></i></div>
-						<span class="label">Analysés<span class="help-tip" data-tip="Résultats rendus disponibles (analysis_released_date) dans la période.">?</span></span>
+						<span class="label">Analysés<span class="help-tip" data-tip="Résultats rendus disponibles (analysis_released_date) dans la période.">i</span></span>
 						<span class="value" data-kpi="analysed">0</span>
 						<span class="trend" data-trend="analysed"></span>
 					</div>
 					<div class="kpi-card accent-pink">
 						<div class="kpi-icon"><i class="fas fa-clipboard-check"></i></div>
-						<span class="label">Résultats collectés<span class="help-tip" data-tip="Résultats récupérés au labo par un convoyeur (result_collection_date) dans la période.">?</span></span>
+						<span class="label">Résultats collectés<span class="help-tip" data-tip="Résultats récupérés au labo par un convoyeur (result_collection_date) dans la période.">i</span></span>
 						<span class="value" data-kpi="result_collected">0</span>
 						<span class="trend" data-trend="result_collected"></span>
 					</div>
 					<div class="kpi-card accent-green">
 						<div class="kpi-icon"><i class="fas fa-check-circle"></i></div>
-						<span class="label">Résultats livrés<span class="help-tip" data-tip="Résultats livrés sur le site de collecte (result_delivery_date) dans la période.">?</span></span>
+						<span class="label">Résultats livrés<span class="help-tip" data-tip="Résultats livrés sur le site de collecte (result_delivery_date) dans la période.">i</span></span>
 						<span class="value" data-kpi="delivered">0</span>
 						<span class="trend" data-trend="delivered"></span>
 					</div>
@@ -661,19 +687,19 @@
 				<div class="kpi-grid kpi-grid-secondary">
 					<div class="kpi-card accent-red">
 						<div class="kpi-icon"><i class="fas fa-ban"></i></div>
-						<span class="label">Non-conformités<span class="help-tip" data-tip="Échantillons rejetés au labo pour non-conformité (rejection_date) dans la période. Statut NON_CONFORM.">?</span></span>
+						<span class="label">Non-conformités<span class="help-tip" data-tip="Échantillons rejetés au labo pour non-conformité (rejection_date) dans la période. Statut NON_CONFORM.">i</span></span>
 						<span class="value" data-kpi="non_conform">0</span>
 						<span class="trend" data-trend="non_conform"></span>
 					</div>
 					<div class="kpi-card accent-orange">
 						<div class="kpi-icon"><i class="fas fa-exclamation-triangle"></i></div>
-						<span class="label">Échecs d'analyse<span class="help-tip" data-tip="Analyses techniquement échouées (analysis_completed_date) dans la période. Statut ANALYSIS_FAILED.">?</span></span>
+						<span class="label">Échecs d'analyse<span class="help-tip" data-tip="Analyses techniquement échouées (analysis_completed_date) dans la période. Statut ANALYSIS_FAILED.">i</span></span>
 						<span class="value" data-kpi="failed">0</span>
 						<span class="trend" data-trend="failed"></span>
 					</div>
 					<div class="kpi-card accent-gray">
 						<div class="kpi-icon"><i class="fas fa-stopwatch"></i></div>
-						<span class="label">TAT moyen<span class="help-tip" data-tip="Médiane (result_delivery_date − collection_date) en jours, sur les échantillons collectés dans la période ET dont le résultat a été livré.">?</span></span>
+						<span class="label">TAT moyen<span class="help-tip" data-tip="Médiane (result_delivery_date − collection_date) en jours, sur les échantillons collectés dans la période ET dont le résultat a été livré.">i</span></span>
 						<span class="value"><span data-kpi="tat_avg_days">0</span><small> j</small></span>
 						<span class="trend" data-trend="tat_avg_days"></span>
 					</div>
@@ -717,8 +743,15 @@
 								<div class="val"><span data-cov="total_distance_km">0</span><span class="sub"> km</span></div>
 							</div>
 							<div class="coverage-card">
-								<div class="lbl"><i class="fas fa-tachometer-alt text-secondary"></i> Km moyen / éch.</div>
+								<div class="lbl"><i class="fas fa-tachometer-alt text-secondary"></i> Km moyen / éch.<span
+									class="help-tip"
+									data-tip="Distance totale parcourue ÷ nombre total d'échantillons collectés sur la période (y compris ceux dont le kilométrage n'a pas été saisi).">i</span></div>
 								<div class="val"><span data-cov="avg_distance_per_sample_km">0</span><span class="sub"> km</span></div>
+								<div class="cov-note">Distance totale ÷ total collectés</div>
+								<div class="cov-warn" data-cov-warn="mileage" style="display:none;">
+									<i class="fas fa-exclamation-triangle"></i>
+									<span data-cov="samples_without_mileage">0</span> éch. sans kilométrage saisi
+								</div>
 							</div>
 							<div class="coverage-card" style="grid-column: span 2;">
 								<div class="lbl"><i class="fas fa-vial text-indigo"></i> Répartition par type d'échantillon</div>
@@ -765,20 +798,32 @@
 				<!-- ============ DRILL-DOWN ============ -->
 				<div class="section">
 					<div class="section-header">
-						<h3><i class="fas fa-sitemap"></i> Répartition par zone géographique</h3>
-						<div class="d-flex align-items-center gap-3">
+						<h3><i class="fas fa-sitemap"></i> Répartition par région sanitaire</h3>
+						<div class="d-flex align-items-center gap-3 flex-wrap">
+							<div class="btn-group btn-group-sm drill-level" role="group" aria-label="Niveau géographique">
+								<button type="button" class="btn btn-outline-secondary active" data-level="region">
+									<i class="fas fa-globe-africa"></i> Régions
+								</button>
+								<button type="button" class="btn btn-outline-secondary" data-level="district">
+									<i class="fas fa-map"></i> Districts
+								</button>
+								<button type="button" class="btn btn-outline-secondary" data-level="site">
+									<i class="fas fa-clinic-medical"></i> Sites
+								</button>
+							</div>
 							<div class="form-check form-switch m-0">
 								<input class="form-check-input" type="checkbox" id="showEmptyZones"/>
-								<label class="form-check-label text-muted-sm" for="showEmptyZones">Afficher zones sans données</label>
+								<label class="form-check-label text-muted-sm" for="showEmptyZones">Afficher les zones sans données</label>
 							</div>
-							<span class="text-muted-sm">Cliquez sur ▶ pour développer</span>
+							<span class="text-muted-sm" data-drill-hint>Cliquez sur ▶ pour développer</span>
 						</div>
 					</div>
 					<div class="section-body" style="padding: 0;">
 						<table class="drill-table" id="drillTable">
 							<thead>
 								<tr>
-									<th>Zone</th>
+									<th class="num" style="width:70px;">ID</th>
+									<th>Région / District / Site</th>
 									<th class="num">Total</th>
 									<th class="num">En transit</th>
 									<th class="num">Livrés</th>
@@ -787,7 +832,7 @@
 								</tr>
 							</thead>
 							<tbody id="drillTableBody">
-								<tr><td colspan="6" class="empty-state">Chargement...</td></tr>
+								<tr><td colspan="7" class="empty-state">Chargement...</td></tr>
 							</tbody>
 						</table>
 					</div>
@@ -1101,9 +1146,13 @@
 		$.get('dashboard/data/coverage', f, function(c) {
 			['active_sites','total_sites','active_districts','total_districts',
 			 'active_regions','total_regions','active_conveyors','active_labs','total_labs',
-			 'total_distance_km','avg_distance_per_sample_km'].forEach(function(k) {
+			 'total_distance_km','avg_distance_per_sample_km',
+			 'samples_without_mileage'].forEach(function(k) {
 				$('[data-cov="' + k + '"]').text(formatNumber(c[k]));
 			});
+			// Part de saisie manquante : on ne montre l'avertissement que s'il
+			// y a effectivement des echantillons sans kilometrage.
+			$('[data-cov-warn="mileage"]').toggle(num(c.samples_without_mileage) > 0);
 			setBar('sites', c.active_sites, c.total_sites);
 			setBar('districts', c.active_districts, c.total_districts);
 			setBar('regions', c.active_regions, c.total_regions);
@@ -1230,9 +1279,16 @@
 		});
 	}
 
+	// Niveau courant du tableau de repartition : 'region' (defaut, avec
+	// cascade depliable), 'district' ou 'site' (vue a plat, sans cascade).
+	window._drillLevel = 'region';
+
 	function loadDrillRegions() {
 		const f = currentFilters();
-		$.get('dashboard/data/by-region', { startDate: f.startDate, endDate: f.endDate, lab: f.lab }, function(rows) {
+		const level = window._drillLevel || 'region';
+		const url = level === 'region' ? 'dashboard/data/by-region'
+			: (level === 'district' ? 'dashboard/data/by-district' : 'dashboard/data/by-site');
+		$.get(url, { startDate: f.startDate, endDate: f.endDate, lab: f.lab }, function(rows) {
 			window._drillRegions = rows || [];
 			renderDrillRegions();
 		});
@@ -1246,9 +1302,9 @@
 		const $body = $('#drillTableBody').empty();
 		if (!rows.length) {
 			if (totalRowsRaw === 0) {
-				$body.append('<tr><td colspan="6" class="empty-state">Aucune donnée pour la période sélectionnée.</td></tr>');
+				$body.append('<tr><td colspan="7" class="empty-state">Aucune donnée pour la période sélectionnée.</td></tr>');
 			} else {
-				$body.append('<tr><td colspan="6" class="empty-state">Aucune zone avec activité sur la période. '
+				$body.append('<tr><td colspan="7" class="empty-state">Aucune zone avec activité sur la période. '
 					+ '<a href="#" id="lnkShowEmpty">Afficher toutes les zones</a></td></tr>');
 				$('#lnkShowEmpty').on('click', function(e) {
 					e.preventDefault();
@@ -1257,19 +1313,36 @@
 			}
 			return;
 		}
-		rows.forEach(function(r) { $body.append(renderDrillRow('region', r, 0)); });
+		const lvl = window._drillLevel || 'region';
+		rows.forEach(function(r) { $body.append(renderDrillRow(lvl, r, 0)); });
 	}
 
 	function renderDrillRow(level, r, indent) {
-		const id = (r.region_id || r.district_id || r.site_id);
-		const name = r.region || r.district || r.site;
+		// Les vues a plat renvoient aussi les libelles parents (region du
+		// district, region+district du site) : on resout donc par NIVEAU et
+		// non par premier champ non vide, sinon un district afficherait le
+		// nom de sa region.
+		const id = level === 'region' ? r.region_id
+			: (level === 'district' ? r.district_id : r.site_id);
+		const name = level === 'region' ? r.region
+			: (level === 'district' ? r.district : r.site);
+		// Contexte parent, affiche en gris a cote du nom en vue a plat.
+		const parent = level === 'district' ? r.region
+			: (level === 'site' ? [r.region, r.district].filter(Boolean).join(' › ') : null);
 		const cls = 'drill-' + level;
-		const expander = level === 'site'
+		// La cascade n'existe qu'en vue "Régions" : les vues à plat
+		// (Districts / Sites) listent deja tout le niveau demande.
+		const flat = (window._drillLevel || 'region') !== 'region';
+		const expander = (level === 'site' || flat)
 			? '<span class="expander placeholder">·</span>'
 			: '<span class="expander" data-toggle="' + level + '" data-id="' + id + '" onclick="toggleDrill(this)">▶</span>';
 		const indentCls = indent === 1 ? 'indent-1' : (indent === 2 ? 'indent-2' : '');
 		return '<tr class="' + cls + '" data-row-id="' + level + '-' + id + '">'
-			+ '<td><span class="' + indentCls + '">' + expander + ' ' + escapeHtml(name || '—') + '</span></td>'
+			+ '<td class="num drill-id">' + (id != null ? id : '—') + '</td>'
+			+ '<td><span class="' + indentCls + '">' + expander + ' ' + escapeHtml(name || '—')
+			+   (parent && (window._drillLevel || 'region') !== 'region'
+					? ' <span class="drill-parent">' + escapeHtml(parent) + '</span>' : '')
+			+ '</span></td>'
 			+ '<td class="num">' + formatNumber(r.total) + '</td>'
 			+ '<td class="num">' + formatNumber(r.in_transit) + '</td>'
 			+ '<td class="num">' + formatNumber(r.delivered) + '</td>'
@@ -1277,6 +1350,19 @@
 			+ '<td class="num">' + renderTat(r.tat_avg_days, r.total) + '</td>'
 			+ '</tr>';
 	}
+
+	// Selecteur de niveau : bascule entre Regions (cascade) et les vues a
+	// plat Districts / Sites.
+	$(document).on('click', '.drill-level button', function() {
+		const lvl = $(this).data('level');
+		if (lvl === window._drillLevel) return;
+		window._drillLevel = lvl;
+		$('.drill-level button').removeClass('active');
+		$(this).addClass('active');
+		$('[data-drill-hint]').toggle(lvl === 'region');
+		$('#drillTableBody').html('<tr><td colspan="7" class="empty-state">Chargement...</td></tr>');
+		loadDrillRegions();
+	});
 
 	function renderTat(days, total) {
 		if (!total || num(total) === 0) return '<span class="tat-pill tat-na">—</span>';
@@ -1312,7 +1398,7 @@
 			if (!filtered.length) {
 				const msg = totalRowsRaw === 0 ? 'Aucun élément'
 					: 'Aucun élément avec activité (' + totalRowsRaw + ' masqué' + (totalRowsRaw > 1 ? 's' : '') + ')';
-				const $empty = $('<tr><td colspan="6" class="text-muted-sm" style="padding:.4rem 1rem;"></td></tr>')
+				const $empty = $('<tr><td colspan="7" class="text-muted-sm" style="padding:.4rem 1rem;"></td></tr>')
 					.attr('data-parent', rowMarker);
 				$empty.find('td').text(msg);
 				$parent.after($empty);

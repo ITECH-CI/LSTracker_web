@@ -181,11 +181,15 @@ public class DashboardAdvancedRepository {
 	}
 
 	/**
-	 * Aggregated stats grouped by district within a region.
+	 * Aggregated stats grouped by district.
+	 *
+	 * <p>{@code regionId} null = tous les districts, toutes régions confondues
+	 * (vue à plat du sélecteur de niveau) ; renseigné = districts de cette
+	 * région seulement (cascade du tableau).</p>
 	 */
 	public List<Map<String, Object>> statsByDistrict(Integer regionId, LocalDate startDate, LocalDate endDate,
 			Integer labId, List<Integer> accessibleSiteIds) {
-		final String sql = "SELECT d.id AS district_id, d.name AS district, "
+		final String sql = "SELECT d.id AS district_id, d.name AS district, r.name AS region, "
 				+ "  COUNT(s.id) AS total, "
 				+ "  SUM(CASE WHEN ss.status = 'ON_TRANSIT' THEN 1 ELSE 0 END) AS in_transit, "
 				+ "  SUM(CASE WHEN ss.status = 'RESULT_ON_SITE' THEN 1 ELSE 0 END) AS delivered, "
@@ -195,6 +199,7 @@ public class DashboardAdvancedRepository {
 				+ "    EXTRACT(EPOCH FROM (s.result_delivery_date - s.collection_date)) / 86400.0 "
 				+ "  ), 0)::numeric(10,1) AS tat_avg_days "
 				+ "FROM district d "
+				+ "JOIN region r ON r.id = d.region_id "
 				+ "LEFT JOIN site st ON st.district_id = d.id "
 				+ "LEFT JOIN sample_retrieving sr ON sr.site_id = st.id "
 				+ "LEFT JOIN sample s ON s.sample_retrieving_id = sr.id AND ("
@@ -202,9 +207,9 @@ public class DashboardAdvancedRepository {
 				+ "AND (CAST(:endDate AS DATE) IS NULL OR CAST(s.collection_date AS DATE) <= CAST(:endDate AS DATE)) "
 				+ "AND (CAST(:labId AS INT) IS NULL OR s.destination_lab_id = CAST(:labId AS INT))) "
 				+ "LEFT JOIN sample_status ss ON ss.id = s.sample_status_id "
-				+ "WHERE d.region_id = :regionId "
+				+ "WHERE (CAST(:regionId AS INT) IS NULL OR d.region_id = CAST(:regionId AS INT)) "
 				+ "AND (:accessibleSiteIdsActive = FALSE OR st.id IS NULL OR st.id IN (:accessibleSiteIds)) "
-				+ "GROUP BY d.id, d.name ORDER BY d.name";
+				+ "GROUP BY d.id, d.name, r.name ORDER BY r.name, d.name";
 		MapSqlParameterSource p = new MapSqlParameterSource()
 				.addValue("regionId", regionId)
 				.addValue("startDate", startDate).addValue("endDate", endDate)
@@ -216,11 +221,15 @@ public class DashboardAdvancedRepository {
 	}
 
 	/**
-	 * Aggregated stats grouped by site within a district.
+	 * Aggregated stats grouped by site.
+	 *
+	 * <p>{@code districtId} null = tous les sites, tous districts confondus
+	 * (vue à plat du sélecteur de niveau) ; renseigné = sites de ce district
+	 * seulement (cascade du tableau).</p>
 	 */
 	public List<Map<String, Object>> statsBySite(Integer districtId, LocalDate startDate, LocalDate endDate,
 			Integer labId, List<Integer> accessibleSiteIds) {
-		final String sql = "SELECT st.id AS site_id, st.name AS site, "
+		final String sql = "SELECT st.id AS site_id, st.name AS site, d.name AS district, r.name AS region, "
 				+ "  COUNT(s.id) AS total, "
 				+ "  SUM(CASE WHEN ss.status = 'ON_TRANSIT' THEN 1 ELSE 0 END) AS in_transit, "
 				+ "  SUM(CASE WHEN ss.status = 'RESULT_ON_SITE' THEN 1 ELSE 0 END) AS delivered, "
@@ -230,15 +239,17 @@ public class DashboardAdvancedRepository {
 				+ "    EXTRACT(EPOCH FROM (s.result_delivery_date - s.collection_date)) / 86400.0 "
 				+ "  ), 0)::numeric(10,1) AS tat_avg_days "
 				+ "FROM site st "
+				+ "JOIN district d ON d.id = st.district_id "
+				+ "JOIN region r ON r.id = d.region_id "
 				+ "LEFT JOIN sample_retrieving sr ON sr.site_id = st.id "
 				+ "LEFT JOIN sample s ON s.sample_retrieving_id = sr.id AND ("
 				+ "    (CAST(:startDate AS DATE) IS NULL OR CAST(s.collection_date AS DATE) >= CAST(:startDate AS DATE)) "
 				+ "AND (CAST(:endDate AS DATE) IS NULL OR CAST(s.collection_date AS DATE) <= CAST(:endDate AS DATE)) "
 				+ "AND (CAST(:labId AS INT) IS NULL OR s.destination_lab_id = CAST(:labId AS INT))) "
 				+ "LEFT JOIN sample_status ss ON ss.id = s.sample_status_id "
-				+ "WHERE st.district_id = :districtId "
+				+ "WHERE (CAST(:districtId AS INT) IS NULL OR st.district_id = CAST(:districtId AS INT)) "
 				+ "AND (:accessibleSiteIdsActive = FALSE OR st.id IN (:accessibleSiteIds)) "
-				+ "GROUP BY st.id, st.name ORDER BY st.name";
+				+ "GROUP BY st.id, st.name, d.name, r.name ORDER BY r.name, d.name, st.name";
 		MapSqlParameterSource p = new MapSqlParameterSource()
 				.addValue("districtId", districtId)
 				.addValue("startDate", startDate).addValue("endDate", endDate)
@@ -390,11 +401,26 @@ public class DashboardAdvancedRepository {
 				+ "  COALESCE((SELECT SUM(GREATEST(collection_end_mileage - collection_start_mileage, 0)) FROM scope_samples), 0) "
 				+ "    + COALESCE((SELECT SUM(GREATEST(result_end_mileage - result_start_mileage, 0)) FROM scope_samples), 0) "
 				+ "    AS total_distance_km, "
-				+ "  (SELECT COUNT(*) FROM scope_samples) AS total_samples";
+				+ "  (SELECT COUNT(*) FROM scope_samples) AS total_samples, "
+				// Echantillons pour lesquels AUCUN kilometrage n'a ete saisi (ni
+				// sur le trajet de collecte, ni sur celui de restitution). Ils
+				// entrent au denominateur du km moyen sans rien apporter au
+				// numerateur : on les expose pour que la dilution soit visible
+				// plutot que silencieuse.
+				+ "  (SELECT COUNT(*) FROM scope_samples "
+				+ "     WHERE GREATEST(COALESCE(collection_end_mileage, 0) - COALESCE(collection_start_mileage, 0), 0) = 0 "
+				+ "       AND GREATEST(COALESCE(result_end_mileage, 0) - COALESCE(result_start_mileage, 0), 0) = 0"
+				+ "  ) AS samples_without_mileage";
 		Map<String, Object> base = jdbc.queryForMap(sql,
 				params(startDate, endDate, regionId, districtId, siteId, labId, accessibleSiteIds));
 
-		// Derived: km moyen par échantillon
+		// Derived: km moyen par échantillon.
+		// Le dénominateur reste le TOTAL des échantillons du périmètre (et non
+		// les seuls échantillons ayant un trajet saisi) : c'est la définition
+		// historique, et la changer modifierait le chiffre affiché sans que
+		// l'utilisateur puisse le rapprocher des valeurs précédentes. Le
+		// nombre d'échantillons sans kilométrage est exposé à côté pour
+		// signaler la part de saisie manquante.
 		long totalKm = toLong(base.get("total_distance_km"));
 		long totalSamples = toLong(base.get("total_samples"));
 		double avgKm = totalSamples > 0 ? (double) totalKm / (double) totalSamples : 0d;
