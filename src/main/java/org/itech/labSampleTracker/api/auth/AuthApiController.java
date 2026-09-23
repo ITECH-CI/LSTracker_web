@@ -1,10 +1,13 @@
 package org.itech.labSampleTracker.api.auth;
 
+import java.util.List;
+
 import org.itech.labSampleTracker.api.auth.AuthDtos.LoginRequest;
 import org.itech.labSampleTracker.api.auth.AuthDtos.LoginResponse;
 import org.itech.labSampleTracker.api.auth.AuthDtos.RefreshRequest;
 import org.itech.labSampleTracker.api.auth.AuthDtos.RefreshResponse;
 import org.itech.labSampleTracker.entities.AppUser;
+import org.itech.labSampleTracker.enums.UserType;
 import org.itech.labSampleTracker.security.JwtService;
 import org.itech.labSampleTracker.security.RefreshToken;
 import org.itech.labSampleTracker.security.RefreshTokenService;
@@ -46,7 +49,24 @@ public class AuthApiController {
 		String access = jwtService.generateToken(username, role, userId);
 		String refresh = refreshTokenService.issue(userId, username, role, clientIp(http));
 
-		return new LoginResponse(access, refresh, role, userId);
+		return new LoginResponse(access, refresh, appRole(appUser), userId);
+	}
+
+	/**
+	 * Rôle renvoyé au mobile, qui s'en sert uniquement pour l'affichage (tableau
+	 * de bord, menus). Beaucoup de comptes ont role=USER et le vrai profil dans
+	 * user_type (ex. CONVOYEUR) : sans cela, un convoyeur tombait sur le tableau
+	 * de bord générique, sans action de collecte. Le JWT garde le rôle brut.
+	 * Même logique « role OU user_type » que MetaService.isType.
+	 */
+	private static String appRole(AppUser user) {
+		for (UserType type : List.of(UserType.ADMIN, UserType.RIDER, UserType.BIOLOGIST)) {
+			String t = type.getType();
+			if (t.equalsIgnoreCase(user.getRole()) || t.equalsIgnoreCase(user.getUserType())) {
+				return t;
+			}
+		}
+		return user.getRole();
 	}
 
 	@PostMapping(value = "/refresh", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
