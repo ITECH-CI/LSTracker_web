@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+	xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:ext="http://www.liquibase.org/xml/ns/dbchangelog-ext"
+	xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.1.xsd
+    http://www.liquibase.org/xml/ns/dbchangelog-ext http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-ext.xsd">
+
+	<!--
+		Index de jointure échantillon → collecte → site, manquants alors que
+		toutes les requêtes du tableau de bord, des rapports et de la liste
+		passent par ces clés (cahier VII.1). Mesuré sur 600 000 échantillons :
+		la répartition sur un mois passe de 168 à 35 ms une fois les filtres de
+		date rendus indexables.
+	-->
+	<changeSet id="004-join-perf-indexes" author="pkomena">
+		<sql>CREATE INDEX IF NOT EXISTS idx_sample_sample_retrieving_id
+			ON sample (sample_retrieving_id);</sql>
+		<sql>CREATE INDEX IF NOT EXISTS idx_sample_retrieving_site_id
+			ON sample_retrieving (site_id);</sql>
+		<rollback>
+			<sql>DROP INDEX IF EXISTS idx_sample_sample_retrieving_id;</sql>
+			<sql>DROP INDEX IF EXISTS idx_sample_retrieving_site_id;</sql>
+		</rollback>
+	</changeSet>
+
+</databaseChangeLog>

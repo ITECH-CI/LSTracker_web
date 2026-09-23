@@ -50,21 +50,21 @@ public class DashboardAdvancedRepository {
 		// collection_date BETWEEN via FILTER) — c'est le délai vécu par
 		// les samples collectés dans la période.
 		final String sql = "SELECT "
-				+ "  COUNT(*) FILTER (WHERE CAST(s.collection_date AS DATE) BETWEEN CAST(:startDate AS DATE) AND CAST(:endDate AS DATE)) AS total, "
+				+ "  COUNT(*) FILTER (WHERE (s.collection_date >= CAST(:startDate AS DATE) AND s.collection_date < CAST(:endDate AS DATE) + 1)) AS total, "
 				+ "  COUNT(*) FILTER (WHERE ss.status = 'ON_TRANSIT') AS in_transit, "
-				+ "  COUNT(*) FILTER (WHERE s.hub_id IS NOT NULL AND CAST(s.deliver_at_hub_date AS DATE) BETWEEN CAST(:startDate AS DATE) AND CAST(:endDate AS DATE)) AS at_hub, "
-				+ "  COUNT(*) FILTER (WHERE CAST(s.deliver_at_lab_date AS DATE) BETWEEN CAST(:startDate AS DATE) AND CAST(:endDate AS DATE)) AS at_lab, "
-				+ "  COUNT(*) FILTER (WHERE CAST(s.analysis_released_date AS DATE) BETWEEN CAST(:startDate AS DATE) AND CAST(:endDate AS DATE)) AS analysed, "
-				+ "  COUNT(*) FILTER (WHERE CAST(s.result_collection_date AS DATE) BETWEEN CAST(:startDate AS DATE) AND CAST(:endDate AS DATE)) AS result_collected, "
-				+ "  COUNT(*) FILTER (WHERE CAST(s.result_delivery_date AS DATE) BETWEEN CAST(:startDate AS DATE) AND CAST(:endDate AS DATE)) AS delivered, "
-				+ "  COUNT(*) FILTER (WHERE ss.status = 'NON_CONFORM' AND CAST(s.rejection_date AS DATE) BETWEEN CAST(:startDate AS DATE) AND CAST(:endDate AS DATE)) AS non_conform, "
-				+ "  COUNT(*) FILTER (WHERE ss.status = 'ANALYSIS_FAILED' AND CAST(s.analysis_completed_date AS DATE) BETWEEN CAST(:startDate AS DATE) AND CAST(:endDate AS DATE)) AS failed, "
+				+ "  COUNT(*) FILTER (WHERE s.hub_id IS NOT NULL AND (s.deliver_at_hub_date >= CAST(:startDate AS DATE) AND s.deliver_at_hub_date < CAST(:endDate AS DATE) + 1)) AS at_hub, "
+				+ "  COUNT(*) FILTER (WHERE (s.deliver_at_lab_date >= CAST(:startDate AS DATE) AND s.deliver_at_lab_date < CAST(:endDate AS DATE) + 1)) AS at_lab, "
+				+ "  COUNT(*) FILTER (WHERE (s.analysis_released_date >= CAST(:startDate AS DATE) AND s.analysis_released_date < CAST(:endDate AS DATE) + 1)) AS analysed, "
+				+ "  COUNT(*) FILTER (WHERE (s.result_collection_date >= CAST(:startDate AS DATE) AND s.result_collection_date < CAST(:endDate AS DATE) + 1)) AS result_collected, "
+				+ "  COUNT(*) FILTER (WHERE (s.result_delivery_date >= CAST(:startDate AS DATE) AND s.result_delivery_date < CAST(:endDate AS DATE) + 1)) AS delivered, "
+				+ "  COUNT(*) FILTER (WHERE ss.status = 'NON_CONFORM' AND (s.rejection_date >= CAST(:startDate AS DATE) AND s.rejection_date < CAST(:endDate AS DATE) + 1)) AS non_conform, "
+				+ "  COUNT(*) FILTER (WHERE ss.status = 'ANALYSIS_FAILED' AND (s.analysis_completed_date >= CAST(:startDate AS DATE) AND s.analysis_completed_date < CAST(:endDate AS DATE) + 1)) AS failed, "
 				// TAT canonique : médiane(result_delivery_date - collection_date)
 				// sur les samples livrés (result_delivery_date NOT NULL).
 				// PERCENTILE_CONT ignore les NULL automatiquement.
 				// Cohorte = samples collectés dans la fenêtre (filter via CASE).
 				+ "  COALESCE(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY "
-				+ "    CASE WHEN CAST(s.collection_date AS DATE) BETWEEN CAST(:startDate AS DATE) AND CAST(:endDate AS DATE) "
+				+ "    CASE WHEN (s.collection_date >= CAST(:startDate AS DATE) AND s.collection_date < CAST(:endDate AS DATE) + 1) "
 				+ "         THEN " + TatSql.DAYS + " END "
 				+ "  ), 0)::numeric(10,1) AS tat_avg_days "
 				+ "FROM sample s "
@@ -119,8 +119,8 @@ public class DashboardAdvancedRepository {
 				+ "JOIN district d ON d.id = st.district_id "
 				+ "JOIN region reg ON reg.id = d.region_id "
 				+ "WHERE ss.status NOT IN ('RESULT_ON_SITE','NON_CONFORM','ANALYSIS_FAILED') "
-				+ "AND (CAST(:startDate AS DATE) IS NULL OR CAST(s.collection_date AS DATE) >= CAST(:startDate AS DATE)) "
-				+ "AND (CAST(:endDate AS DATE) IS NULL OR CAST(s.collection_date AS DATE) <= CAST(:endDate AS DATE)) "
+				+ "AND (CAST(:startDate AS DATE) IS NULL OR s.collection_date >= CAST(:startDate AS DATE)) "
+				+ "AND (CAST(:endDate AS DATE) IS NULL OR s.collection_date < CAST(:endDate AS DATE) + 1) "
 				+ "AND (CAST(:labId AS INT) IS NULL OR s.destination_lab_id = CAST(:labId AS INT)) "
 				+ "AND (CAST(:siteId AS INT) IS NULL OR st.id = CAST(:siteId AS INT)) "
 				+ "AND (CAST(:districtId AS INT) IS NULL OR st.district_id = CAST(:districtId AS INT)) "
@@ -143,43 +143,69 @@ public class DashboardAdvancedRepository {
 	}
 
 	/**
-	 * Aggregated stats grouped by region (always returns every region in scope,
-	 * even with zero samples — useful for a "you've got nothing here" honest UI).
+	 * Agrégats de la répartition (région / district / site), communs aux trois
+	 * niveaux : les échantillons sont d'abord filtrés (dates indexables, labo,
+	 * périmètre, filtres de l'écran) et agrégés par {@code groupExpr}, puis
+	 * rattachés à la liste des zones par la requête appelante. Filtrer avant
+	 * la jointure géographique évite de parcourir toute la table sur une
+	 * période courte (mesuré sur 600 000 échantillons : 168 → 35 ms sur un mois).
+	 */
+	private static String distributionAgg(String groupExpr) {
+		return "WITH agg AS ( "
+				+ "  SELECT " + groupExpr + " AS gid, "
+				+ "    COUNT(*) AS total, "
+				+ "    SUM(CASE WHEN ss.status = 'ON_TRANSIT' THEN 1 ELSE 0 END) AS in_transit, "
+				+ "    SUM(CASE WHEN ss.status = 'RESULT_ON_SITE' THEN 1 ELSE 0 END) AS delivered, "
+				// Non-conformités et échecs d'analyse : deux notions distinctes (cahier VI.3).
+				+ "    SUM(CASE WHEN ss.status = 'NON_CONFORM' THEN 1 ELSE 0 END) AS non_conform, "
+				+ "    SUM(CASE WHEN ss.status = 'ANALYSIS_FAILED' THEN 1 ELSE 0 END) AS failed, "
+				// TAT canonique (TatSql) : médiane(livraison du résultat − collecte).
+				+ "    " + TatSql.MEDIAN + " AS tat_avg_days "
+				+ "  FROM sample s "
+				+ "  JOIN sample_status ss ON ss.id = s.sample_status_id "
+				+ "  JOIN sample_retrieving sr ON sr.id = s.sample_retrieving_id "
+				+ "  JOIN site st ON st.id = sr.site_id "
+				+ "  JOIN district d ON d.id = st.district_id "
+				+ "  WHERE (CAST(:startDate AS DATE) IS NULL OR s.collection_date >= CAST(:startDate AS DATE)) "
+				+ "  AND (CAST(:endDate AS DATE) IS NULL OR s.collection_date < CAST(:endDate AS DATE) + 1) "
+				+ "  AND (CAST(:labId AS INT) IS NULL OR s.destination_lab_id = CAST(:labId AS INT)) "
+				+ "  AND (:accessibleSiteIdsActive = FALSE OR st.id IN (:accessibleSiteIds)) "
+				// Filtres de l'écran (cahier VI.3 : homogènes sur toutes les visualisations).
+				+ "  AND (CAST(:regionId AS INT) IS NULL OR d.region_id = CAST(:regionId AS INT)) "
+				+ "  AND (CAST(:districtId AS INT) IS NULL OR d.id = CAST(:districtId AS INT)) "
+				+ "  AND (CAST(:siteId AS INT) IS NULL OR st.id = CAST(:siteId AS INT)) "
+				+ "  GROUP BY " + groupExpr + " ) ";
+	}
+
+	/** Colonnes de sortie de la répartition, à partir de l'agrégat {@code a}. */
+	private static final String DISTRIBUTION_COLUMNS = "COALESCE(a.total, 0) AS total, "
+			+ "COALESCE(a.in_transit, 0) AS in_transit, COALESCE(a.delivered, 0) AS delivered, "
+			+ "COALESCE(a.non_conform, 0) AS non_conform, COALESCE(a.failed, 0) AS failed, "
+			+ "CAST(COALESCE(a.tat_avg_days, 0) AS NUMERIC(10,1)) AS tat_avg_days ";
+
+	/**
+	 * Répartition par région. Toutes les régions de la sélection sont renvoyées,
+	 * y compris sans activité (total = 0). Pour un utilisateur restreint : les
+	 * régions où il a au moins un site.
 	 */
 	public List<Map<String, Object>> statsByRegion(LocalDate startDate, LocalDate endDate,
 			Integer regionId, Integer districtId, Integer siteId, Integer labId, List<Integer> accessibleSiteIds) {
-		final String sql = "SELECT reg.id AS region_id, reg.name AS region, "
-				+ "  COUNT(s.id) AS total, "
-				+ "  SUM(CASE WHEN ss.status = 'ON_TRANSIT' THEN 1 ELSE 0 END) AS in_transit, "
-				+ "  SUM(CASE WHEN ss.status = 'RESULT_ON_SITE' THEN 1 ELSE 0 END) AS delivered, "
-				// Non-conformités et échecs d'analyse : deux notions distinctes (cahier VI.3).
-				+ "  SUM(CASE WHEN ss.status = 'NON_CONFORM' THEN 1 ELSE 0 END) AS non_conform, "
-				+ "  SUM(CASE WHEN ss.status = 'ANALYSIS_FAILED' THEN 1 ELSE 0 END) AS failed, "
-				// TAT canonique (TatSql) : médiane(livraison du résultat − collecte).
-				+ "  " + TatSql.MEDIAN + " AS tat_avg_days "
-				+ "FROM region reg "
-				+ "LEFT JOIN district d ON d.region_id = reg.id "
-				+ "LEFT JOIN site st ON st.district_id = d.id "
-				+ "LEFT JOIN sample_retrieving sr ON sr.site_id = st.id "
-				// Filtre date ET lab dans le ON du LEFT JOIN : on garde toutes les
-				// régions (total=0 si aucun sample ne matche) plutôt que de les
-				// faire disparaître via le WHERE.
-				+ "LEFT JOIN sample s ON s.sample_retrieving_id = sr.id AND ("
-				+ "    (CAST(:startDate AS DATE) IS NULL OR CAST(s.collection_date AS DATE) >= CAST(:startDate AS DATE)) "
-				+ "AND (CAST(:endDate AS DATE) IS NULL OR CAST(s.collection_date AS DATE) <= CAST(:endDate AS DATE)) "
-				+ "AND (CAST(:labId AS INT) IS NULL OR s.destination_lab_id = CAST(:labId AS INT))) "
-				+ "LEFT JOIN sample_status ss ON ss.id = s.sample_status_id "
-				+ "WHERE (:accessibleSiteIdsActive = FALSE OR st.id IS NULL OR st.id IN (:accessibleSiteIds)) "
-				// Filtres de l'écran (cahier VI.3 : homogènes sur toutes les visualisations).
-				+ "AND (CAST(:regionId AS INT) IS NULL OR reg.id = CAST(:regionId AS INT)) "
-				+ "AND (CAST(:districtId AS INT) IS NULL OR d.id = CAST(:districtId AS INT)) "
-				+ "AND (CAST(:siteId AS INT) IS NULL OR st.id = CAST(:siteId AS INT)) "
-				+ "GROUP BY reg.id, reg.name ORDER BY reg.name";
+		final String sql = distributionAgg("d.region_id")
+				+ "SELECT reg.id AS region_id, reg.name AS region, " + DISTRIBUTION_COLUMNS
+				+ "FROM region reg LEFT JOIN agg a ON a.gid = reg.id "
+				+ "WHERE (CAST(:regionId AS INT) IS NULL OR reg.id = CAST(:regionId AS INT)) "
+				+ "AND (CAST(:districtId AS INT) IS NULL OR EXISTS (SELECT 1 FROM district fd "
+				+ "     WHERE fd.id = CAST(:districtId AS INT) AND fd.region_id = reg.id)) "
+				+ "AND (CAST(:siteId AS INT) IS NULL OR EXISTS (SELECT 1 FROM site fs JOIN district fd ON fd.id = fs.district_id "
+				+ "     WHERE fs.id = CAST(:siteId AS INT) AND fd.region_id = reg.id)) "
+				+ "AND (:accessibleSiteIdsActive = FALSE OR EXISTS (SELECT 1 FROM site fs JOIN district fd ON fd.id = fs.district_id "
+				+ "     WHERE fd.region_id = reg.id AND fs.id IN (:accessibleSiteIds))) "
+				+ "ORDER BY reg.name";
 		return jdbc.queryForList(sql, params(startDate, endDate, regionId, districtId, siteId, labId, accessibleSiteIds));
 	}
 
 	/**
-	 * Aggregated stats grouped by district.
+	 * Répartition par district.
 	 *
 	 * <p>{@code regionId} null = tous les districts, toutes régions confondues
 	 * (vue à plat du sélecteur de niveau) ; renseigné = districts de cette
@@ -187,34 +213,21 @@ public class DashboardAdvancedRepository {
 	 */
 	public List<Map<String, Object>> statsByDistrict(LocalDate startDate, LocalDate endDate,
 			Integer regionId, Integer districtId, Integer siteId, Integer labId, List<Integer> accessibleSiteIds) {
-		final String sql = "SELECT d.id AS district_id, d.name AS district, r.name AS region, "
-				+ "  COUNT(s.id) AS total, "
-				+ "  SUM(CASE WHEN ss.status = 'ON_TRANSIT' THEN 1 ELSE 0 END) AS in_transit, "
-				+ "  SUM(CASE WHEN ss.status = 'RESULT_ON_SITE' THEN 1 ELSE 0 END) AS delivered, "
-				// Non-conformités et échecs d'analyse : deux notions distinctes (cahier VI.3).
-				+ "  SUM(CASE WHEN ss.status = 'NON_CONFORM' THEN 1 ELSE 0 END) AS non_conform, "
-				+ "  SUM(CASE WHEN ss.status = 'ANALYSIS_FAILED' THEN 1 ELSE 0 END) AS failed, "
-				// TAT canonique (TatSql) : médiane(livraison du résultat − collecte).
-				+ "  " + TatSql.MEDIAN + " AS tat_avg_days "
-				+ "FROM district d "
-				+ "JOIN region r ON r.id = d.region_id "
-				+ "LEFT JOIN site st ON st.district_id = d.id "
-				+ "LEFT JOIN sample_retrieving sr ON sr.site_id = st.id "
-				+ "LEFT JOIN sample s ON s.sample_retrieving_id = sr.id AND ("
-				+ "    (CAST(:startDate AS DATE) IS NULL OR CAST(s.collection_date AS DATE) >= CAST(:startDate AS DATE)) "
-				+ "AND (CAST(:endDate AS DATE) IS NULL OR CAST(s.collection_date AS DATE) <= CAST(:endDate AS DATE)) "
-				+ "AND (CAST(:labId AS INT) IS NULL OR s.destination_lab_id = CAST(:labId AS INT))) "
-				+ "LEFT JOIN sample_status ss ON ss.id = s.sample_status_id "
+		final String sql = distributionAgg("d.id")
+				+ "SELECT d.id AS district_id, d.name AS district, r.name AS region, " + DISTRIBUTION_COLUMNS
+				+ "FROM district d JOIN region r ON r.id = d.region_id LEFT JOIN agg a ON a.gid = d.id "
 				+ "WHERE (CAST(:regionId AS INT) IS NULL OR d.region_id = CAST(:regionId AS INT)) "
 				+ "AND (CAST(:districtId AS INT) IS NULL OR d.id = CAST(:districtId AS INT)) "
-				+ "AND (CAST(:siteId AS INT) IS NULL OR st.id = CAST(:siteId AS INT)) "
-				+ "AND (:accessibleSiteIdsActive = FALSE OR st.id IS NULL OR st.id IN (:accessibleSiteIds)) "
-				+ "GROUP BY d.id, d.name, r.name ORDER BY r.name, d.name";
+				+ "AND (CAST(:siteId AS INT) IS NULL OR EXISTS (SELECT 1 FROM site fs "
+				+ "     WHERE fs.id = CAST(:siteId AS INT) AND fs.district_id = d.id)) "
+				+ "AND (:accessibleSiteIdsActive = FALSE OR EXISTS (SELECT 1 FROM site fs "
+				+ "     WHERE fs.district_id = d.id AND fs.id IN (:accessibleSiteIds))) "
+				+ "ORDER BY r.name, d.name";
 		return jdbc.queryForList(sql, params(startDate, endDate, regionId, districtId, siteId, labId, accessibleSiteIds));
 	}
 
 	/**
-	 * Aggregated stats grouped by site.
+	 * Répartition par site.
 	 *
 	 * <p>{@code districtId} null = tous les sites, tous districts confondus
 	 * (vue à plat du sélecteur de niveau) ; renseigné = sites de ce district
@@ -222,29 +235,15 @@ public class DashboardAdvancedRepository {
 	 */
 	public List<Map<String, Object>> statsBySite(LocalDate startDate, LocalDate endDate,
 			Integer regionId, Integer districtId, Integer siteId, Integer labId, List<Integer> accessibleSiteIds) {
-		final String sql = "SELECT st.id AS site_id, st.name AS site, d.name AS district, r.name AS region, "
-				+ "  COUNT(s.id) AS total, "
-				+ "  SUM(CASE WHEN ss.status = 'ON_TRANSIT' THEN 1 ELSE 0 END) AS in_transit, "
-				+ "  SUM(CASE WHEN ss.status = 'RESULT_ON_SITE' THEN 1 ELSE 0 END) AS delivered, "
-				// Non-conformités et échecs d'analyse : deux notions distinctes (cahier VI.3).
-				+ "  SUM(CASE WHEN ss.status = 'NON_CONFORM' THEN 1 ELSE 0 END) AS non_conform, "
-				+ "  SUM(CASE WHEN ss.status = 'ANALYSIS_FAILED' THEN 1 ELSE 0 END) AS failed, "
-				// TAT canonique (TatSql) : médiane(livraison du résultat − collecte).
-				+ "  " + TatSql.MEDIAN + " AS tat_avg_days "
-				+ "FROM site st "
-				+ "JOIN district d ON d.id = st.district_id "
-				+ "JOIN region r ON r.id = d.region_id "
-				+ "LEFT JOIN sample_retrieving sr ON sr.site_id = st.id "
-				+ "LEFT JOIN sample s ON s.sample_retrieving_id = sr.id AND ("
-				+ "    (CAST(:startDate AS DATE) IS NULL OR CAST(s.collection_date AS DATE) >= CAST(:startDate AS DATE)) "
-				+ "AND (CAST(:endDate AS DATE) IS NULL OR CAST(s.collection_date AS DATE) <= CAST(:endDate AS DATE)) "
-				+ "AND (CAST(:labId AS INT) IS NULL OR s.destination_lab_id = CAST(:labId AS INT))) "
-				+ "LEFT JOIN sample_status ss ON ss.id = s.sample_status_id "
+		final String sql = distributionAgg("st.id")
+				+ "SELECT st.id AS site_id, st.name AS site, d.name AS district, r.name AS region, " + DISTRIBUTION_COLUMNS
+				+ "FROM site st JOIN district d ON d.id = st.district_id JOIN region r ON r.id = d.region_id "
+				+ "LEFT JOIN agg a ON a.gid = st.id "
 				+ "WHERE (CAST(:districtId AS INT) IS NULL OR st.district_id = CAST(:districtId AS INT)) "
 				+ "AND (CAST(:regionId AS INT) IS NULL OR d.region_id = CAST(:regionId AS INT)) "
 				+ "AND (CAST(:siteId AS INT) IS NULL OR st.id = CAST(:siteId AS INT)) "
 				+ "AND (:accessibleSiteIdsActive = FALSE OR st.id IN (:accessibleSiteIds)) "
-				+ "GROUP BY st.id, st.name, d.name, r.name ORDER BY r.name, d.name, st.name";
+				+ "ORDER BY r.name, d.name, st.name";
 		return jdbc.queryForList(sql, params(startDate, endDate, regionId, districtId, siteId, labId, accessibleSiteIds));
 	}
 
@@ -281,8 +280,8 @@ public class DashboardAdvancedRepository {
 				+ "  JOIN site st ON st.id = sr.site_id "
 				+ "  JOIN district d ON d.id = st.district_id "
 				+ "  JOIN region reg ON reg.id = d.region_id "
-				+ "  WHERE (CAST(:startDate AS DATE) IS NULL OR CAST(s.collection_date AS DATE) >= CAST(:startDate AS DATE)) "
-				+ "  AND (CAST(:endDate AS DATE) IS NULL OR CAST(s.collection_date AS DATE) <= CAST(:endDate AS DATE)) "
+				+ "  WHERE (CAST(:startDate AS DATE) IS NULL OR s.collection_date >= CAST(:startDate AS DATE)) "
+				+ "  AND (CAST(:endDate AS DATE) IS NULL OR s.collection_date < CAST(:endDate AS DATE) + 1) "
 				+ "  AND (:accessibleSiteIdsActive = FALSE OR st.id IN (:accessibleSiteIds)) "
 				+ "  " + RANKING_FILTER
 				+ "), by_type AS ( "
@@ -299,7 +298,7 @@ public class DashboardAdvancedRepository {
 				+ "FROM base b LEFT JOIN by_type bt ON bt.site_id = b.site_id "
 				+ "GROUP BY b.site_id, b.site, b.district, b.region "
 				+ "HAVING COUNT(*) >= :minSamples AND SUM(CASE WHEN b.status = 'NON_CONFORM' THEN 1 ELSE 0 END) > 0 "
-				+ "ORDER BY non_conform_rate DESC, non_conform DESC LIMIT :rowLimit";
+				+ "ORDER BY non_conform_rate DESC, non_conform DESC, b.site LIMIT :rowLimit";
 		MapSqlParameterSource p = params(startDate, endDate, regionId, districtId, siteId, labId, accessibleSiteIds)
 				.addValue("rowLimit", limit).addValue("minSamples", minSamples);
 		return jdbc.queryForList(sql, p);
@@ -327,13 +326,13 @@ public class DashboardAdvancedRepository {
 				+ "LEFT JOIN site st ON st.id = sr.site_id "
 				+ "WHERE s.deliver_at_lab_date IS NOT NULL AND s.analysis_released_date IS NOT NULL "
 				+ "AND s.analysis_released_date > s.deliver_at_lab_date "
-				+ "AND (CAST(:startDate AS DATE) IS NULL OR CAST(s.collection_date AS DATE) >= CAST(:startDate AS DATE)) "
-				+ "AND (CAST(:endDate AS DATE) IS NULL OR CAST(s.collection_date AS DATE) <= CAST(:endDate AS DATE)) "
+				+ "AND (CAST(:startDate AS DATE) IS NULL OR s.collection_date >= CAST(:startDate AS DATE)) "
+				+ "AND (CAST(:endDate AS DATE) IS NULL OR s.collection_date < CAST(:endDate AS DATE) + 1) "
 				+ "AND (:accessibleSiteIdsActive = FALSE OR st.id IN (:accessibleSiteIds)) "
 				+ RANKING_FILTER
 				+ "GROUP BY lab.id, lab.lab_name "
 				+ "HAVING COUNT(s.id) >= :minSamples "
-				+ "ORDER BY avg_tat_days DESC LIMIT :rowLimit";
+				+ "ORDER BY avg_tat_days DESC, lab.lab_name LIMIT :rowLimit";
 		MapSqlParameterSource p = params(startDate, endDate, regionId, districtId, siteId, labId, accessibleSiteIds)
 				.addValue("rowLimit", limit).addValue("minSamples", minSamples);
 		return jdbc.queryForList(sql, p);
@@ -363,12 +362,12 @@ public class DashboardAdvancedRepository {
 				+ "JOIN sample_retrieving sr ON sr.id = s.sample_retrieving_id "
 				+ "JOIN app_user u ON u.id = sr.app_user_id "
 				+ "LEFT JOIN site st ON st.id = sr.site_id "
-				+ "WHERE (CAST(:startDate AS DATE) IS NULL OR CAST(s.collection_date AS DATE) >= CAST(:startDate AS DATE)) "
-				+ "AND (CAST(:endDate AS DATE) IS NULL OR CAST(s.collection_date AS DATE) <= CAST(:endDate AS DATE)) "
+				+ "WHERE (CAST(:startDate AS DATE) IS NULL OR s.collection_date >= CAST(:startDate AS DATE)) "
+				+ "AND (CAST(:endDate AS DATE) IS NULL OR s.collection_date < CAST(:endDate AS DATE) + 1) "
 				+ "AND (:accessibleSiteIdsActive = FALSE OR st.id IN (:accessibleSiteIds)) "
 				+ RANKING_FILTER
 				+ "GROUP BY u.id, u.first_name, u.last_name, u.login "
-				+ "ORDER BY samples_handled DESC LIMIT :rowLimit";
+				+ "ORDER BY samples_handled DESC, u.login LIMIT :rowLimit";
 		MapSqlParameterSource p = params(startDate, endDate, regionId, districtId, siteId, labId, accessibleSiteIds)
 				.addValue("rowLimit", limit);
 		return jdbc.queryForList(sql, p);
@@ -399,8 +398,8 @@ public class DashboardAdvancedRepository {
 				+ "  LEFT JOIN sample_retrieving sr ON sr.id = s.sample_retrieving_id "
 				+ "  LEFT JOIN site st ON st.id = sr.site_id "
 				+ "  LEFT JOIN district d ON d.id = st.district_id "
-				+ "  WHERE (CAST(:startDate AS DATE) IS NULL OR CAST(s.collection_date AS DATE) >= CAST(:startDate AS DATE)) "
-				+ "  AND (CAST(:endDate AS DATE) IS NULL OR CAST(s.collection_date AS DATE) <= CAST(:endDate AS DATE)) "
+				+ "  WHERE (CAST(:startDate AS DATE) IS NULL OR s.collection_date >= CAST(:startDate AS DATE)) "
+				+ "  AND (CAST(:endDate AS DATE) IS NULL OR s.collection_date < CAST(:endDate AS DATE) + 1) "
 				+ "  AND (CAST(:labId AS INT) IS NULL OR s.destination_lab_id = CAST(:labId AS INT)) "
 				+ "  AND (CAST(:siteId AS INT) IS NULL OR st.id = CAST(:siteId AS INT)) "
 				+ "  AND (CAST(:districtId AS INT) IS NULL OR st.district_id = CAST(:districtId AS INT)) "
@@ -481,8 +480,8 @@ public class DashboardAdvancedRepository {
 				+ "LEFT JOIN sample_retrieving sr ON sr.id = s.sample_retrieving_id "
 				+ "LEFT JOIN site st ON st.id = sr.site_id "
 				+ "LEFT JOIN district d ON d.id = st.district_id "
-				+ "WHERE (CAST(:startDate AS DATE) IS NULL OR CAST(s.collection_date AS DATE) >= CAST(:startDate AS DATE)) "
-				+ "AND (CAST(:endDate AS DATE) IS NULL OR CAST(s.collection_date AS DATE) <= CAST(:endDate AS DATE)) "
+				+ "WHERE (CAST(:startDate AS DATE) IS NULL OR s.collection_date >= CAST(:startDate AS DATE)) "
+				+ "AND (CAST(:endDate AS DATE) IS NULL OR s.collection_date < CAST(:endDate AS DATE) + 1) "
 				+ "AND (CAST(:labId AS INT) IS NULL OR s.destination_lab_id = CAST(:labId AS INT)) "
 				+ "AND (CAST(:siteId AS INT) IS NULL OR st.id = CAST(:siteId AS INT)) "
 				+ "AND (CAST(:districtId AS INT) IS NULL OR st.district_id = CAST(:districtId AS INT)) "

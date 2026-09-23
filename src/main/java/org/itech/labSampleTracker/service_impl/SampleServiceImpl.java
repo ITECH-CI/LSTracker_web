@@ -790,7 +790,8 @@ public class SampleServiceImpl implements SampleService {
 			sql.append(" AND site.id IN (:accessibleSiteIds) ");
 		// CAST AS DATE plutôt que ::date : Hibernate parse `::` comme un
 		// paramètre nommé via em.createNativeQuery et casse la syntaxe.
-		sql.append(" AND (CAST(s.collection_date AS DATE) BETWEEN :startDate AND :endDate) ");
+		// Filtre indexable (idx_sample_collection_date) : pas de CAST sur la colonne.
+		sql.append(" AND s.collection_date >= :startDate AND s.collection_date < CAST(:endDate AS DATE) + 1 ");
 		sql.append(" GROUP BY st.name");
 
 		// Réponse initialisée à 0 pour tous les types d'échantillons connus

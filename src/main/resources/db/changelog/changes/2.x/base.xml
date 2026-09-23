@@ -22,6 +22,8 @@
 		relativeToChangelogFile="true" />
 	<include file="./align_sample_type_referential.xml"
 		relativeToChangelogFile="true" />
+	<include file="./add_join_perf_indexes.xml"
+		relativeToChangelogFile="true" />
 
 
 
