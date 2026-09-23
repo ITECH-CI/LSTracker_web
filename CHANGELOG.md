@@ -1,5 +1,26 @@
 # Changelog — LabSampleTracker (web + backend)
 
+## 2026-09-23 — Accès des convoyeurs aux laboratoires par district
+
+Règle métier : un convoyeur a accès aux laboratoires situés dans les districts où il intervient (circuit → site → district → labo), sur l'ensemble de ses circuits.
+
+- **Métadonnées mobile** (`/api/meta/full`) : la liste des labos du convoyeur est dédoublonnée et ne retient plus que les labos, circuits et affectations circuit/site **actifs**.
+- **Périmètre web** (`UserScopeService`) : les labos des districts couverts par les circuits sont désormais inclus. Auparavant un convoyeur n'avait aucun labo dans son périmètre : un filtre labo sur le tableau de bord ou la liste des échantillons renvoyait une page vide.
+- **Synchronisation** : un échantillon poussé avec un labo de destination ou de dépôt hors périmètre est **accepté mais journalisé** (`WARN`), pour ne pas perdre une saisie faite hors ligne avec d'anciennes métadonnées.
+- `GET /lab/names_by_users` reconnaît le biologiste par son rôle **ou** son `user_type`, comme les métadonnées mobile.
+
+### Métadonnées mobile : référentiel complet des labos
+
+- `/api/meta/full` renvoie aussi `allLabs` (tous les labos) en plus de `labs` (labos sélectionnables). Le mobile 2.2.3 s'en sert pour afficher le nom et le type de tout labo référencé par un échantillon ; un mobile plus ancien l'ignore.
+
+### Connexion mobile : rôle effectif
+
+- `POST /api_v2/auth/login` renvoie le type effectif (rôle **ou** `user_type`). 17 convoyeurs sur 19 ont `role = USER` : ils arrivaient sur le tableau de bord générique, sans action de collecte. Le rôle porté par le JWT (autorisations) est inchangé.
+
+### Administration des utilisateurs
+
+- Page « Modifier l'utilisateur » : après enregistrement, l'identifiant s'affichait vide et l'en-tête « @null » (le champ désactivé n'est pas soumis par le navigateur). Le login est repris de la base. L'ID technique n'est plus affiché.
+
 ## 2026-05-29 — Intégration OpenELIS consolidé (oedatarepo) + page de suivi (v2.2.2)
 
 ### Intégration OpenELIS (récupération statut/dates d'analyse)
