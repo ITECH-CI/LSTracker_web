@@ -255,6 +255,19 @@ public class DashboardAdvancedRepository {
 	}
 
 	/**
+	 * Filtre géographique et labo des classements (sélection faite à l'écran,
+	 * déjà intersectée avec le périmètre de l'utilisateur). Alias requis :
+	 * s (sample) et st (site de collecte). Labo = labo de destination, comme le
+	 * reste du tableau de bord.
+	 */
+	private static final String RANKING_FILTER =
+			"AND (CAST(:siteId AS INT) IS NULL OR st.id = CAST(:siteId AS INT)) "
+			+ "AND (CAST(:districtId AS INT) IS NULL OR st.district_id = CAST(:districtId AS INT)) "
+			+ "AND (CAST(:regionId AS INT) IS NULL OR EXISTS (SELECT 1 FROM district fd "
+			+ "     WHERE fd.id = st.district_id AND fd.region_id = CAST(:regionId AS INT))) "
+			+ "AND (CAST(:labId AS INT) IS NULL OR s.destination_lab_id = CAST(:labId AS INT)) ";
+
+	/**
 	 * Taux de non-conformité par site (cahier VI.2) : échantillons NON_CONFORM ÷
 	 * échantillons collectés, sur la période. Les échecs d'analyse n'y entrent
 	 * pas (notion distincte, cahier VI.3). {@code by_type} détaille les
