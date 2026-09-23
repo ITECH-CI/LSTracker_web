@@ -203,9 +203,7 @@ public class ReportJdbcRepository {
 			Integer districtId, Integer siteId, Integer labId, Integer riderId, List<Integer> accessibleSiteIds) {
 
 		String sql = "SELECT stype.name AS type_code, "
-				+ "       PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY "
-				+ "         EXTRACT(EPOCH FROM (s.result_delivery_date - s.collection_date)) / 86400.0 "
-				+ "       ) AS median_days "
+				+ "       PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY " + TatSql.DAYS + ") AS median_days "
 				+ "FROM sample s "
 				+ "JOIN sample_type stype ON stype.id = s.sample_type_id " + SCOPE_JOIN
 				+ "WHERE (CAST(:startDate AS date) IS NULL OR CAST(s.collection_date AS DATE) >= :startDate) "

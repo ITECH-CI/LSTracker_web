@@ -29,7 +29,7 @@ public interface SampleService {
 	List<Sample> getAll();
 
 	List<Map<String, String>> getAll(Integer region, Integer district, Integer site, Integer lab, Date startDate,
-			Date endDate, Integer status, Integer sampleType, String patientIdentifier);
+			Date endDate, Integer status, Integer sampleType, String patientIdentifier, List<Integer> accessibleSiteIds);
 
 	long getTotal();
 
@@ -74,16 +74,10 @@ public interface SampleService {
 
 	List<Map<String, Object>> getSampleDetails();
 
-	Page<Map<String, Object>> getSampleDetails(Pageable pageable, Integer regionId, Integer districtId, Integer siteId,
-			Date startDate, Date endDate, Integer status);
-
-	Page<Map<String, Object>> getSampleDetails(Pageable pageable, Integer regionId, Integer districtId, Integer siteId,
-			Integer labId, Date startDate, Date endDate, Integer status, Integer sampleType, String patientIdentifier);
-
 	/**
-	 * Same as {@link #getSampleDetails(Pageable, Integer, Integer, Integer, Integer, Date, Date, Integer, Integer, String)}
-	 * but additionally restricts results to the given {@code accessibleSiteIds}
-	 * (null/empty = no extra restriction; pass null for ADMIN/global roles).
+	 * Liste paginée des échantillons, restreinte aux {@code accessibleSiteIds}
+	 * (null/vide = pas de restriction supplémentaire ; null pour les rôles
+	 * globaux).
 	 */
 	Page<Map<String, Object>> getSampleDetailsScoped(Pageable pageable, Integer regionId, Integer districtId,
 			Integer siteId, Integer labId, Date startDate, Date endDate, Integer status, Integer sampleType,

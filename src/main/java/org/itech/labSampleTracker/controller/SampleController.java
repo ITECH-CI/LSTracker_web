@@ -737,8 +737,11 @@ public class SampleController {
 			patientIdentifier = null;
 		}
 
-		List<Map<String, String>> sampleRecords = sampleService.getAll(region, district, site,lab, startDate, endDate,
-				status, sampleType, patientIdentifier);
+		// Périmètre de l'utilisateur : même règle que la liste et le tableau de bord.
+		ScopedFilter scope = userScopeService.intersectCurrent(region, district, site, lab);
+		List<Map<String, String>> sampleRecords = scope.isForceEmpty() ? java.util.List.of()
+				: sampleService.getAll(scope.getRegionId(), scope.getDistrictId(), scope.getSiteId(), scope.getLabId(),
+						startDate, endDate, status, sampleType, patientIdentifier, scope.getAccessibleSiteIds());
 
 		InputStreamResource file = new InputStreamResource(ExportUtils.writeCSVData(sampleRecords));
 

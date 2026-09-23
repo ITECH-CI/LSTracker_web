@@ -1164,43 +1164,6 @@ public class SampleServiceImpl implements SampleService {
 	}
 
 	@Override
-	public Page<Map<String, Object>> getSampleDetails(Pageable pageable, Integer regionId, Integer districtId,
-			Integer siteId, Date startDate, Date endDate, Integer status) {
-
-		if (ObjectUtils.isNotEmpty(regionId)) {
-			if (ObjectUtils.isNotEmpty(startDate) && ObjectUtils.isNotEmpty(endDate)) {
-				return sampleRepo.getSampleListByDateAndRegion(pageable, startDate, endDate, regionId, status);
-			}
-			return sampleRepo.getSampleListByRegion(pageable, regionId, status);
-		}
-		if (ObjectUtils.isNotEmpty(districtId)) {
-			if (ObjectUtils.isNotEmpty(startDate) && ObjectUtils.isNotEmpty(endDate)) {
-				return sampleRepo.getSampleListByDateAndDistrict(pageable, startDate, endDate, districtId, status);
-			}
-			return sampleRepo.getSampleListByDistrict(pageable, districtId, status);
-		}
-		if (ObjectUtils.isNotEmpty(siteId)) {
-			if (ObjectUtils.isNotEmpty(startDate) && ObjectUtils.isNotEmpty(endDate)) {
-				return sampleRepo.getSampleListByDateAndSite(pageable, startDate, endDate, siteId, status);
-			}
-			return sampleRepo.getSampleListBySite(pageable, siteId, status);
-		}
-		if (ObjectUtils.isNotEmpty(startDate) && ObjectUtils.isNotEmpty(endDate)) {
-			return sampleRepo.getSampleListByDate(pageable, startDate, endDate, status);
-		}
-		return sampleRepo.getSampleList(pageable, status);
-	}
-
-	@Override
-	public Page<Map<String, Object>> getSampleDetails(Pageable pageable, Integer regionId, Integer districtId,
-			Integer siteId, Integer labId, Date startDate, Date endDate, Integer status, Integer sampleType,
-			String patientIdentifier) {
-
-		return sampleRepo.getSampleDetails(pageable, regionId, districtId, siteId, labId, startDate, endDate, status,
-				sampleType, patientIdentifier);
-	}
-
-	@Override
 	public Page<Map<String, Object>> getSampleDetailsScoped(Pageable pageable, Integer regionId, Integer districtId,
 			Integer siteId, Integer labId, Date startDate, Date endDate, Integer status, Integer sampleType,
 			String patientIdentifier, List<Integer> accessibleSiteIds) {
@@ -1265,7 +1228,7 @@ public class SampleServiceImpl implements SampleService {
 
 	@Override
 	public List<Map<String, String>> getAll(Integer region, Integer district, Integer site, Integer lab, Date startDate,
-			Date endDate, Integer status, Integer sampleType, String patientIdentifier) {
+			Date endDate, Integer status, Integer sampleType, String patientIdentifier, List<Integer> accessibleSiteIds) {
 		StringBuffer sql = new StringBuffer();
 		sql.append(" SELECT s.id,"
 				+ " reg.name AS region, d.name AS district, site.name AS site, concat(au.last_name,' ', au.first_name) rider, "
@@ -1282,18 +1245,16 @@ public class SampleServiceImpl implements SampleService {
 				+ "to_char(analysis_released_date,'dd/MM/yyyy HH24:MI') analysis_released_date, "
 				+ "to_char(result_collection_date,'dd/MM/yyyy HH24:MI')  result_collection_date, "
 				+ "to_char(result_delivery_date,'dd/MM/yyyy HH24:MI') result_delivery_date, "// 21
-				+ "DATE_PART('DAY', COALESCE(s.deliver_at_lab_date, s.deliver_at_hub_date, now()) - s.collection_date) AS tat1, "
-				+ "DATE_PART('DAY', COALESCE(s.result_reported_date, now()) - COALESCE(s.deliver_at_lab_date, s.deliver_at_hub_date,now())) AS tat2, "
-				+ "DATE_PART('DAY', COALESCE(s.result_delivery_date, now()) - COALESCE(s.result_collection_date, now()) ) AS tat3,"// 24
-				+ "srt.rejection_type rejection_type,  to_char(s.result_reported_date,'dd/MM/yyyy HH24:MI') result_reported_date,   "// 26
-				+ "to_char(COALESCE(s.pickup_date, sr.sample_retrieve_date),'dd/MM/yyyy HH24:MI') pickup_date, "// 27
+				+ "srt.rejection_type rejection_type,  to_char(s.result_reported_date,'dd/MM/yyyy HH24:MI') result_reported_date,   "// 23
+				+ "to_char(COALESCE(s.pickup_date, sr.sample_retrieve_date),'dd/MM/yyyy HH24:MI') pickup_date, "// 24
 				+ " s.sample_nature, "
 				+ "CAST(DATE_PART('DAY', COALESCE(s.deliver_at_lab_date, s.deliver_at_hub_date) - COALESCE(s.pickup_date,s.collection_date)) AS INTEGER), "
 				+ "CAST(DATE_PART('DAY', COALESCE(s.accepted_at_lab_date, s.accepted_at_hub_date) - COALESCE(s.deliver_at_lab_date, s.deliver_at_hub_date)) AS INTEGER), "
 				+ "CAST(DATE_PART('DAY', COALESCE(s.result_reported_date, s.analysis_released_date, now()) - COALESCE(s.accepted_at_lab_date, s.accepted_at_hub_date)) AS INTEGER), "
 				+ "CAST(DATE_PART('DAY', COALESCE(s.result_collection_date, now()) - COALESCE(s.result_reported_date, s.analysis_released_date)) AS INTEGER), "
 				+ "CAST(DATE_PART('DAY', COALESCE(s.result_delivery_date) - COALESCE(s.result_collection_date)) AS INTEGER), "
-				+ "CAST(DATE_PART('DAY', COALESCE(s.result_delivery_date) - COALESCE(s.pickup_date,s.collection_date)) AS INTEGER) "
+				// Délai global = TAT canonique (collecte → livraison du résultat), cf. TatSql.
+				+ "CAST(FLOOR(" + org.itech.labSampleTracker.dao.TatSql.DAYS + ") AS INTEGER) "
 				+ "FROM sample s JOIN sample_type st ON st.id = s.sample_type_id  "
 				+ "join sample_status ss2 ON ss2.id = s.sample_status_id JOIN "
 				+ "sample_retrieving sr ON s.sample_retrieving_id = sr.id JOIN "
@@ -1303,6 +1264,11 @@ public class SampleServiceImpl implements SampleService {
 				+ " LEFT JOIN lab ON lab.id = s.reference_lab_id LEFT JOIN lab hub ON hub.id = s.hub_id LEFT JOIN "
 				+ " lab destination_lab ON destination_lab.id = s.destination_lab_id  "
 				+ " join app_user au on au.id = sr.app_user_id where true ");
+		// Périmètre de l'utilisateur (cahier V.3) : sans cette restriction, l'export
+		// renvoyait tous les échantillons du pays, identifiants patients compris.
+		boolean scoped = accessibleSiteIds != null && !accessibleSiteIds.isEmpty();
+		if (scoped)
+			sql.append(" AND site.id IN (:accessibleSiteIds) ");
 		if (ObjectUtils.isNotEmpty(region))
 			sql.append(" AND reg.id = :regionId ");
 		if (ObjectUtils.isNotEmpty(district))
@@ -1324,6 +1290,8 @@ public class SampleServiceImpl implements SampleService {
 		List<Map<String, String>> response = new ArrayList<Map<String, String>>();
 		try {
 			Query query = em.createNativeQuery(sql.toString());
+			if (scoped)
+				query.setParameter("accessibleSiteIds", accessibleSiteIds);
 			if (ObjectUtils.isNotEmpty(region))
 				query.setParameter("regionId", region);
 			if (ObjectUtils.isNotEmpty(district))
@@ -1347,7 +1315,7 @@ public class SampleServiceImpl implements SampleService {
 				map.put("rider", Objects.toString(o[4], null));
 				map.put("sampleType", Objects.toString(o[5], null));
 				map.put("patientIdentifier", Objects.toString(o[6], null));
-				map.put("pickupDate", Objects.toString(o[27], null));
+				map.put("pickupDate", Objects.toString(o[24], null));
 				map.put("collectionDate", Objects.toString(o[7], null));
 				map.put("destinationLab", Objects.toString(o[8], null));
 				map.put("status", Objects.toString(o[9], null));
@@ -1363,19 +1331,16 @@ public class SampleServiceImpl implements SampleService {
 				map.put("analysisReleasedDate", Objects.toString(o[19], null));
 				map.put("resultCollectionDate", Objects.toString(o[20], null));
 				map.put("resultDeliveryDate", Objects.toString(o[21], null));
-				map.put("tat1", Objects.toString(o[22], null));
-				map.put("tat2", Objects.toString(o[23], null));
-				map.put("tat3", Objects.toString(o[24], null));
-				map.put("rejectionType", Objects.toString(o[25], null));
-				map.put("resultReportedDate", Objects.toString(o[26], null));
-				map.put("sampleNature", Objects.toString(o[28], null));
+				map.put("rejectionType", Objects.toString(o[22], null));
+				map.put("resultReportedDate", Objects.toString(o[23], null));
+				map.put("sampleNature", Objects.toString(o[25], null));
 
-				map.put("sampleTransmissionDelay", Objects.toString(o[29], null));
-				map.put("sampleReceptionDelay", Objects.toString(o[30], null));
-				map.put("sampleProcessingDelay", Objects.toString(o[31], null));
-				map.put("resultCollectionDelay", Objects.toString(o[32], null));
-				map.put("resultTransmissionDelay", Objects.toString(o[33], null));
-				map.put("globalDelay", Objects.toString(o[34], null));
+				map.put("sampleTransmissionDelay", Objects.toString(o[26], null));
+				map.put("sampleReceptionDelay", Objects.toString(o[27], null));
+				map.put("sampleProcessingDelay", Objects.toString(o[28], null));
+				map.put("resultCollectionDelay", Objects.toString(o[29], null));
+				map.put("resultTransmissionDelay", Objects.toString(o[30], null));
+				map.put("globalDelay", Objects.toString(o[31], null));
 				response.add(map);
 			}
 		} catch (Exception ex) {

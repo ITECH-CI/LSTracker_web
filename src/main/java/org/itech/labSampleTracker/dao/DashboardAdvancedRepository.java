@@ -65,7 +65,7 @@ public class DashboardAdvancedRepository {
 				// Cohorte = samples collectés dans la fenêtre (filter via CASE).
 				+ "  COALESCE(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY "
 				+ "    CASE WHEN CAST(s.collection_date AS DATE) BETWEEN CAST(:startDate AS DATE) AND CAST(:endDate AS DATE) "
-				+ "         THEN EXTRACT(EPOCH FROM (s.result_delivery_date - s.collection_date)) / 86400.0 END "
+				+ "         THEN " + TatSql.DAYS + " END "
 				+ "  ), 0)::numeric(10,1) AS tat_avg_days "
 				+ "FROM sample s "
 				+ "JOIN sample_status ss ON ss.id = s.sample_status_id "
@@ -155,10 +155,8 @@ public class DashboardAdvancedRepository {
 				// Non-conformités et échecs d'analyse : deux notions distinctes (cahier VI.3).
 				+ "  SUM(CASE WHEN ss.status = 'NON_CONFORM' THEN 1 ELSE 0 END) AS non_conform, "
 				+ "  SUM(CASE WHEN ss.status = 'ANALYSIS_FAILED' THEN 1 ELSE 0 END) AS failed, "
-				// TAT canonique : médiane(result_delivery_date - collection_date).
-				+ "  COALESCE(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY "
-				+ "    EXTRACT(EPOCH FROM (s.result_delivery_date - s.collection_date)) / 86400.0 "
-				+ "  ), 0)::numeric(10,1) AS tat_avg_days "
+				// TAT canonique (TatSql) : médiane(livraison du résultat − collecte).
+				+ "  " + TatSql.MEDIAN + " AS tat_avg_days "
 				+ "FROM region reg "
 				+ "LEFT JOIN district d ON d.region_id = reg.id "
 				+ "LEFT JOIN site st ON st.district_id = d.id "
@@ -196,10 +194,8 @@ public class DashboardAdvancedRepository {
 				// Non-conformités et échecs d'analyse : deux notions distinctes (cahier VI.3).
 				+ "  SUM(CASE WHEN ss.status = 'NON_CONFORM' THEN 1 ELSE 0 END) AS non_conform, "
 				+ "  SUM(CASE WHEN ss.status = 'ANALYSIS_FAILED' THEN 1 ELSE 0 END) AS failed, "
-				// TAT canonique : médiane(result_delivery_date - collection_date).
-				+ "  COALESCE(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY "
-				+ "    EXTRACT(EPOCH FROM (s.result_delivery_date - s.collection_date)) / 86400.0 "
-				+ "  ), 0)::numeric(10,1) AS tat_avg_days "
+				// TAT canonique (TatSql) : médiane(livraison du résultat − collecte).
+				+ "  " + TatSql.MEDIAN + " AS tat_avg_days "
 				+ "FROM district d "
 				+ "JOIN region r ON r.id = d.region_id "
 				+ "LEFT JOIN site st ON st.district_id = d.id "
@@ -233,10 +229,8 @@ public class DashboardAdvancedRepository {
 				// Non-conformités et échecs d'analyse : deux notions distinctes (cahier VI.3).
 				+ "  SUM(CASE WHEN ss.status = 'NON_CONFORM' THEN 1 ELSE 0 END) AS non_conform, "
 				+ "  SUM(CASE WHEN ss.status = 'ANALYSIS_FAILED' THEN 1 ELSE 0 END) AS failed, "
-				// TAT canonique : médiane(result_delivery_date - collection_date).
-				+ "  COALESCE(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY "
-				+ "    EXTRACT(EPOCH FROM (s.result_delivery_date - s.collection_date)) / 86400.0 "
-				+ "  ), 0)::numeric(10,1) AS tat_avg_days "
+				// TAT canonique (TatSql) : médiane(livraison du résultat − collecte).
+				+ "  " + TatSql.MEDIAN + " AS tat_avg_days "
 				+ "FROM site st "
 				+ "JOIN district d ON d.id = st.district_id "
 				+ "JOIN region r ON r.id = d.region_id "
