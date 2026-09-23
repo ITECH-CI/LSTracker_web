@@ -164,10 +164,17 @@ public class UserScopeService {
 			return ScopedFilter.builder().forceEmpty(true).build();
 		}
 
-		// No narrower filter constrains the geography? Then expose accessible site IDs.
+		// Le périmètre en sites reste appliqué quand un filtre géographique est
+		// choisi : une région est « autorisée » dès que l'utilisateur y a un seul
+		// site, et sans cette restriction il voyait toute la région (cahier V.3 :
+		// les données hors périmètre ne doivent pas apparaître dans ses totaux).
+		// Seul un filtre labo, sans filtre géographique, la lève : un labo
+		// autorisé voit ce qui lui est destiné, quel que soit le site d'origine.
+		boolean labOnly = requestedLab != null && requestedRegion == null
+				&& requestedDistrict == null && requestedSite == null;
 		boolean noNarrowFilter = requestedRegion == null && requestedDistrict == null
 				&& requestedSite == null && requestedLab == null;
-		List<Integer> accessibleSiteIds = noNarrowFilter ? scope.getSiteIds() : null;
+		List<Integer> accessibleSiteIds = labOnly ? null : scope.getSiteIds();
 		List<Integer> accessibleLabIds = noNarrowFilter ? scope.getLabIds() : null;
 
 		return ScopedFilter.builder()
