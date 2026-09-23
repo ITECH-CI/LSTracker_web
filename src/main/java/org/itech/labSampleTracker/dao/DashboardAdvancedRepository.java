@@ -147,12 +147,14 @@ public class DashboardAdvancedRepository {
 	 * even with zero samples — useful for a "you've got nothing here" honest UI).
 	 */
 	public List<Map<String, Object>> statsByRegion(LocalDate startDate, LocalDate endDate,
-			Integer labId, List<Integer> accessibleSiteIds) {
+			Integer regionId, Integer districtId, Integer siteId, Integer labId, List<Integer> accessibleSiteIds) {
 		final String sql = "SELECT reg.id AS region_id, reg.name AS region, "
 				+ "  COUNT(s.id) AS total, "
 				+ "  SUM(CASE WHEN ss.status = 'ON_TRANSIT' THEN 1 ELSE 0 END) AS in_transit, "
 				+ "  SUM(CASE WHEN ss.status = 'RESULT_ON_SITE' THEN 1 ELSE 0 END) AS delivered, "
-				+ "  SUM(CASE WHEN ss.status IN ('NON_CONFORM','ANALYSIS_FAILED') THEN 1 ELSE 0 END) AS rejected, "
+				// Non-conformités et échecs d'analyse : deux notions distinctes (cahier VI.3).
+				+ "  SUM(CASE WHEN ss.status = 'NON_CONFORM' THEN 1 ELSE 0 END) AS non_conform, "
+				+ "  SUM(CASE WHEN ss.status = 'ANALYSIS_FAILED' THEN 1 ELSE 0 END) AS failed, "
 				// TAT canonique : médiane(result_delivery_date - collection_date).
 				+ "  COALESCE(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY "
 				+ "    EXTRACT(EPOCH FROM (s.result_delivery_date - s.collection_date)) / 86400.0 "
@@ -170,14 +172,12 @@ public class DashboardAdvancedRepository {
 				+ "AND (CAST(:labId AS INT) IS NULL OR s.destination_lab_id = CAST(:labId AS INT))) "
 				+ "LEFT JOIN sample_status ss ON ss.id = s.sample_status_id "
 				+ "WHERE (:accessibleSiteIdsActive = FALSE OR st.id IS NULL OR st.id IN (:accessibleSiteIds)) "
+				// Filtres de l'écran (cahier VI.3 : homogènes sur toutes les visualisations).
+				+ "AND (CAST(:regionId AS INT) IS NULL OR reg.id = CAST(:regionId AS INT)) "
+				+ "AND (CAST(:districtId AS INT) IS NULL OR d.id = CAST(:districtId AS INT)) "
+				+ "AND (CAST(:siteId AS INT) IS NULL OR st.id = CAST(:siteId AS INT)) "
 				+ "GROUP BY reg.id, reg.name ORDER BY reg.name";
-		MapSqlParameterSource p = new MapSqlParameterSource()
-				.addValue("startDate", startDate).addValue("endDate", endDate)
-				.addValue("labId", labId);
-		boolean active = accessibleSiteIds != null && !accessibleSiteIds.isEmpty();
-		p.addValue("accessibleSiteIdsActive", active);
-		p.addValue("accessibleSiteIds", active ? accessibleSiteIds : List.of(-1));
-		return jdbc.queryForList(sql, p);
+		return jdbc.queryForList(sql, params(startDate, endDate, regionId, districtId, siteId, labId, accessibleSiteIds));
 	}
 
 	/**
@@ -187,13 +187,15 @@ public class DashboardAdvancedRepository {
 	 * (vue à plat du sélecteur de niveau) ; renseigné = districts de cette
 	 * région seulement (cascade du tableau).</p>
 	 */
-	public List<Map<String, Object>> statsByDistrict(Integer regionId, LocalDate startDate, LocalDate endDate,
-			Integer labId, List<Integer> accessibleSiteIds) {
+	public List<Map<String, Object>> statsByDistrict(LocalDate startDate, LocalDate endDate,
+			Integer regionId, Integer districtId, Integer siteId, Integer labId, List<Integer> accessibleSiteIds) {
 		final String sql = "SELECT d.id AS district_id, d.name AS district, r.name AS region, "
 				+ "  COUNT(s.id) AS total, "
 				+ "  SUM(CASE WHEN ss.status = 'ON_TRANSIT' THEN 1 ELSE 0 END) AS in_transit, "
 				+ "  SUM(CASE WHEN ss.status = 'RESULT_ON_SITE' THEN 1 ELSE 0 END) AS delivered, "
-				+ "  SUM(CASE WHEN ss.status IN ('NON_CONFORM','ANALYSIS_FAILED') THEN 1 ELSE 0 END) AS rejected, "
+				// Non-conformités et échecs d'analyse : deux notions distinctes (cahier VI.3).
+				+ "  SUM(CASE WHEN ss.status = 'NON_CONFORM' THEN 1 ELSE 0 END) AS non_conform, "
+				+ "  SUM(CASE WHEN ss.status = 'ANALYSIS_FAILED' THEN 1 ELSE 0 END) AS failed, "
 				// TAT canonique : médiane(result_delivery_date - collection_date).
 				+ "  COALESCE(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY "
 				+ "    EXTRACT(EPOCH FROM (s.result_delivery_date - s.collection_date)) / 86400.0 "
@@ -208,16 +210,11 @@ public class DashboardAdvancedRepository {
 				+ "AND (CAST(:labId AS INT) IS NULL OR s.destination_lab_id = CAST(:labId AS INT))) "
 				+ "LEFT JOIN sample_status ss ON ss.id = s.sample_status_id "
 				+ "WHERE (CAST(:regionId AS INT) IS NULL OR d.region_id = CAST(:regionId AS INT)) "
+				+ "AND (CAST(:districtId AS INT) IS NULL OR d.id = CAST(:districtId AS INT)) "
+				+ "AND (CAST(:siteId AS INT) IS NULL OR st.id = CAST(:siteId AS INT)) "
 				+ "AND (:accessibleSiteIdsActive = FALSE OR st.id IS NULL OR st.id IN (:accessibleSiteIds)) "
 				+ "GROUP BY d.id, d.name, r.name ORDER BY r.name, d.name";
-		MapSqlParameterSource p = new MapSqlParameterSource()
-				.addValue("regionId", regionId)
-				.addValue("startDate", startDate).addValue("endDate", endDate)
-				.addValue("labId", labId);
-		boolean active = accessibleSiteIds != null && !accessibleSiteIds.isEmpty();
-		p.addValue("accessibleSiteIdsActive", active);
-		p.addValue("accessibleSiteIds", active ? accessibleSiteIds : List.of(-1));
-		return jdbc.queryForList(sql, p);
+		return jdbc.queryForList(sql, params(startDate, endDate, regionId, districtId, siteId, labId, accessibleSiteIds));
 	}
 
 	/**
@@ -227,13 +224,15 @@ public class DashboardAdvancedRepository {
 	 * (vue à plat du sélecteur de niveau) ; renseigné = sites de ce district
 	 * seulement (cascade du tableau).</p>
 	 */
-	public List<Map<String, Object>> statsBySite(Integer districtId, LocalDate startDate, LocalDate endDate,
-			Integer labId, List<Integer> accessibleSiteIds) {
+	public List<Map<String, Object>> statsBySite(LocalDate startDate, LocalDate endDate,
+			Integer regionId, Integer districtId, Integer siteId, Integer labId, List<Integer> accessibleSiteIds) {
 		final String sql = "SELECT st.id AS site_id, st.name AS site, d.name AS district, r.name AS region, "
 				+ "  COUNT(s.id) AS total, "
 				+ "  SUM(CASE WHEN ss.status = 'ON_TRANSIT' THEN 1 ELSE 0 END) AS in_transit, "
 				+ "  SUM(CASE WHEN ss.status = 'RESULT_ON_SITE' THEN 1 ELSE 0 END) AS delivered, "
-				+ "  SUM(CASE WHEN ss.status IN ('NON_CONFORM','ANALYSIS_FAILED') THEN 1 ELSE 0 END) AS rejected, "
+				// Non-conformités et échecs d'analyse : deux notions distinctes (cahier VI.3).
+				+ "  SUM(CASE WHEN ss.status = 'NON_CONFORM' THEN 1 ELSE 0 END) AS non_conform, "
+				+ "  SUM(CASE WHEN ss.status = 'ANALYSIS_FAILED' THEN 1 ELSE 0 END) AS failed, "
 				// TAT canonique : médiane(result_delivery_date - collection_date).
 				+ "  COALESCE(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY "
 				+ "    EXTRACT(EPOCH FROM (s.result_delivery_date - s.collection_date)) / 86400.0 "
@@ -248,56 +247,52 @@ public class DashboardAdvancedRepository {
 				+ "AND (CAST(:labId AS INT) IS NULL OR s.destination_lab_id = CAST(:labId AS INT))) "
 				+ "LEFT JOIN sample_status ss ON ss.id = s.sample_status_id "
 				+ "WHERE (CAST(:districtId AS INT) IS NULL OR st.district_id = CAST(:districtId AS INT)) "
+				+ "AND (CAST(:regionId AS INT) IS NULL OR d.region_id = CAST(:regionId AS INT)) "
+				+ "AND (CAST(:siteId AS INT) IS NULL OR st.id = CAST(:siteId AS INT)) "
 				+ "AND (:accessibleSiteIdsActive = FALSE OR st.id IN (:accessibleSiteIds)) "
 				+ "GROUP BY st.id, st.name, d.name, r.name ORDER BY r.name, d.name, st.name";
-		MapSqlParameterSource p = new MapSqlParameterSource()
-				.addValue("districtId", districtId)
-				.addValue("startDate", startDate).addValue("endDate", endDate)
-				.addValue("labId", labId);
-		boolean active = accessibleSiteIds != null && !accessibleSiteIds.isEmpty();
-		p.addValue("accessibleSiteIdsActive", active);
-		p.addValue("accessibleSiteIds", active ? accessibleSiteIds : List.of(-1));
-		return jdbc.queryForList(sql, p);
+		return jdbc.queryForList(sql, params(startDate, endDate, regionId, districtId, siteId, labId, accessibleSiteIds));
 	}
 
 	/**
-	 * Top sites by rejection rate (NON_CONFORM + ANALYSIS_FAILED / total) over
-	 * the period, sites with at least {@code minSamples} samples to avoid noise.
+	 * Taux de non-conformité par site (cahier VI.2) : échantillons NON_CONFORM ÷
+	 * échantillons collectés, sur la période. Les échecs d'analyse n'y entrent
+	 * pas (notion distincte, cahier VI.3). {@code by_type} détaille les
+	 * non-conformités par type d'échantillon (« CV 8, EID 2 »). Seuil
+	 * {@code minSamples} collectés pour écarter les sites trop peu actifs.
 	 */
-	/**
-	 * Filtre géographique et labo des classements (sélection faite à l'écran,
-	 * déjà intersectée avec le périmètre de l'utilisateur). Alias requis :
-	 * s (sample) et st (site de collecte). Labo = labo de destination, comme le
-	 * reste du tableau de bord.
-	 */
-	private static final String RANKING_FILTER =
-			"AND (CAST(:siteId AS INT) IS NULL OR st.id = CAST(:siteId AS INT)) "
-			+ "AND (CAST(:districtId AS INT) IS NULL OR st.district_id = CAST(:districtId AS INT)) "
-			+ "AND (CAST(:regionId AS INT) IS NULL OR EXISTS (SELECT 1 FROM district fd "
-			+ "     WHERE fd.id = st.district_id AND fd.region_id = CAST(:regionId AS INT))) "
-			+ "AND (CAST(:labId AS INT) IS NULL OR s.destination_lab_id = CAST(:labId AS INT)) ";
-
 	public List<Map<String, Object>> topRejectionSites(LocalDate startDate, LocalDate endDate,
 			Integer regionId, Integer districtId, Integer siteId, Integer labId,
 			List<Integer> accessibleSiteIds, int limit, int minSamples) {
-		final String sql = "SELECT st.id AS site_id, st.name AS site, d.name AS district, reg.name AS region, "
-				+ "  COUNT(s.id) AS total, "
-				+ "  SUM(CASE WHEN ss.status IN ('NON_CONFORM','ANALYSIS_FAILED') THEN 1 ELSE 0 END) AS rejected, "
-				+ "  CAST(ROUND(100.0 * SUM(CASE WHEN ss.status IN ('NON_CONFORM','ANALYSIS_FAILED') THEN 1 ELSE 0 END) "
-				+ "    / NULLIF(COUNT(s.id), 0), 1) AS NUMERIC(5,1)) AS rejection_rate "
-				+ "FROM sample s "
-				+ "JOIN sample_status ss ON ss.id = s.sample_status_id "
-				+ "LEFT JOIN sample_retrieving sr ON sr.id = s.sample_retrieving_id "
-				+ "JOIN site st ON st.id = sr.site_id "
-				+ "JOIN district d ON d.id = st.district_id "
-				+ "JOIN region reg ON reg.id = d.region_id "
-				+ "WHERE (CAST(:startDate AS DATE) IS NULL OR CAST(s.collection_date AS DATE) >= CAST(:startDate AS DATE)) "
-				+ "AND (CAST(:endDate AS DATE) IS NULL OR CAST(s.collection_date AS DATE) <= CAST(:endDate AS DATE)) "
-				+ "AND (:accessibleSiteIdsActive = FALSE OR st.id IN (:accessibleSiteIds)) "
-				+ RANKING_FILTER
-				+ "GROUP BY st.id, st.name, d.name, reg.name "
-				+ "HAVING COUNT(s.id) >= :minSamples AND SUM(CASE WHEN ss.status IN ('NON_CONFORM','ANALYSIS_FAILED') THEN 1 ELSE 0 END) > 0 "
-				+ "ORDER BY rejection_rate DESC, rejected DESC LIMIT :rowLimit";
+		final String sql = "WITH base AS ( "
+				+ "  SELECT st.id AS site_id, st.name AS site, d.name AS district, reg.name AS region, "
+				+ "         COALESCE(typ.name, '?') AS sample_type, ss.status "
+				+ "  FROM sample s "
+				+ "  JOIN sample_status ss ON ss.id = s.sample_status_id "
+				+ "  LEFT JOIN sample_type typ ON typ.id = s.sample_type_id "
+				+ "  LEFT JOIN sample_retrieving sr ON sr.id = s.sample_retrieving_id "
+				+ "  JOIN site st ON st.id = sr.site_id "
+				+ "  JOIN district d ON d.id = st.district_id "
+				+ "  JOIN region reg ON reg.id = d.region_id "
+				+ "  WHERE (CAST(:startDate AS DATE) IS NULL OR CAST(s.collection_date AS DATE) >= CAST(:startDate AS DATE)) "
+				+ "  AND (CAST(:endDate AS DATE) IS NULL OR CAST(s.collection_date AS DATE) <= CAST(:endDate AS DATE)) "
+				+ "  AND (:accessibleSiteIdsActive = FALSE OR st.id IN (:accessibleSiteIds)) "
+				+ "  " + RANKING_FILTER
+				+ "), by_type AS ( "
+				+ "  SELECT site_id, string_agg(sample_type || ' ' || n, ', ' ORDER BY n DESC, sample_type) AS by_type "
+				+ "  FROM (SELECT site_id, sample_type, COUNT(*) AS n FROM base WHERE status = 'NON_CONFORM' "
+				+ "        GROUP BY site_id, sample_type) t GROUP BY site_id "
+				+ ") "
+				+ "SELECT b.site_id, b.site, b.district, b.region, "
+				+ "  COUNT(*) AS total, "
+				+ "  SUM(CASE WHEN b.status = 'NON_CONFORM' THEN 1 ELSE 0 END) AS non_conform, "
+				+ "  CAST(ROUND(100.0 * SUM(CASE WHEN b.status = 'NON_CONFORM' THEN 1 ELSE 0 END) "
+				+ "    / NULLIF(COUNT(*), 0), 1) AS NUMERIC(5,1)) AS non_conform_rate, "
+				+ "  MAX(bt.by_type) AS by_type "
+				+ "FROM base b LEFT JOIN by_type bt ON bt.site_id = b.site_id "
+				+ "GROUP BY b.site_id, b.site, b.district, b.region "
+				+ "HAVING COUNT(*) >= :minSamples AND SUM(CASE WHEN b.status = 'NON_CONFORM' THEN 1 ELSE 0 END) > 0 "
+				+ "ORDER BY non_conform_rate DESC, non_conform DESC LIMIT :rowLimit";
 		MapSqlParameterSource p = params(startDate, endDate, regionId, districtId, siteId, labId, accessibleSiteIds)
 				.addValue("rowLimit", limit).addValue("minSamples", minSamples);
 		return jdbc.queryForList(sql, p);
@@ -338,16 +333,24 @@ public class DashboardAdvancedRepository {
 	}
 
 	/**
-	 * Top conveyors with most active samples (recently moved) - simple activity ranking.
+	 * Classement des convoyeurs (cahier VI.2) : collectes et dépôts réalisés, et
+	 * délai médian d'acheminement (collecte → premier dépôt, au labo relais ou
+	 * au labo), en jours. Taux de non-conformité à titre indicatif. Trié par
+	 * nombre de collectes.
 	 */
 	public List<Map<String, Object>> topConveyors(LocalDate startDate, LocalDate endDate,
 			Integer regionId, Integer districtId, Integer siteId, Integer labId,
 			List<Integer> accessibleSiteIds, int limit) {
 		final String sql = "SELECT u.id AS user_id, u.first_name, u.last_name, u.login, "
 				+ "  COUNT(s.id) AS samples_handled, "
-				+ "  SUM(CASE WHEN ss.status IN ('NON_CONFORM','ANALYSIS_FAILED') THEN 1 ELSE 0 END) AS rejected, "
-				+ "  CAST(ROUND(100.0 * SUM(CASE WHEN ss.status IN ('NON_CONFORM','ANALYSIS_FAILED') THEN 1 ELSE 0 END) "
-				+ "    / NULLIF(COUNT(s.id), 0), 1) AS NUMERIC(5,1)) AS rejection_rate "
+				+ "  COUNT(COALESCE(s.deliver_at_hub_date, s.deliver_at_lab_date)) AS deposits, "
+				+ "  CAST(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY "
+				+ "    EXTRACT(EPOCH FROM (COALESCE(s.deliver_at_hub_date, s.deliver_at_lab_date) - s.collection_date)) / 86400.0 "
+				+ "  ) FILTER (WHERE COALESCE(s.deliver_at_hub_date, s.deliver_at_lab_date) >= s.collection_date) "
+				+ "  AS NUMERIC(10,1)) AS median_transport_days, "
+				+ "  SUM(CASE WHEN ss.status = 'NON_CONFORM' THEN 1 ELSE 0 END) AS non_conform, "
+				+ "  CAST(ROUND(100.0 * SUM(CASE WHEN ss.status = 'NON_CONFORM' THEN 1 ELSE 0 END) "
+				+ "    / NULLIF(COUNT(s.id), 0), 1) AS NUMERIC(5,1)) AS non_conform_rate "
 				+ "FROM sample s "
 				+ "JOIN sample_status ss ON ss.id = s.sample_status_id "
 				+ "JOIN sample_retrieving sr ON sr.id = s.sample_retrieving_id "
@@ -364,12 +367,6 @@ public class DashboardAdvancedRepository {
 		return jdbc.queryForList(sql, p);
 	}
 
-	/**
-	 * Activity coverage indicators (program reach) for the selected period.
-	 * Computes how many sites/districts/regions actually participated, how many
-	 * conveyors moved samples, how many labs received samples, plus
-	 * mileage totals.
-	 */
 	/** Au-delà, un trajet (relevé départ → arrivée) est considéré comme une erreur de saisie. */
 	static final int MAX_TRIP_KM = 1000;
 

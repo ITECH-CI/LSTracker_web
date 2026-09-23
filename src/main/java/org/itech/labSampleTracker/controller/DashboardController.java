@@ -370,45 +370,53 @@ public class DashboardController {
 	/**
 	 * Aggregated stats by region — top level of the hierarchical drill-down.
 	 */
+	// Répartition par région / district / site. Les quatre filtres de l'écran
+	// s'appliquent aux trois niveaux (cahier VI.3). Le dépliage d'une région
+	// (by-district?region=X) ou d'un district (by-site?district=Y) utilise le
+	// même paramètre : déplier revient à filtrer sur le parent.
 	@GetMapping(value = "/data/by-region", produces = "application/json")
 	@ResponseBody
 	public List<Map<String, Object>> statsByRegion(
 			@RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate startDate,
 			@RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate endDate,
-			@RequestParam(name = "lab", required = false) Integer labId) {
+			@RequestParam(required = false) Integer region, @RequestParam(required = false) Integer district,
+			@RequestParam(required = false) Integer site, @RequestParam(required = false) Integer lab) {
 		if (startDate == null) startDate = LocalDate.now().minusYears(2);
 		if (endDate == null) endDate = LocalDate.now();
-		ScopedFilter scope = userScopeService.intersectCurrent(null, null, null, labId);
+		ScopedFilter scope = userScopeService.intersectCurrent(region, district, site, lab);
 		if (scope.isForceEmpty()) return java.util.List.of();
-		return advancedRepo.statsByRegion(startDate, endDate, scope.getLabId(), scope.getAccessibleSiteIds());
+		return advancedRepo.statsByRegion(startDate, endDate, scope.getRegionId(), scope.getDistrictId(),
+				scope.getSiteId(), scope.getLabId(), scope.getAccessibleSiteIds());
 	}
 
 	@GetMapping(value = "/data/by-district", produces = "application/json")
 	@ResponseBody
 	public List<Map<String, Object>> statsByDistrict(
-			@RequestParam(name = "region", required = false) Integer regionId,
 			@RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate startDate,
 			@RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate endDate,
-			@RequestParam(name = "lab", required = false) Integer labId) {
+			@RequestParam(required = false) Integer region, @RequestParam(required = false) Integer district,
+			@RequestParam(required = false) Integer site, @RequestParam(required = false) Integer lab) {
 		if (startDate == null) startDate = LocalDate.now().minusYears(2);
 		if (endDate == null) endDate = LocalDate.now();
-		ScopedFilter scope = userScopeService.intersectCurrent(regionId, null, null, labId);
+		ScopedFilter scope = userScopeService.intersectCurrent(region, district, site, lab);
 		if (scope.isForceEmpty()) return java.util.List.of();
-		return advancedRepo.statsByDistrict(regionId, startDate, endDate, scope.getLabId(), scope.getAccessibleSiteIds());
+		return advancedRepo.statsByDistrict(startDate, endDate, scope.getRegionId(), scope.getDistrictId(),
+				scope.getSiteId(), scope.getLabId(), scope.getAccessibleSiteIds());
 	}
 
 	@GetMapping(value = "/data/by-site", produces = "application/json")
 	@ResponseBody
 	public List<Map<String, Object>> statsBySite(
-			@RequestParam(name = "district", required = false) Integer districtId,
 			@RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate startDate,
 			@RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate endDate,
-			@RequestParam(name = "lab", required = false) Integer labId) {
+			@RequestParam(required = false) Integer region, @RequestParam(required = false) Integer district,
+			@RequestParam(required = false) Integer site, @RequestParam(required = false) Integer lab) {
 		if (startDate == null) startDate = LocalDate.now().minusYears(2);
 		if (endDate == null) endDate = LocalDate.now();
-		ScopedFilter scope = userScopeService.intersectCurrent(null, districtId, null, labId);
+		ScopedFilter scope = userScopeService.intersectCurrent(region, district, site, lab);
 		if (scope.isForceEmpty()) return java.util.List.of();
-		return advancedRepo.statsBySite(districtId, startDate, endDate, scope.getLabId(), scope.getAccessibleSiteIds());
+		return advancedRepo.statsBySite(startDate, endDate, scope.getRegionId(), scope.getDistrictId(),
+				scope.getSiteId(), scope.getLabId(), scope.getAccessibleSiteIds());
 	}
 
 	/**

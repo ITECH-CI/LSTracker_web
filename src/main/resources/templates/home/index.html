@@ -275,6 +275,10 @@
 
 .chart-toggle .btn { font-size: .72rem; padding: .15rem .55rem; }
 #drillTable th.sortable { cursor: pointer; user-select: none; white-space: nowrap; }
+.rank-chip { display: inline-block; min-width: 1.6rem; padding: .05rem .35rem; border-radius: 999px; background: #eef2ff; color: #3730a3; font-size: .72rem; font-weight: 700; text-align: center; }
+.gap-up { color: #15803d; font-weight: 600; }
+.gap-down { color: #b45309; font-weight: 600; }
+.gap-flat { color: #6b7280; }
 #drillTable th.sortable:hover { color: #4f46e5; }
 #drillTable th .sort-arrow { margin-left: .3rem; font-size: .65rem; color: #cbd5e1; }
 #drillTable th.sorted .sort-arrow { color: #4f46e5; }
@@ -362,12 +366,12 @@
 	font-style: italic;
 }
 .cov-warn {
-	font-size: .68rem;
+	font-size: .72rem;
 	color: #b45309;
-	margin-top: .2rem;
+	margin-top: .5rem;
 	display: flex;
-	align-items: center;
-	gap: .25rem;
+	align-items: flex-start;
+	gap: .35rem;
 }
 .cov-warn i { font-size: .62rem; }
 
@@ -786,7 +790,8 @@
 							</div>
 							<div class="cov-warn" data-cov-warn="mileage" style="display:none;">
 								<i class="fas fa-exclamation-triangle"></i>
-								<span><span data-cov="samples_without_mileage">0</span> échantillons sans kilométrage exploitable (comptés dans le km moyen)<span data-cov-warn="rejected"> · <span data-cov="rejected_mileage_readings">0</span> relevés écartés (départ à 0, arrivée avant le départ ou plus de 1 000 km)</span></span>
+								<span><span data-cov="samples_without_mileage">0</span> éch. sans kilométrage exploitable<span data-cov-warn="rejected"> · <span data-cov="rejected_mileage_readings">0</span> relevés écartés</span>
+								<span class="help-tip" data-tip="Les échantillons sans kilométrage exploitable restent comptés dans le km moyen (dénominateur). Un relevé est écarté quand le départ est à 0 ou absent, que l'arrivée précède le départ, ou que le trajet dépasse 1 000 km.">i</span></span>
 							</div>
 						</div>
 					</div>
@@ -876,15 +881,18 @@
 								<tr>
 									<th class="num sortable" style="width:70px;" data-sort="id">ID</th>
 									<th class="sortable" data-sort="name"><span data-drill-col>Région / District / Site</span></th>
+									<th class="num" title="Rang par volume d'échantillons, parmi les lignes du même niveau">Rang</th>
 									<th class="num sortable" data-sort="total">Total</th>
+									<th class="num" title="Écart du volume à la moyenne des lignes du même niveau (cahier VI.2)">Écart moy.</th>
 									<th class="num sortable" data-sort="in_transit">En transit</th>
 									<th class="num sortable" data-sort="delivered">Livrés</th>
-									<th class="num sortable" data-sort="rejected">Rejets</th>
+									<th class="num sortable" data-sort="non_conform" title="Non-conformités (NON_CONFORM)">Non conf.</th>
+									<th class="num sortable" data-sort="failed" title="Échecs d'analyse (ANALYSIS_FAILED)">Échecs</th>
 									<th class="num sortable" data-sort="tat_avg_days">TAT moyen</th>
 								</tr>
 							</thead>
 							<tbody id="drillTableBody">
-								<tr><td colspan="7" class="empty-state">Chargement...</td></tr>
+								<tr><td colspan="10" class="empty-state">Chargement...</td></tr>
 							</tbody>
 						</table>
 						</div>
@@ -914,7 +922,7 @@
 					<div class="section-body">
 						<div class="top-grid">
 							<div class="top-card">
-								<div class="top-card-header"><i class="fas fa-ban text-danger"></i> Sites avec taux de rejet élevé</div>
+								<div class="top-card-header"><i class="fas fa-ban text-danger"></i> Taux de non-conformité par site<span class="help-tip" data-tip="Échantillons non conformes ÷ échantillons collectés sur la période, par site (5 collectés au moins). Les échecs d'analyse n'en font pas partie. Le détail par type d'échantillon est indiqué sous le site.">i</span></div>
 								<ol id="topRejectionSites"><li class="text-muted-sm">Chargement...</li></ol>
 							</div>
 							<div class="top-card">
@@ -922,7 +930,7 @@
 								<ol id="slowestLabs"><li class="text-muted-sm">Chargement...</li></ol>
 							</div>
 							<div class="top-card">
-								<div class="top-card-header"><i class="fas fa-trophy text-success"></i> Convoyeurs les plus actifs</div>
+								<div class="top-card-header"><i class="fas fa-trophy text-success"></i> Convoyeurs les plus actifs<span class="help-tip" data-tip="Collectes réalisées sur la période, dépôts effectués (labo relais ou labo) et délai médian d'acheminement : de la collecte au premier dépôt.">i</span></div>
 								<ol id="topConveyors"><li class="text-muted-sm">Chargement...</li></ol>
 							</div>
 						</div>
@@ -1487,7 +1495,7 @@
 		const level = window._drillLevel || 'region';
 		const url = level === 'region' ? 'dashboard/data/by-region'
 			: (level === 'district' ? 'dashboard/data/by-district' : 'dashboard/data/by-site');
-		$.get(url, { startDate: f.startDate, endDate: f.endDate, lab: f.lab }, function(rows) {
+		$.get(url, f, function(rows) {
 			window._drillRegions = rows || [];
 			window._drillPage = 1;
 			renderDrillRegions();
@@ -1503,9 +1511,9 @@
 		if (!rows.length) {
 			$('#drillPager').hide();
 			if (totalRowsRaw === 0) {
-				$body.append('<tr><td colspan="7" class="empty-state">Aucune donnée pour la période sélectionnée.</td></tr>');
+				$body.append('<tr><td colspan="10" class="empty-state">Aucune donnée pour la période sélectionnée.</td></tr>');
 			} else {
-				$body.append('<tr><td colspan="7" class="empty-state">Aucune zone avec activité sur la période. '
+				$body.append('<tr><td colspan="10" class="empty-state">Aucune zone avec activité sur la période. '
 					+ '<a href="#" id="lnkShowEmpty">Afficher toutes les zones</a></td></tr>');
 				$('#lnkShowEmpty').on('click', function(e) {
 					e.preventDefault();
@@ -1518,6 +1526,7 @@
 		window._drillMax = Math.max.apply(null, rows.map(r => num(r.total)).concat([0]));
 		// Pagination côté page (données déjà chargées). Les sous-niveaux dépliés
 		// s'insèrent sous leur ligne parente, donc restent sur la même page.
+		annotateRank(rows);
 		const sorted = sortDrillRows(rows, lvl);
 		const size = window._drillPageSize;
 		const pages = Math.max(1, Math.ceil(sorted.length / size));
@@ -1603,9 +1612,10 @@
 		const showEmpty = $('#showEmptyZones').is(':checked');
 		let rows = window._drillRegions || [];
 		if (!showEmpty) rows = rows.filter(r => num(r.total) > 0);
+		annotateRank(rows);
 		rows = sortDrillRows(rows, lvl);
 		const cols = ['ID'].concat(lvl === 'region' ? ['Région'] : lvl === 'district' ? ['Région', 'District'] : ['Région', 'District', 'Site'])
-			.concat(['Total', 'En transit', 'Livrés', 'Rejets', 'TAT moyen (j)']);
+			.concat(['Rang', 'Total', 'Écart à la moyenne (%)', 'En transit', 'Livrés', 'Non-conformités', "Échecs d'analyse", 'TAT moyen (j)']);
 		const cell = v => {
 			let t = v == null ? '' : String(v);
 			// Un tableur interprète comme formule un texte commençant par
@@ -1634,7 +1644,7 @@
 		const lines = header.concat([cols.join(';')]).concat(rows.map(function(r) {
 			const geo = lvl === 'region' ? [r.region] : lvl === 'district' ? [r.region, r.district] : [r.region, r.district, r.site];
 			return [drillId(r, lvl)].concat(geo)
-				.concat([num(r.total), num(r.in_transit), num(r.delivered), num(r.rejected), num(r.total) > 0 ? dec(r.tat_avg_days) : ''])
+				.concat([r._rank, num(r.total), r._gap == null ? '' : r._gap, num(r.in_transit), num(r.delivered), num(r.non_conform), num(r.failed), num(r.total) > 0 ? dec(r.tat_avg_days) : ''])
 				.map(cell).join(';');
 		}));
 		const f = currentFilters();
@@ -1675,10 +1685,13 @@
 			+   (parent && (window._drillLevel || 'region') !== 'region'
 					? ' <span class="drill-parent">' + escapeHtml(parent) + '</span>' : '')
 			+ '</span></td>'
+			+ '<td class="num"><span class="rank-chip">' + (r._rank || '—') + '</span></td>'
 			+ totalCell(r.total)
+			+ '<td class="num">' + gapCell(r._gap) + '</td>'
 			+ '<td class="num">' + formatNumber(r.in_transit) + '</td>'
 			+ '<td class="num">' + formatNumber(r.delivered) + '</td>'
-			+ '<td class="num">' + formatNumber(r.rejected) + '</td>'
+			+ '<td class="num">' + formatNumber(r.non_conform) + '</td>'
+			+ '<td class="num">' + formatNumber(r.failed) + '</td>'
 			+ '<td class="num">' + renderTat(r.tat_avg_days, r.total) + '</td>'
 			+ '</tr>';
 	}
@@ -1701,9 +1714,28 @@
 		}[lvl];
 		$('[data-drill-title]').text(labels[0]);
 		$('[data-drill-col]').text(labels[1]);
-		$('#drillTableBody').html('<tr><td colspan="7" class="empty-state">Chargement...</td></tr>');
+		$('#drillTableBody').html('<tr><td colspan="10" class="empty-state">Chargement...</td></tr>');
 		loadDrillRegions();
 	});
+
+	// Classement (cahier VI.2) : rang par volume et écart à la moyenne, calculés
+	// parmi les lignes d'un même niveau (ou les lignes sœurs d'un dépliage).
+	function annotateRank(rows) {
+		const byTotal = rows.slice().sort((a, b) => num(b.total) - num(a.total));
+		const mean = rows.length ? rows.reduce((acc, r) => acc + num(r.total), 0) / rows.length : 0;
+		let rank = 0, prev = null;
+		byTotal.forEach(function(r, i) {
+			if (num(r.total) !== prev) { rank = i + 1; prev = num(r.total); } // ex æquo : même rang
+			r._rank = rank;
+			r._gap = mean > 0 ? Math.round(100 * (num(r.total) - mean) / mean) : null;
+		});
+	}
+
+	function gapCell(gap) {
+		if (gap == null) return '<span class="text-muted-sm">—</span>';
+		const cls = gap > 0 ? 'gap-up' : (gap < 0 ? 'gap-down' : 'gap-flat');
+		return '<span class="' + cls + '">' + (gap > 0 ? '+' : '') + gap + ' %</span>';
+	}
 
 	// Barre discrète derrière le total, relative au plus grand total du niveau
 	// affiché (les sous-niveaux dépliés utilisent la même échelle).
@@ -1733,13 +1765,11 @@
 			$('tr[data-ancestor*="' + rowMarker + '"]').remove();
 			return;
 		}
+		// Filtres de l'écran + parent déplié (déplier = filtrer sur le parent).
 		const f = currentFilters();
-		const url = level === 'region' ? 'dashboard/data/by-district?region=' + id
-			: 'dashboard/data/by-site?district=' + id;
-		const startDate = f.startDate ? '&startDate=' + f.startDate : '';
-		const endDate = f.endDate ? '&endDate=' + f.endDate : '';
-		const lab = f.lab ? '&lab=' + f.lab : '';
-		$.get(url + startDate + endDate + lab, function(rows) {
+		const url = level === 'region' ? 'dashboard/data/by-district' : 'dashboard/data/by-site';
+		const params = Object.assign({}, f, level === 'region' ? { region: id } : { district: id });
+		$.get(url, params, function(rows) {
 			$btn.text('▼');
 			const showEmpty = $('#showEmptyZones').is(':checked');
 			const totalRowsRaw = rows.length;
@@ -1748,7 +1778,7 @@
 			if (!filtered.length) {
 				const msg = totalRowsRaw === 0 ? 'Aucun élément'
 					: 'Aucun élément avec activité (' + totalRowsRaw + ' masqué' + (totalRowsRaw > 1 ? 's' : '') + ')';
-				const $empty = $('<tr><td colspan="7" class="text-muted-sm" style="padding:.4rem 1rem;"></td></tr>')
+				const $empty = $('<tr><td colspan="10" class="text-muted-sm" style="padding:.4rem 1rem;"></td></tr>')
 					.attr('data-parent', rowMarker);
 				$empty.find('td').text(msg);
 				$parent.after($empty);
@@ -1756,6 +1786,7 @@
 			}
 			const childLevel = level === 'region' ? 'district' : 'site';
 			const indent = level === 'region' ? 1 : 2;
+			annotateRank(filtered);
 			sortDrillRows(filtered, childLevel).reverse().forEach(function(r) {
 				const $row = $(renderDrillRow(childLevel, r, indent))
 					.attr('data-parent', rowMarker)
@@ -1771,9 +1802,9 @@
 			renderRanking('#topRejectionSites', resp.rejection_sites, function(r) {
 				return {
 					name: r.site || '—',
-					sub: (r.district || '') + ' · ' + (r.region || ''),
-					metric: r.rejection_rate + '% (' + r.rejected + '/' + r.total + ')',
-					value: r.rejection_rate
+					sub: (r.district || '') + ' · ' + (r.region || '') + (r.by_type ? ' · ' + r.by_type : ''),
+					metric: r.non_conform_rate + '% (' + r.non_conform + '/' + r.total + ')',
+					value: r.non_conform_rate
 				};
 			});
 			renderRanking('#slowestLabs', resp.slowest_labs, function(r) {
@@ -1788,8 +1819,10 @@
 				const fullName = ((r.first_name || '') + ' ' + (r.last_name || '')).trim() || r.login || '—';
 				return {
 					name: fullName,
-					sub: r.rejected > 0 ? (r.rejection_rate + '% rejets') : 'Aucun rejet',
-					metric: r.samples_handled + ' éch.',
+					sub: formatNumber(r.deposits) + ' dépôts'
+						+ (r.median_transport_days != null ? ' · acheminement ' + formatDuration(r.median_transport_days) : '')
+						+ (num(r.non_conform) > 0 ? ' · ' + r.non_conform_rate + '% non conf.' : ''),
+					metric: formatNumber(r.samples_handled) + ' coll.',
 					value: r.samples_handled
 				};
 			});
@@ -1829,6 +1862,12 @@
 		if (typeof v === 'number') return v;
 		const n = Number(v);
 		return isNaN(n) ? 0 : n;
+	}
+	// Durée médiane en jours → « 2 h » sous 24 h, « 1,5 j » au-delà.
+	function formatDuration(days) {
+		const d = num(days);
+		if (d < 1) return Math.max(1, Math.round(d * 24)) + ' h';
+		return String(Math.round(d * 10) / 10).replace('.', ',') + ' j';
 	}
 	function formatNumber(v) {
 		const n = num(v);
