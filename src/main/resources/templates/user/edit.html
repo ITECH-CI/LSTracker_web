@@ -194,8 +194,7 @@
 					<div>
 						<h1><i class="fas fa-user-edit"></i>Modifier l'utilisateur</h1>
 						<div class="meta">
-							<strong th:text="'@' + ${userDTO?.login}">@login</strong>
-							<span th:if="${userDTO?.id}"> · ID : <strong th:text="${userDTO.id}">—</strong></span>
+							<strong th:if="${userDTO?.login}" th:text="'@' + ${userDTO.login}">@login</strong>
 						</div>
 						<div class="badges">
 							<span class="badge-pill b-active" th:if="${userDTO?.active}"><i class="fas fa-check-circle"></i> Actif</span>

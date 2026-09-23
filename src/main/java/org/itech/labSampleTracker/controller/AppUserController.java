@@ -337,6 +337,9 @@ public class AppUserController extends BaseController {
 			boolean wasLocked = Boolean.TRUE.equals(updatedUser.getIsLocked());
 			String previousRole = updatedUser.getRole();
 			String previousLogin = updatedUser.getLogin();
+			// Le champ Identifiant est désactivé dans le formulaire, donc jamais
+			// soumis : on le reprend de la base (il n'est pas modifiable).
+			userDTO.setLogin(previousLogin);
 			appUser = new AppUser();
 			AppUser u = appuserService.findUserByLogin(userDTO.getLogin());
 			if (u != null && !userDTO.getLogin().equalsIgnoreCase(u.getLogin())) {
