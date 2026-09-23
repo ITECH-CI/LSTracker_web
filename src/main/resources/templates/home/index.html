@@ -1119,7 +1119,11 @@
 		$('#input_end_date').val(frFromIso(u.get('endDate')));
 		// Période calendaire choisie par un raccourci : bouton actif. Une date
 		// modifiée à la main la fait oublier (comparaison à durée égale).
-		window._period = u.get('period');
+		// Liste fermée : une valeur arbitraire de l'URL cassait le sélecteur
+		// jQuery ci-dessous (exception → page blanche).
+		const PERIODS = ['today', 'week', 'month', 'quarter', 'semester', 'year'];
+		const p = u.get('period');
+		window._period = PERIODS.includes(p) ? p : null;
 		if (window._period) {
 			$('.date-presets .btn[data-preset="' + window._period + '"]').addClass('active');
 		}
@@ -1603,11 +1607,31 @@
 		const cols = ['ID'].concat(lvl === 'region' ? ['Région'] : lvl === 'district' ? ['Région', 'District'] : ['Région', 'District', 'Site'])
 			.concat(['Total', 'En transit', 'Livrés', 'Rejets', 'TAT moyen (j)']);
 		const cell = v => {
-			const t = v == null ? '' : String(v);
+			let t = v == null ? '' : String(v);
+			// Un tableur interprète comme formule un texte commençant par
+			// = + - @ (injection de formule) : on le neutralise par une apostrophe.
+			if (typeof v === 'string' && /^[=+\-@\t\r]/.test(t)) t = "'" + t;
 			return /[;"\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t;
 		};
 		const dec = v => (v == null || v === '') ? '' : String(num(v)).replace('.', ',');
-		const lines = [cols.join(';')].concat(rows.map(function(r) {
+		// En-tête (cahier V.5) : export horodaté, avec le périmètre et la période,
+		// pour qu'un fichier renommé ou transmis reste interprétable.
+		const f0 = currentFilters();
+		const selText = sel => { const t = $(sel + ' option:selected').text().trim(); return $(sel).val() ? t : ''; };
+		const perimetre = [selText('#select_region'), selText('#select_district'), selText('#select_site')]
+			.filter(Boolean).join(' › ') || 'Tout le périmètre de l\'utilisateur';
+		const labo = selText('#select_lab');
+		const now = new Date();
+		const pad = n => String(n).padStart(2, '0');
+		const header = [
+			cell('LSTracker — Répartition par ' + { region: 'région sanitaire', district: 'district sanitaire', site: 'site' }[lvl]),
+			cell('Période : ' + (f0.startDate ? frFromIso(f0.startDate) : 'début') + ' au ' + (f0.endDate ? frFromIso(f0.endDate) : "aujourd'hui")),
+			cell('Périmètre : ' + perimetre + (labo ? ' · Laboratoire : ' + labo : '')),
+			cell('Exporté le ' + pad(now.getDate()) + '/' + pad(now.getMonth() + 1) + '/' + now.getFullYear()
+				+ ' à ' + pad(now.getHours()) + ':' + pad(now.getMinutes())),
+			''
+		];
+		const lines = header.concat([cols.join(';')]).concat(rows.map(function(r) {
 			const geo = lvl === 'region' ? [r.region] : lvl === 'district' ? [r.region, r.district] : [r.region, r.district, r.site];
 			return [drillId(r, lvl)].concat(geo)
 				.concat([num(r.total), num(r.in_transit), num(r.delivered), num(r.rejected), num(r.total) > 0 ? dec(r.tat_avg_days) : ''])
@@ -1743,18 +1767,18 @@
 
 	function loadTopPerformers() {
 		const f = currentFilters();
-		$.get('dashboard/data/top-performers', { startDate: f.startDate, endDate: f.endDate, limit: 5 }, function(resp) {
+		$.get('dashboard/data/top-performers', Object.assign({}, f, { limit: 5 }), function(resp) {
 			renderRanking('#topRejectionSites', resp.rejection_sites, function(r) {
 				return {
-					name: escapeHtml(r.site || '—'),
-					sub: escapeHtml((r.district || '') + ' · ' + (r.region || '')),
+					name: r.site || '—',
+					sub: (r.district || '') + ' · ' + (r.region || ''),
 					metric: r.rejection_rate + '% (' + r.rejected + '/' + r.total + ')',
 					value: r.rejection_rate
 				};
 			});
 			renderRanking('#slowestLabs', resp.slowest_labs, function(r) {
 				return {
-					name: escapeHtml(r.lab || '—'),
+					name: r.lab || '—',
 					sub: r.total + ' échantillons',
 					metric: r.avg_tat_days + ' j',
 					value: r.avg_tat_days
@@ -1763,7 +1787,7 @@
 			renderRanking('#topConveyors', resp.top_conveyors, function(r) {
 				const fullName = ((r.first_name || '') + ' ' + (r.last_name || '')).trim() || r.login || '—';
 				return {
-					name: escapeHtml(fullName),
+					name: fullName,
 					sub: r.rejected > 0 ? (r.rejection_rate + '% rejets') : 'Aucun rejet',
 					metric: r.samples_handled + ' éch.',
 					value: r.samples_handled
@@ -1773,7 +1797,8 @@
 	}
 
 	// Classement : rang, libellé, valeur, et une barre proportionnelle au
-	// premier du classement pour lire les écarts d'un coup d'œil.
+	// premier du classement pour lire les écarts d'un coup d'œil. Les mappers
+	// renvoient du texte brut : tout est échappé ici, au rendu.
 	function renderRanking(selector, rows, mapper) {
 		const $el = $(selector).empty();
 		if (!rows || !rows.length) {
@@ -1786,8 +1811,8 @@
 			const w = max > 0 ? Math.round(100 * num(m.value) / max) : 0;
 			$el.append('<li>'
 				+ '<span class="rank">' + (i + 1) + '</span>'
-				+ '<div><div class="name">' + m.name + '</div><div class="sub">' + m.sub + '</div></div>'
-				+ '<div class="metric">' + m.metric + '</div>'
+				+ '<div><div class="name">' + escapeHtml(m.name) + '</div><div class="sub">' + escapeHtml(m.sub) + '</div></div>'
+				+ '<div class="metric">' + escapeHtml(m.metric) + '</div>'
 				+ '<div class="rank-bar"><span style="width:' + w + '%"></span></div>'
 				+ '</li>');
 		});

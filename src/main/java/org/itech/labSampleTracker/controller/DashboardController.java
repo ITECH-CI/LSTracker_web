@@ -465,12 +465,15 @@ public class DashboardController {
 	public Map<String, Object> topPerformers(
 			@RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate startDate,
 			@RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate endDate,
+			@RequestParam(required = false) Integer region, @RequestParam(required = false) Integer district,
+			@RequestParam(required = false) Integer site, @RequestParam(required = false) Integer lab,
 			@RequestParam(name = "limit", defaultValue = "5") int limit,
 			@RequestParam(name = "min_samples", defaultValue = "5") int minSamples) {
 		if (startDate == null) startDate = LocalDate.now().minusYears(2);
 		if (endDate == null) endDate = LocalDate.now();
 
-		ScopedFilter scope = userScopeService.intersectCurrent(null, null, null, null);
+		// Même filtre que le reste du tableau de bord (sélection écran ∩ périmètre).
+		ScopedFilter scope = userScopeService.intersectCurrent(region, district, site, lab);
 		if (scope.isForceEmpty()) {
 			return java.util.Map.of("rejection_sites", java.util.List.of(),
 					"slowest_labs", java.util.List.of(),
@@ -479,10 +482,13 @@ public class DashboardController {
 
 		Map<String, Object> out = new java.util.LinkedHashMap<>();
 		out.put("rejection_sites", advancedRepo.topRejectionSites(startDate, endDate,
+				scope.getRegionId(), scope.getDistrictId(), scope.getSiteId(), scope.getLabId(),
 				scope.getAccessibleSiteIds(), limit, minSamples));
 		out.put("slowest_labs", advancedRepo.slowestLabs(startDate, endDate,
+				scope.getRegionId(), scope.getDistrictId(), scope.getSiteId(), scope.getLabId(),
 				scope.getAccessibleSiteIds(), limit, minSamples));
 		out.put("top_conveyors", advancedRepo.topConveyors(startDate, endDate,
+				scope.getRegionId(), scope.getDistrictId(), scope.getSiteId(), scope.getLabId(),
 				scope.getAccessibleSiteIds(), limit));
 		return out;
 	}

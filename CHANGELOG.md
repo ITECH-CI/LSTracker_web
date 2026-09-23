@@ -41,6 +41,14 @@ Règle métier : un convoyeur a accès aux laboratoires situés dans les distric
 - Écrans étroits (tablette, mobile) : les blocs et graphiques suivent la largeur de l'écran au lieu d'être tronqués.
 - **Distance totale et km moyen corrigés** : seuls les trajets exploitables comptent (départ renseigné et non nul, arrivée après le départ, 1 000 km au plus), et un trajet partagé par plusieurs échantillons n'est compté qu'une fois. Les données 2024 de l'ancienne application portent un départ à 0 sur le trajet des résultats : la « distance » était le compteur entier du véhicule (386 M km affichés sur la démo, ~238 500 km après correction). Nombre de trajets et de relevés écartés affichés.
 
+### Corrections issues de la revue de code du 23/09
+
+- Indicateurs de performance : les trois classements (sites à rejet élevé, labos lents, convoyeurs) suivent désormais les filtres région / district / site / labo de l'écran, comme le reste du tableau de bord (ils restaient au niveau national).
+- Lien partagé avec un paramètre `period` invalide : la page ne reste plus blanche (valeur contrôlée contre la liste des périodes).
+- Export CSV : protection contre l'injection de formule (texte commençant par = + - @) et en-tête horodaté indiquant la période et le périmètre (cahier V.5).
+- Classements : échappement HTML appliqué au rendu, pour tous les champs.
+- CI : tests unitaires lancés à chaque push (`.github/workflows/ci.yml`).
+
 ### Administration des utilisateurs
 
 - Page « Modifier l'utilisateur » : après enregistrement, l'identifiant s'affichait vide et l'en-tête « @null » (le champ désactivé n'est pas soumis par le navigateur). Le login est repris de la base. L'ID technique n'est plus affiché.

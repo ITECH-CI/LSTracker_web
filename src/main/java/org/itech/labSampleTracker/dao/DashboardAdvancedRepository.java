@@ -264,7 +264,21 @@ public class DashboardAdvancedRepository {
 	 * Top sites by rejection rate (NON_CONFORM + ANALYSIS_FAILED / total) over
 	 * the period, sites with at least {@code minSamples} samples to avoid noise.
 	 */
+	/**
+	 * Filtre géographique et labo des classements (sélection faite à l'écran,
+	 * déjà intersectée avec le périmètre de l'utilisateur). Alias requis :
+	 * s (sample) et st (site de collecte). Labo = labo de destination, comme le
+	 * reste du tableau de bord.
+	 */
+	private static final String RANKING_FILTER =
+			"AND (CAST(:siteId AS INT) IS NULL OR st.id = CAST(:siteId AS INT)) "
+			+ "AND (CAST(:districtId AS INT) IS NULL OR st.district_id = CAST(:districtId AS INT)) "
+			+ "AND (CAST(:regionId AS INT) IS NULL OR EXISTS (SELECT 1 FROM district fd "
+			+ "     WHERE fd.id = st.district_id AND fd.region_id = CAST(:regionId AS INT))) "
+			+ "AND (CAST(:labId AS INT) IS NULL OR s.destination_lab_id = CAST(:labId AS INT)) ";
+
 	public List<Map<String, Object>> topRejectionSites(LocalDate startDate, LocalDate endDate,
+			Integer regionId, Integer districtId, Integer siteId, Integer labId,
 			List<Integer> accessibleSiteIds, int limit, int minSamples) {
 		final String sql = "SELECT st.id AS site_id, st.name AS site, d.name AS district, reg.name AS region, "
 				+ "  COUNT(s.id) AS total, "
@@ -280,15 +294,12 @@ public class DashboardAdvancedRepository {
 				+ "WHERE (CAST(:startDate AS DATE) IS NULL OR CAST(s.collection_date AS DATE) >= CAST(:startDate AS DATE)) "
 				+ "AND (CAST(:endDate AS DATE) IS NULL OR CAST(s.collection_date AS DATE) <= CAST(:endDate AS DATE)) "
 				+ "AND (:accessibleSiteIdsActive = FALSE OR st.id IN (:accessibleSiteIds)) "
+				+ RANKING_FILTER
 				+ "GROUP BY st.id, st.name, d.name, reg.name "
 				+ "HAVING COUNT(s.id) >= :minSamples AND SUM(CASE WHEN ss.status IN ('NON_CONFORM','ANALYSIS_FAILED') THEN 1 ELSE 0 END) > 0 "
 				+ "ORDER BY rejection_rate DESC, rejected DESC LIMIT :rowLimit";
-		MapSqlParameterSource p = new MapSqlParameterSource()
-				.addValue("startDate", startDate).addValue("endDate", endDate)
+		MapSqlParameterSource p = params(startDate, endDate, regionId, districtId, siteId, labId, accessibleSiteIds)
 				.addValue("rowLimit", limit).addValue("minSamples", minSamples);
-		boolean active = accessibleSiteIds != null && !accessibleSiteIds.isEmpty();
-		p.addValue("accessibleSiteIdsActive", active);
-		p.addValue("accessibleSiteIds", active ? accessibleSiteIds : List.of(-1));
 		return jdbc.queryForList(sql, p);
 	}
 
@@ -296,6 +307,7 @@ public class DashboardAdvancedRepository {
 	 * Slowest labs by average TAT (collection → analysis_released) over the period.
 	 */
 	public List<Map<String, Object>> slowestLabs(LocalDate startDate, LocalDate endDate,
+			Integer regionId, Integer districtId, Integer siteId, Integer labId,
 			List<Integer> accessibleSiteIds, int limit, int minSamples) {
 		// NB : indicateur SPÉCIFIQUE au segment labo (analysis_released - deliver_at_lab).
 		// Diffère volontairement du TAT canonique (result_delivery - collection)
@@ -316,15 +328,12 @@ public class DashboardAdvancedRepository {
 				+ "AND (CAST(:startDate AS DATE) IS NULL OR CAST(s.collection_date AS DATE) >= CAST(:startDate AS DATE)) "
 				+ "AND (CAST(:endDate AS DATE) IS NULL OR CAST(s.collection_date AS DATE) <= CAST(:endDate AS DATE)) "
 				+ "AND (:accessibleSiteIdsActive = FALSE OR st.id IN (:accessibleSiteIds)) "
+				+ RANKING_FILTER
 				+ "GROUP BY lab.id, lab.lab_name "
 				+ "HAVING COUNT(s.id) >= :minSamples "
 				+ "ORDER BY avg_tat_days DESC LIMIT :rowLimit";
-		MapSqlParameterSource p = new MapSqlParameterSource()
-				.addValue("startDate", startDate).addValue("endDate", endDate)
+		MapSqlParameterSource p = params(startDate, endDate, regionId, districtId, siteId, labId, accessibleSiteIds)
 				.addValue("rowLimit", limit).addValue("minSamples", minSamples);
-		boolean active = accessibleSiteIds != null && !accessibleSiteIds.isEmpty();
-		p.addValue("accessibleSiteIdsActive", active);
-		p.addValue("accessibleSiteIds", active ? accessibleSiteIds : List.of(-1));
 		return jdbc.queryForList(sql, p);
 	}
 
@@ -332,6 +341,7 @@ public class DashboardAdvancedRepository {
 	 * Top conveyors with most active samples (recently moved) - simple activity ranking.
 	 */
 	public List<Map<String, Object>> topConveyors(LocalDate startDate, LocalDate endDate,
+			Integer regionId, Integer districtId, Integer siteId, Integer labId,
 			List<Integer> accessibleSiteIds, int limit) {
 		final String sql = "SELECT u.id AS user_id, u.first_name, u.last_name, u.login, "
 				+ "  COUNT(s.id) AS samples_handled, "
@@ -346,14 +356,11 @@ public class DashboardAdvancedRepository {
 				+ "WHERE (CAST(:startDate AS DATE) IS NULL OR CAST(s.collection_date AS DATE) >= CAST(:startDate AS DATE)) "
 				+ "AND (CAST(:endDate AS DATE) IS NULL OR CAST(s.collection_date AS DATE) <= CAST(:endDate AS DATE)) "
 				+ "AND (:accessibleSiteIdsActive = FALSE OR st.id IN (:accessibleSiteIds)) "
+				+ RANKING_FILTER
 				+ "GROUP BY u.id, u.first_name, u.last_name, u.login "
 				+ "ORDER BY samples_handled DESC LIMIT :rowLimit";
-		MapSqlParameterSource p = new MapSqlParameterSource()
-				.addValue("startDate", startDate).addValue("endDate", endDate)
+		MapSqlParameterSource p = params(startDate, endDate, regionId, districtId, siteId, labId, accessibleSiteIds)
 				.addValue("rowLimit", limit);
-		boolean active = accessibleSiteIds != null && !accessibleSiteIds.isEmpty();
-		p.addValue("accessibleSiteIdsActive", active);
-		p.addValue("accessibleSiteIds", active ? accessibleSiteIds : List.of(-1));
 		return jdbc.queryForList(sql, p);
 	}
 

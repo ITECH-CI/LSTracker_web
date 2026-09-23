@@ -1,0 +1,33 @@
+# =====================================================================
+# Tests unitaires à chaque push sur main et à chaque pull request.
+#
+# LabSampleTrackerApplicationTests (contextLoads) est exclu : il démarre
+# tout le contexte Spring et a besoin d'une base PostgreSQL. Les tests
+# métier (ex. DashboardPreviousPeriodTest) n'en ont pas besoin.
+# =====================================================================
+
+name: CI — tests unitaires
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+
+      - name: Tests unitaires
+        run: |
+          chmod +x mvnw
+          ./mvnw -B test '-Dtest=!LabSampleTrackerApplicationTests' -Dsurefire.failIfNoSpecifiedTests=false
