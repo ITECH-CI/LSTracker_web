@@ -259,10 +259,13 @@ public class SiteServiceImpl implements SiteService {
 
 	@Override
 	public List<Map<String, Object>> getSiteIdAndCodeAndNamesByUser(Integer userId) {
-		String sql = "SELECT distinct s.id,dhis_code,name FROM site s left join circuit_site cs on cs.site_id = s.id "
-				+ " left join app_user_has_circuit auhc on auhc.circuit_id = cs.circuit_id  "
-				+ " left join app_user_has_site auhs on auhs.site_id = s.id "
-				+ " where (auhc.app_user_id = :userId or auhs.app_user_id = :userId)";
+		// Sites des axes actifs de l'utilisateur (rattachement actif), ou affectés
+		// directement.
+		String sql = "SELECT distinct s.id,dhis_code,name FROM site s "
+				+ " where exists (select 1 from circuit_site cs join circuit c on c.id = cs.circuit_id "
+				+ "   join app_user_has_circuit auhc on auhc.circuit_id = cs.circuit_id "
+				+ "   where cs.site_id = s.id and auhc.app_user_id = :userId and c.is_active and cs.is_active) "
+				+ " or exists (select 1 from app_user_has_site auhs where auhs.site_id = s.id and auhs.app_user_id = :userId)";
 		List<Map<String, Object>> response = new ArrayList<Map<String, Object>>();
 		try {
 			Query query = em.createNativeQuery(sql);

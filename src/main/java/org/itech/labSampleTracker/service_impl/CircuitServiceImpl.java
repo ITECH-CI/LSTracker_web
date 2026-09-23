@@ -193,9 +193,11 @@ public class CircuitServiceImpl implements CircuitService {
 
 	@Override
 	public List<Map<String, Object>> getCircuitIdAndNumberByUser(Integer userId) {
+		// Axes et rattachements actifs uniquement (métadonnées mobile, listes).
 		String sql = "select distinct c.id circuit_id ,c.circuit_number circuit_number "
 				+ "from circuit c join circuit_site cs on c.id = cs.circuit_id "
-				+ "join app_user_has_circuit auhc on auhc.circuit_id = c.id  where auhc.app_user_id = :userId";
+				+ "join app_user_has_circuit auhc on auhc.circuit_id = c.id  where auhc.app_user_id = :userId "
+				+ "and c.is_active and cs.is_active";
 		List<Map<String, Object>> response = new ArrayList<Map<String, Object>>();
 		try {
 			Query query = em.createNativeQuery(sql);

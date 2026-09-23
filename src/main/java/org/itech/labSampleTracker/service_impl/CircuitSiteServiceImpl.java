@@ -148,8 +148,10 @@ public class CircuitSiteServiceImpl implements CircuitSiteService {
 
 	@Override
 	public List<Map<String, Object>> getCircuitSiteByUser(Integer userId) {
+		// Axes et rattachements actifs uniquement (métadonnées mobile).
 		String sql = "SELECT distinct cs.circuit_id, cs.site_id from circuit_site cs join app_user_has_circuit auc on cs.circuit_id  = auc.circuit_id "
-				+ "where auc.app_user_id = :userId";
+				+ "join circuit c on c.id = cs.circuit_id "
+				+ "where auc.app_user_id = :userId and c.is_active and cs.is_active";
 		List<Map<String, Object>> response = new ArrayList<Map<String, Object>>();
 		try {
 			Query query = em.createNativeQuery(sql);
@@ -169,7 +171,9 @@ public class CircuitSiteServiceImpl implements CircuitSiteService {
 
 	@Override
 	public List<Map<String, Object>> getAllCircuitSite() {
-		String sql = "SELECT distinct cs.circuit_id, cs.site_id from circuit_site cs";
+		// Axes et rattachements actifs uniquement (métadonnées mobile admin).
+		String sql = "SELECT distinct cs.circuit_id, cs.site_id from circuit_site cs "
+				+ "join circuit c on c.id = cs.circuit_id where c.is_active and cs.is_active";
 		List<Map<String, Object>> response = new ArrayList<Map<String, Object>>();
 		try {
 			Query query = em.createNativeQuery(sql);
