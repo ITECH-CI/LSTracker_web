@@ -2,9 +2,11 @@ package org.itech.labSampleTracker.integration.oedatarepo;
 
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.itech.labSampleTracker.config.ClusterLock;
 import org.itech.labSampleTracker.dao.SampleRepository;
 import org.itech.labSampleTracker.entities.OeSyncRun;
 import org.itech.labSampleTracker.entities.Sample;
@@ -19,10 +21,14 @@ import lombok.Getter;
  * Exécution d'un lot de synchronisation oedatarepo, partagée par le job
  * planifié et le déclenchement manuel (même logique → parité garantie).
  *
- * Une garde {@link AtomicBoolean} empêche deux exécutions simultanées dans la
- * même instance (job vs manuel) : un second déclenchement renvoie immédiatement
- * un résumé "occupé" sans écrire de run. (Garde par instance ; suffisant pour le
- * modèle de déploiement actuel d'un conteneur par environnement.)
+ * Deux gardes empêchent deux exécutions simultanées ; un second déclenchement
+ * renvoie immédiatement un résumé "occupé" sans écrire de run :
+ * <ul>
+ * <li>{@link AtomicBoolean} : dans la même instance (job vs manuel) ;</li>
+ * <li>{@link ClusterLock} (verrou consultatif PostgreSQL) : entre instances,
+ * pour une montée en charge horizontale (plusieurs conteneurs derrière le
+ * répartiteur) sans lot en double.</li>
+ * </ul>
  */
 @Service
 public class OeAnalysisBatchService {
@@ -38,10 +44,14 @@ public class OeAnalysisBatchService {
     private final int batchSize;
     private final int maxAttempts;
 
+    /** Nom du verrou partagé entre instances. */
+    static final String CLUSTER_LOCK = "lstracker.oedatarepo.sync";
+
     private final AtomicBoolean running = new AtomicBoolean(false);
+    private final ClusterLock clusterLock;
 
     public OeAnalysisBatchService(SampleRepository sampleRepository,
-            OeAnalysisSyncService syncService, OeSyncTrackingService trackingService,
+            OeAnalysisSyncService syncService, OeSyncTrackingService trackingService, ClusterLock clusterLock,
             @Value("${lstracker.oedatarepo.sync.batch-size:200}") int batchSize,
             @Value("${lstracker.oedatarepo.sync.max-attempts:5}") int maxAttempts) {
         this.sampleRepository = sampleRepository;
@@ -49,6 +59,7 @@ public class OeAnalysisBatchService {
         this.trackingService = trackingService;
         this.batchSize = batchSize;
         this.maxAttempts = maxAttempts;
+        this.clusterLock = clusterLock;
     }
 
     public boolean isRunning() {
@@ -66,6 +77,26 @@ public class OeAnalysisBatchService {
             log.info("Sync oedatarepo déjà en cours, déclenchement '{}' ignoré", triggeredBy);
             return RunSummary.busy();
         }
+        Optional<ClusterLock.Held> lock;
+        try {
+            lock = clusterLock.tryAcquire(CLUSTER_LOCK);
+        } catch (RuntimeException e) {
+            running.set(false);
+            throw e;
+        }
+        if (lock.isEmpty()) {
+            running.set(false);
+            log.info("Sync oedatarepo en cours sur une autre instance, déclenchement '{}' ignoré", triggeredBy);
+            return RunSummary.busy();
+        }
+        try (ClusterLock.Held held = lock.get()) {
+            return runLocked(triggeredBy);
+        } finally {
+            running.set(false);
+        }
+    }
+
+    private RunSummary runLocked(String triggeredBy) {
         OeSyncRun run = trackingService.startRun(triggeredBy);
         int examined = 0;
         int updated = 0;
@@ -125,7 +156,6 @@ public class OeAnalysisBatchService {
             return new RunSummary(false, examined, updated, errors);
         } finally {
             trackingService.finishRun(run, examined, updated, errors);
-            running.set(false);
         }
     }
 
