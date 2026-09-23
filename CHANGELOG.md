@@ -41,6 +41,33 @@ Règle métier : un convoyeur a accès aux laboratoires situés dans les distric
 - Écrans étroits (tablette, mobile) : les blocs et graphiques suivent la largeur de l'écran au lieu d'être tronqués.
 - **Distance totale et km moyen corrigés** : seuls les trajets exploitables comptent (départ renseigné et non nul, arrivée après le départ, 1 000 km au plus), et un trajet partagé par plusieurs échantillons n'est compté qu'une fois. Les données 2024 de l'ancienne application portent un départ à 0 sur le trajet des résultats : la « distance » était le compteur entier du véhicule (386 M km affichés sur la démo, ~238 500 km après correction). Nombre de trajets et de relevés écartés affichés.
 
+### Sécurité — périmètre des données (cahier V.3)
+
+- Un filtre région / district / site levait la restriction aux sites de l'utilisateur : un compte restreint voyait toute la région filtrée. Corrigé (`UserScopeService.intersect`) ; seul un filtre labo seul lève encore la restriction.
+- L'export CSV des échantillons (`/sample/csv`) ignorait le périmètre et renvoyait tous les échantillons du pays, identifiants patients compris. Corrigé.
+- La fiche, les détails et la modification d'un échantillon étaient accessibles par identifiant hors périmètre. Corrigé (`canAccessSample`) ; un identifiant hors périmètre est traité comme inexistant.
+
+### Conformité au cahier (VI.2, VI.3, VI.4)
+
+- Répartition région / district / site : filtres de l'écran appliqués, non-conformités et échecs d'analyse en colonnes distinctes, rang et écart à la moyenne (affichés et exportés).
+- Taux de non-conformité par site (sans les échecs d'analyse), détaillé par type d'échantillon.
+- Convoyeurs : collectes, dépôts et délai médian d'acheminement.
+- TAT : définition unique (`TatSql`) sur le tableau de bord, les rapports, la liste et l'export ; tri de la liste par TAT corrigé ; code mort à définitions concurrentes supprimé.
+
+### Performance (VII.1)
+
+- Sur 600 000 échantillons simulés, requêtes du tableau de bord de 2,35 s à 0,87 s (répartition par site : 542 → 33 ms) : filtres de date indexables, agrégation avant jointure géographique, index de jointure (changeset 004).
+- CSS et JS du tableau de bord en fichiers statiques avec empreinte de contenu, mis en cache un an (gabarit de 78 à 23 Ko).
+
+### Exploitation (IX.2)
+
+- Synchronisation OpenELIS : verrou partagé entre instances (verrou consultatif PostgreSQL).
+- Supervision : points de gestion sur un port interne (9300), métriques Prometheus, santé détaillée ; pile `docker-compose.monitoring.yml` (Prometheus, Alertmanager, exportateurs système et PostgreSQL, 11 règles d'alerte). Guide : `docs/SUPERVISION.md`. **Le healthcheck du conteneur passe sur le port 9300 : déployer l'image avec les composes du même bundle.**
+
+### Administration (observation 3.2)
+
+- Manuels d'aide téléversables (Administration → Contenu → Manuels d'aide) : manuel utilisateur et manuel de procédure, servis par le menu Aide (changeset 005).
+
 ### Corrections issues de la revue de code du 23/09
 
 - Indicateurs de performance : les trois classements (sites à rejet élevé, labos lents, convoyeurs) suivent désormais les filtres région / district / site / labo de l'écran, comme le reste du tableau de bord (ils restaient au niveau national).
