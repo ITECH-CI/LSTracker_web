@@ -26,6 +26,7 @@ import org.itech.labSampleTracker.entities.SampleType;
 import org.itech.labSampleTracker.entities.Site;
 import org.itech.labSampleTracker.enums.UserType;
 import org.itech.labSampleTracker.helper.DateUtils;
+import org.itech.labSampleTracker.helper.SampleDateValidator;
 import org.itech.labSampleTracker.service.SampleRejectionService;
 import org.itech.labSampleTracker.service.SampleRetrievingService;
 import org.itech.labSampleTracker.service.security.UserScopeService;
@@ -183,6 +184,16 @@ public class SampleSyncService {
 			s.setResultDeliveryDate(DateUtils.parseIsoDateTimeOrNull(it.getResult_delivered_date()));
 			s.setAnalysisCompletedDate(DateUtils.parseIsoDateTimeOrNull(it.getAnalysis_completed_date()));
 			s.setAnalysisReleasedDate(DateUtils.parseIsoDateTimeOrNull(it.getAnalysis_released_date()));
+
+			// Dates incohérentes (futur, avant la collecte…) : acceptées mais
+			// journalisées, pour ne pas perdre une saisie faite hors ligne ou
+			// venant d'une ancienne version de l'app.
+			try {
+				SampleDateValidator.validate(s);
+			} catch (IllegalArgumentException ex) {
+				log.warn("sync.push dates incohérentes (user={}, uuid={}) : {}",
+						user != null ? user.getLogin() : null, it.getUuid(), ex.getMessage());
+			}
 
 			s.setLastupdatedAt(new Date());
 			s = sampleRepo.save(s);

@@ -16,6 +16,7 @@ import org.itech.labSampleTracker.entities.SampleStatus;
 import org.itech.labSampleTracker.enums.ESampleStatus;
 import org.itech.labSampleTracker.exception.ResourceNotFoundException;
 import org.itech.labSampleTracker.helper.ExportUtils;
+import org.itech.labSampleTracker.helper.SampleDateValidator;
 import org.itech.labSampleTracker.service.DistrictService;
 import org.itech.labSampleTracker.service.LabService;
 import org.itech.labSampleTracker.service.RegionService;
@@ -110,6 +111,7 @@ public class SampleController {
 	@PostMapping(value = "")
 	public String createSample(@Valid Sample model) {
 
+		SampleDateValidator.validate(model);
 		Sample data = sampleService.create(model);
 		if (data != null) {
 			return "";
@@ -358,6 +360,7 @@ public class SampleController {
 				updatedSample.setRejectionDate(new Date());
 			}
 
+			SampleDateValidator.validate(updatedSample);
 			updatedSample.setLastupdatedAt(new Date());
 			updatedSample = sampleService.create(updatedSample);
 			model.addAttribute("message_success", "Échantillon modifié avec succès");

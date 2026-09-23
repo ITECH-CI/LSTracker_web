@@ -17,6 +17,13 @@ Règle métier : un convoyeur a accès aux laboratoires situés dans les distric
 
 - `POST /api_v2/auth/login` renvoie le type effectif (rôle **ou** `user_type`). 17 convoyeurs sur 19 ont `role = USER` : ils arrivaient sur le tableau de bord générique, sans action de collecte. Le rôle porté par le JWT (autorisations) est inchangé.
 
+### Validation des dates d'étape (observation 7.5)
+
+- Nouveau `SampleDateValidator` : aucune date dans le futur (tolérance 5 min), aucune étape avant la collecte, ordre imposé au sein d'une même chaîne (dépôt → acceptation, fin d'analyse → validation → récupération → remise des résultats). L'analyse n'est pas comparée au dépôt ni à l'acceptation : sur base réelle, ces deux dates sont des horodatages de saisie, souvent postérieurs à l'analyse (391 cas).
+- Appliqué à la modification et à la création d'un échantillon sur le web ; les sélecteurs de date du formulaire ne proposent plus de date future.
+- Synchronisation mobile : dates incohérentes acceptées mais journalisées (`WARN`).
+- Sur la base de test, 77 fiches sur 2 995 violent ces règles (dates avant la collecte, dans le futur, validation avant fin d'analyse) : leur modification exigera de corriger la date fautive.
+
 ### Administration des utilisateurs
 
 - Page « Modifier l'utilisateur » : après enregistrement, l'identifiant s'affichait vide et l'en-tête « @null » (le champ désactivé n'est pas soumis par le navigateur). Le login est repris de la base. L'ID technique n'est plus affiché.
