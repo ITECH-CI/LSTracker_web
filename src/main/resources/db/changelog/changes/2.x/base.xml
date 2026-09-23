@@ -24,6 +24,8 @@
 		relativeToChangelogFile="true" />
 	<include file="./add_join_perf_indexes.xml"
 		relativeToChangelogFile="true" />
+	<include file="./add_help_document_table.xml"
+		relativeToChangelogFile="true" />
 
 
 

@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+	xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:ext="http://www.liquibase.org/xml/ns/dbchangelog-ext"
+	xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.1.xsd
+    http://www.liquibase.org/xml/ns/dbchangelog-ext http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-ext.xsd">
+
+	<!--
+		Manuels d'aide téléversables depuis l'administration (observation 3.2) :
+		un document par type (manuel utilisateur, manuel de procédure), stocké
+		en base pour survivre aux redéploiements et suivre les sauvegardes.
+	-->
+	<changeSet id="005-help-document" author="pkomena">
+		<createTable tableName="help_document">
+			<column name="code" type="VARCHAR(40)">
+				<constraints primaryKey="true" primaryKeyName="pk_help_document" />
+			</column>
+			<column name="file_name" type="VARCHAR(255)">
+				<constraints nullable="false" />
+			</column>
+			<column name="content_type" type="VARCHAR(100)">
+				<constraints nullable="false" />
+			</column>
+			<column name="content" type="BYTEA">
+				<constraints nullable="false" />
+			</column>
+			<column name="size_bytes" type="BIGINT">
+				<constraints nullable="false" />
+			</column>
+			<column name="uploaded_at" type="TIMESTAMP">
+				<constraints nullable="false" />
+			</column>
+			<column name="uploaded_by" type="VARCHAR(100)" />
+		</createTable>
+	</changeSet>
+
+</databaseChangeLog>

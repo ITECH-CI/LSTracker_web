@@ -355,6 +355,9 @@
 					<li><hr class="dropdown-divider"/></li>
 					<li><h6 class="dropdown-header"><i class="fas fa-plug"></i> Interopérabilité</h6></li>
 					<li><a class="dropdown-item" th:href="@{/sync-openelis}"><i class="fas fa-sync"></i> Suivi Synchro. OpenELIS</a></li>
+					<li><hr class="dropdown-divider"/></li>
+					<li><h6 class="dropdown-header"><i class="fas fa-book"></i> Contenu</h6></li>
+					<li><a class="dropdown-item" th:href="@{/manuels}"><i class="fas fa-file-pdf"></i> Manuels d'aide</a></li>
 				</ul>
 			</li>
 
@@ -367,13 +370,14 @@
 					<i class="fas fa-question-circle"></i> Aide
 				</a>
 				<ul class="dropdown-menu">
+					<!-- Manuels téléversables depuis l'administration (obs. 3.2). -->
 					<li><a class="dropdown-item"
-						th:href="@{/pdf/Manuel_user_Septembre_2025_vf.pdf}" target="_blank" rel="noopener">
+						th:href="@{/aide/manuel-utilisateur}" target="_blank" rel="noopener">
 						<i class="fas fa-book"></i> Manuel utilisateur
 					</a></li>
-					<li><a class="dropdown-item disabled" href="#" tabindex="-1" aria-disabled="true">
-						<i class="fas fa-clipboard-list"></i> Procédures
-						<span class="badge bg-secondary ms-1" style="font-size:.65rem;">Bientôt</span>
+					<li><a class="dropdown-item"
+						th:href="@{/aide/manuel-procedure}" target="_blank" rel="noopener">
+						<i class="fas fa-clipboard-list"></i> Manuel de procédure
 					</a></li>
 				</ul>
 			</li>
@@ -440,12 +444,11 @@
 			</a>
 
 			<div class="nav-section">Aide</div>
-			<a th:href="@{/pdf/Manuel_user_Septembre_2025_vf.pdf}" target="_blank" rel="noopener" class="nav-link">
+			<a th:href="@{/aide/manuel-utilisateur}" target="_blank" rel="noopener" class="nav-link">
 				<i class="fas fa-book"></i> Manuel utilisateur
 			</a>
-			<a href="#" class="nav-link disabled" tabindex="-1" aria-disabled="true">
-				<i class="fas fa-clipboard-list"></i> Procédures
-				<span class="badge bg-secondary ms-1" style="font-size:.65rem;">Bientôt</span>
+			<a th:href="@{/aide/manuel-procedure}" target="_blank" rel="noopener" class="nav-link">
+				<i class="fas fa-clipboard-list"></i> Manuel de procédure
 			</a>
 
 			<div sec:authorize="hasAnyRole('ADMIN','SUPER_ADMIN')">
@@ -467,6 +470,9 @@
 				<a th:href="@{/sampletype}" class="nav-link"><i class="fas fa-vial"></i> Types d'échantillon</a>
 				<a th:href="@{/samplestatus}" class="nav-link"><i class="fas fa-tasks"></i> Statuts</a>
 				<a th:href="@{/samplerejectiontype}" class="nav-link"><i class="fas fa-ban"></i> Types de rejet</a>
+
+				<div class="nav-section">Contenu</div>
+				<a th:href="@{/manuels}" class="nav-link"><i class="fas fa-file-pdf"></i> Manuels d'aide</a>
 			</div>
 
 			<div class="nav-section">Compte</div>
