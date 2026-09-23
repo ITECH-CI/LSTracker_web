@@ -24,6 +24,12 @@ Règle métier : un convoyeur a accès aux laboratoires situés dans les distric
 - Synchronisation mobile : dates incohérentes acceptées mais journalisées (`WARN`).
 - Sur la base de test, 77 fiches sur 2 995 violent ces règles (dates avant la collecte, dans le futur, validation avant fin d'analyse) : leur modification exigera de corriger la date fautive.
 
+### Axes : laboratoires proposés comme sites de collecte (observation mobile 1-2)
+
+- Métadonnées mobile : seuls les axes et rattachements site/axe **actifs** sont proposés.
+- Script `scripts/sql/labos_dans_les_axes.sql` (à relire, non exécuté automatiquement) : liste les sites homonymes d'un laboratoire, puis retire des axes ceux qui n'ont jamais collecté et renomme « … (collecte) » ceux qui collectent réellement (sur la base de test : 7 à retirer, 5 à renommer, dont HG Zoukougbeu avec 262 collectes).
+- Tableau de bord : la vue « Districts » s'intitule « Répartition par district sanitaire » (observation 1.12).
+
 ### Administration des utilisateurs
 
 - Page « Modifier l'utilisateur » : après enregistrement, l'identifiant s'affichait vide et l'en-tête « @null » (le champ désactivé n'est pas soumis par le navigateur). Le login est repris de la base. L'ID technique n'est plus affiché.
