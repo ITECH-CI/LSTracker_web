@@ -3,7 +3,9 @@ package org.itech.labSampleTracker.api.sync;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -12,6 +14,7 @@ import org.itech.labSampleTracker.api.sync.dto.SampleDto;
 import org.itech.labSampleTracker.api.sync.dto.SamplePushResponse;
 import org.itech.labSampleTracker.api.sync.dto.SampleUpsertItem;
 import org.itech.labSampleTracker.dao.SampleRepository;
+import org.itech.labSampleTracker.dao.UserScopeRepository;
 import org.itech.labSampleTracker.dao.SampleStatusRepository;
 import org.itech.labSampleTracker.dao.SampleTypeRepository;
 import org.itech.labSampleTracker.entities.AppUser;
@@ -21,6 +24,7 @@ import org.itech.labSampleTracker.entities.SampleRetrieving;
 import org.itech.labSampleTracker.entities.SampleStatus;
 import org.itech.labSampleTracker.entities.SampleType;
 import org.itech.labSampleTracker.entities.Site;
+import org.itech.labSampleTracker.enums.UserType;
 import org.itech.labSampleTracker.helper.DateUtils;
 import org.itech.labSampleTracker.service.SampleRejectionService;
 import org.itech.labSampleTracker.service.SampleRetrievingService;
@@ -52,8 +56,11 @@ public class SampleSyncService {
 	@Autowired
 	private UserScopeService userScopeService;
 
+	@Autowired
+	private UserScopeRepository userScopeRepo;
+
 	@Transactional
-	public List<SamplePushResponse.MappedId> upsertFromMobile(List<SampleUpsertItem> items) {
+	public List<SamplePushResponse.MappedId> upsertFromMobile(List<SampleUpsertItem> items, AppUser user) {
 		if (items == null || items.isEmpty()) {
 			log.info("sync.push received empty batch");
 			return List.of();
@@ -64,6 +71,12 @@ public class SampleSyncService {
 		int skippedNoUuid = 0;
 		int created = 0;
 		int updated = 0;
+		// Labos autorisés pour un convoyeur (null = pas de contrôle). Un labo hors
+		// périmètre est accepté mais journalisé : une saisie faite hors ligne avec
+		// d'anciennes métadonnées ne doit pas être perdue.
+		final Set<Integer> riderLabIds = isRider(user)
+				? new HashSet<>(userScopeRepo.findRiderLabIds(user.getId()))
+				: null;
 
 		for (SampleUpsertItem it : items) {
 			if (it.getUuid() == null || it.getUuid().isBlank()) {
@@ -132,10 +145,16 @@ public class SampleSyncService {
 				}
 			}
 
-			if (it.getDestination_lab_id() != null)
-				s.setDestinationLabId(it.getDestination_lab_id().intValue());
-			if (it.getDelivered_lab_id() != null)
-				s.setLabId(it.getDelivered_lab_id().intValue());
+			if (it.getDestination_lab_id() != null) {
+				Integer labId = it.getDestination_lab_id().intValue();
+				warnIfLabOutOfScope(riderLabIds, labId, s.getDestinationLabId(), "destination", it, user);
+				s.setDestinationLabId(labId);
+			}
+			if (it.getDelivered_lab_id() != null) {
+				Integer labId = it.getDelivered_lab_id().intValue();
+				warnIfLabOutOfScope(riderLabIds, labId, s.getLabId(), "dépôt", it, user);
+				s.setLabId(labId);
+			}
 
 			if (it.getFrom_site_id() != null)
 				s.setRequesterSiteId(it.getFrom_site_id().longValue());
@@ -233,6 +252,25 @@ public class SampleSyncService {
 		}
 
 		return list.stream().map(this::toDto).collect(Collectors.toList());
+	}
+
+	private boolean isRider(AppUser user) {
+		if (user == null || "ADMIN".equalsIgnoreCase(user.getRole())) {
+			return false;
+		}
+		String rider = UserType.RIDER.getType();
+		return rider.equalsIgnoreCase(user.getRole()) || rider.equalsIgnoreCase(user.getUserType());
+	}
+
+	// Ne signale que les valeurs nouvelles : un labo déjà en base (posé par un
+	// admin sur le web, par exemple) n'est pas du fait du convoyeur.
+	private void warnIfLabOutOfScope(Set<Integer> riderLabIds, Integer labId, Integer currentLabId, String role,
+			SampleUpsertItem it, AppUser user) {
+		if (riderLabIds == null || riderLabIds.contains(labId) || labId.equals(currentLabId)) {
+			return;
+		}
+		log.warn("sync.push labo de {} hors périmètre du convoyeur (user={}, uuid={}, lab={})", role,
+				user.getLogin(), it.getUuid(), labId);
 	}
 
 	private Sample resolveExisting(SampleUpsertItem it) {

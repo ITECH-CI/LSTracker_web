@@ -194,7 +194,9 @@ public class LabController extends BaseController {
 	public ResponseEntity<List<Map<String, Object>>> getLabNamesByRider() {
 		List<Map<String, Object>> labList = new ArrayList<Map<String, Object>>();
 		AppUser user = accountService.getOne(getCurrentUserId());
-		if (user.getUserType().equalsIgnoreCase(UserType.BIOLOGIST.getType())) {
+		// Type effectif = role OU user_type (cf. MetaService.isType)
+		String biologist = UserType.BIOLOGIST.getType();
+		if (biologist.equalsIgnoreCase(user.getUserType()) || biologist.equalsIgnoreCase(user.getRole())) {
 			labList = labService.getAllLabIdAndNamesByLabUser(user.getId());
 		} else {
 			labList = labService.getAllLabIdAndNamesByRider(user.getId());	

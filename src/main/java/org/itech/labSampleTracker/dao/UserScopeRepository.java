@@ -13,7 +13,7 @@ import org.springframework.data.repository.query.Param;
  * Region → all Districts of region → all Sites of those districts.
  * District → all Sites of district.
  * Lab → its containing District (and that district's Sites).
- * Circuit → its assigned Sites.
+ * Circuit → its assigned Sites, and the Labs of those sites' Districts.
  *
  * Anchored on AppUser (any spring-data managed entity in the package would work)
  * just so Spring picks it up as a JPA repository.
@@ -80,8 +80,27 @@ public interface UserScopeRepository extends JpaRepository<AppUser, Integer> {
 			+ "SELECT DISTINCT l.id FROM app_user_has_district uhd "
 			+ "JOIN lab l ON l.district_id = uhd.district_id WHERE uhd.app_user_id = :userId "
 			+ "UNION "
-			+ "SELECT DISTINCT uhl.lab_id FROM app_user_has_lab uhl WHERE uhl.app_user_id = :userId", nativeQuery = true)
+			+ "SELECT DISTINCT uhl.lab_id FROM app_user_has_lab uhl WHERE uhl.app_user_id = :userId "
+			+ "UNION "
+			+ "SELECT DISTINCT l.id FROM app_user_has_circuit uhc "
+			+ "JOIN circuit_site cs ON cs.circuit_id = uhc.circuit_id "
+			+ "JOIN site s ON s.id = cs.site_id "
+			+ "JOIN lab l ON l.district_id = s.district_id WHERE uhc.app_user_id = :userId", nativeQuery = true)
 	List<Integer> findAccessibleLabIds(@Param("userId") Integer userId);
+
+	/**
+	 * Labos qu'un convoyeur peut choisir : ceux des districts couverts par ses
+	 * circuits (circuit -> site -> district -> labo), actifs uniquement. Même
+	 * règle que {@code LabServiceImpl.getAllLabIdAndNamesByRider} (métadonnées
+	 * mobile).
+	 */
+	@Query(value = "SELECT DISTINCT l.id FROM app_user_has_circuit uhc "
+			+ "JOIN circuit c ON c.id = uhc.circuit_id "
+			+ "JOIN circuit_site cs ON cs.circuit_id = uhc.circuit_id "
+			+ "JOIN site s ON s.id = cs.site_id "
+			+ "JOIN lab l ON l.district_id = s.district_id "
+			+ "WHERE uhc.app_user_id = :userId AND l.is_active AND cs.is_active AND c.is_active", nativeQuery = true)
+	List<Integer> findRiderLabIds(@Param("userId") Integer userId);
 
 	@Query(value = "SELECT DISTINCT uhc.circuit_id FROM app_user_has_circuit uhc WHERE uhc.app_user_id = :userId", nativeQuery = true)
 	List<Integer> findAccessibleCircuitIds(@Param("userId") Integer userId);

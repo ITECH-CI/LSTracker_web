@@ -42,8 +42,9 @@ public class SampleSyncController {
 		int incoming = (req != null && req.getSamples() != null) ? req.getSamples().size() : 0;
 		log.info("POST /api_v2/sync/samples/push by user={} with {} item(s)",
 				principal != null ? principal.getName() : "anonymous", incoming);
+		AppUser user = principal != null ? appUserService.findUserByLogin(principal.getName()) : null;
 		final List<SamplePushResponse.MappedId> mapped = service
-				.upsertFromMobile(req != null ? req.getSamples() : List.of());
+				.upsertFromMobile(req != null ? req.getSamples() : List.of(), user);
 		return new SamplePushResponse(mapped);
 	}
 

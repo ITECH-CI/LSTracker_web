@@ -236,10 +236,15 @@ public class LabServiceImpl implements LabService {
 
 	@Override
 	public List<Map<String, Object>> getAllLabIdAndNamesByRider(Integer userId) {
-		String sql = "select lab.id,lab.lab_name,lab.lab_type from lab join district d  on d.id = lab.district_id \n"
-				+ "join site s on s.district_id = d.id join circuit_site cs on cs.site_id = s.id \n"
+		// Règle métier : un convoyeur a accès aux laboratoires situés dans les
+		// districts où il intervient (circuit -> site -> district -> labo).
+		// Seuls les circuits, affectations circuit/site et labos actifs comptent.
+		String sql = "select distinct lab.id,lab.lab_name,lab.lab_type from lab \n"
+				+ "join site s on s.district_id = lab.district_id join circuit_site cs on cs.site_id = s.id \n"
+				+ "join circuit c on c.id = cs.circuit_id \n"
 				+ "join app_user_has_circuit auhc on auhc.circuit_id = cs.circuit_id \n"
-				+ "where auhc.app_user_id =:userId ORDER BY lab_type,lab_name ";
+				+ "where auhc.app_user_id =:userId and lab.is_active and cs.is_active and c.is_active \n"
+				+ "ORDER BY lab_type,lab_name ";
 		List<Map<String, Object>> response = new ArrayList<Map<String, Object>>();
 		try {
 			Query query = em.createNativeQuery(sql);
