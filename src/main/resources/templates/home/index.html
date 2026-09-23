@@ -338,6 +338,7 @@
 .mini-label i { font-size: .68rem; }
 .mini-value { display: block; font-size: 1.1rem; font-weight: 700; color: #0f172a; margin-top: .1rem; }
 .mini-value small { font-size: .72rem; font-weight: 500; color: #6b7280; }
+.mini-sub { display: block; font-size: .7rem; color: #9ca3af; }
 
 .kpi-trend-up   { color: #16a34a; } /* évolution favorable */
 .kpi-trend-down { color: #dc2626; } /* évolution défavorable */
@@ -774,17 +775,18 @@
 									<span class="mini-value" data-cov="active_conveyors">0</span>
 								</div>
 								<div class="mini-stat">
-									<span class="mini-label"><i class="fas fa-route"></i> Distance totale</span>
+									<span class="mini-label"><i class="fas fa-route"></i> Distance totale<span class="help-tip" data-tip="Somme des trajets exploitables (relevé de départ renseigné et non nul, arrivée après le départ, 1 000 km au plus). Un trajet partagé par plusieurs échantillons n'est compté qu'une fois.">i</span></span>
 									<span class="mini-value"><span data-cov="total_distance_km">0</span> <small>km</small></span>
+									<span class="mini-sub"><span data-cov="trips">0</span> trajets</span>
 								</div>
 								<div class="mini-stat">
-									<span class="mini-label"><i class="fas fa-tachometer-alt"></i> Km moyen / éch.<span class="help-tip" data-tip="Distance totale parcourue ÷ nombre total d'échantillons collectés sur la période (y compris ceux dont le kilométrage n'a pas été saisi).">i</span></span>
+									<span class="mini-label"><i class="fas fa-tachometer-alt"></i> Km moyen / éch.<span class="help-tip" data-tip="Distance totale (trajets exploitables, chacun compté une fois) ÷ nombre total d'échantillons collectés sur la période, y compris ceux sans kilométrage exploitable.">i</span></span>
 									<span class="mini-value"><span data-cov="avg_distance_per_sample_km">0</span> <small>km</small></span>
 								</div>
 							</div>
 							<div class="cov-warn" data-cov-warn="mileage" style="display:none;">
 								<i class="fas fa-exclamation-triangle"></i>
-								<span data-cov="samples_without_mileage">0</span> échantillons sans kilométrage saisi (comptés dans le km moyen)
+								<span><span data-cov="samples_without_mileage">0</span> échantillons sans kilométrage exploitable (comptés dans le km moyen)<span data-cov-warn="rejected"> · <span data-cov="rejected_mileage_readings">0</span> relevés écartés (départ à 0, arrivée avant le départ ou plus de 1 000 km)</span></span>
 							</div>
 						</div>
 					</div>
@@ -1260,12 +1262,13 @@
 			['active_sites','total_sites','active_districts','total_districts',
 			 'active_regions','total_regions','active_conveyors','active_labs','total_labs',
 			 'total_distance_km','avg_distance_per_sample_km',
-			 'samples_without_mileage'].forEach(function(k) {
+			 'samples_without_mileage','rejected_mileage_readings','trips'].forEach(function(k) {
 				$('[data-cov="' + k + '"]').text(formatNumber(c[k]));
 			});
 			// Part de saisie manquante : on ne montre l'avertissement que s'il
 			// y a effectivement des echantillons sans kilometrage.
-			$('[data-cov-warn="mileage"]').toggle(num(c.samples_without_mileage) > 0);
+			$('[data-cov-warn="mileage"]').toggle(num(c.samples_without_mileage) > 0 || num(c.rejected_mileage_readings) > 0);
+			$('[data-cov-warn="rejected"]').toggle(num(c.rejected_mileage_readings) > 0);
 			setBar('sites', c.active_sites, c.total_sites);
 			setBar('districts', c.active_districts, c.total_districts);
 			setBar('regions', c.active_regions, c.total_regions);

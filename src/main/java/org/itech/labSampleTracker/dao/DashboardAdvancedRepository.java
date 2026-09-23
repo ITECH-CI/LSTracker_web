@@ -363,6 +363,19 @@ public class DashboardAdvancedRepository {
 	 * conveyors moved samples, how many labs received samples, plus
 	 * mileage totals.
 	 */
+	/** Au-delà, un trajet (relevé départ → arrivée) est considéré comme une erreur de saisie. */
+	static final int MAX_TRIP_KM = 1000;
+
+	/**
+	 * Trajet exploitable : départ renseigné et non nul (les données 2024 de
+	 * l'ancienne application portent un départ à 0 : la « distance » était alors
+	 * le compteur entier du véhicule — 382 M km sur la démo), arrivée après le
+	 * départ, et au plus {@link #MAX_TRIP_KM} km.
+	 */
+	static String validLeg(String start, String end) {
+		return "(" + start + " > 0 AND " + end + " > " + start + " AND " + end + " - " + start + " <= " + MAX_TRIP_KM + ")";
+	}
+
 	public Map<String, Object> coverage(LocalDate startDate, LocalDate endDate, Integer regionId, Integer districtId,
 			Integer siteId, Integer labId, List<Integer> accessibleSiteIds) {
 		final String sql = "WITH scope_samples AS ("
@@ -382,7 +395,20 @@ public class DashboardAdvancedRepository {
 				+ "  AND (CAST(:districtId AS INT) IS NULL OR st.district_id = CAST(:districtId AS INT)) "
 				+ "  AND (CAST(:regionId AS INT) IS NULL OR d.region_id = CAST(:regionId AS INT)) "
 				+ "  AND (:accessibleSiteIdsActive = FALSE OR st.id IN (:accessibleSiteIds)) "
-				+ ") "
+				+ "), "
+				// Trajets (« legs ») : relevés de compteur départ / arrivée, pour la
+				// collecte et pour la restitution des résultats. Voir validLeg().
+				+ "legs AS ( "
+				+ "  SELECT 'C' AS leg, conveyor_id, collection_start_mileage AS st, collection_end_mileage AS en "
+				+ "  FROM scope_samples WHERE collection_end_mileage IS NOT NULL "
+				+ "  UNION ALL "
+				+ "  SELECT 'R', NULL, result_start_mileage, result_end_mileage "
+				+ "  FROM scope_samples WHERE result_end_mileage IS NOT NULL "
+				+ "), "
+				// Un trajet partagé par plusieurs échantillons (mêmes relevés) n'est
+				// compté qu'une fois : sinon 20 échantillons d'une tournée de 100 km
+				// comptaient 2 000 km.
+				+ "valid_legs AS (SELECT DISTINCT leg, conveyor_id, st, en FROM legs WHERE " + validLeg("st", "en") + ") "
 				+ "SELECT "
 				+ "  (SELECT COUNT(DISTINCT site_id) FROM scope_samples WHERE site_id IS NOT NULL) AS active_sites, "
 				+ "  (SELECT COUNT(*) FROM site"
@@ -398,18 +424,20 @@ public class DashboardAdvancedRepository {
 				+ "      UNION SELECT hub_id FROM scope_samples WHERE hub_id IS NOT NULL "
 				+ "  ) sub) AS active_labs, "
 				+ "  (SELECT COUNT(*) FROM lab) AS total_labs, "
-				+ "  COALESCE((SELECT SUM(GREATEST(collection_end_mileage - collection_start_mileage, 0)) FROM scope_samples), 0) "
-				+ "    + COALESCE((SELECT SUM(GREATEST(result_end_mileage - result_start_mileage, 0)) FROM scope_samples), 0) "
-				+ "    AS total_distance_km, "
+				+ "  COALESCE((SELECT SUM(en - st) FROM valid_legs), 0) AS total_distance_km, "
+				+ "  (SELECT COUNT(*) FROM valid_legs) AS trips, "
 				+ "  (SELECT COUNT(*) FROM scope_samples) AS total_samples, "
-				// Echantillons pour lesquels AUCUN kilometrage n'a ete saisi (ni
-				// sur le trajet de collecte, ni sur celui de restitution). Ils
-				// entrent au denominateur du km moyen sans rien apporter au
-				// numerateur : on les expose pour que la dilution soit visible
-				// plutot que silencieuse.
+				// Relevés saisis mais inexploitables (départ à 0 ou absent, arrivée
+				// avant le départ, trajet de plus de MAX_TRIP_KM) : écartés du
+				// total et comptés à part pour que l'écart reste visible.
+				+ "  (SELECT COUNT(*) FROM legs WHERE en > 0 AND NOT COALESCE(" + validLeg("st", "en") + ", FALSE)) AS rejected_mileage_readings, "
+				// Echantillons sans AUCUN trajet exploitable (ni collecte, ni
+				// restitution). Ils entrent au denominateur du km moyen sans rien
+				// apporter au numerateur : on les expose pour que la dilution soit
+				// visible plutot que silencieuse.
 				+ "  (SELECT COUNT(*) FROM scope_samples "
-				+ "     WHERE GREATEST(COALESCE(collection_end_mileage, 0) - COALESCE(collection_start_mileage, 0), 0) = 0 "
-				+ "       AND GREATEST(COALESCE(result_end_mileage, 0) - COALESCE(result_start_mileage, 0), 0) = 0"
+				+ "     WHERE NOT COALESCE(" + validLeg("collection_start_mileage", "collection_end_mileage") + ", FALSE) "
+				+ "       AND NOT COALESCE(" + validLeg("result_start_mileage", "result_end_mileage") + ", FALSE)"
 				+ "  ) AS samples_without_mileage";
 		Map<String, Object> base = jdbc.queryForMap(sql,
 				params(startDate, endDate, regionId, districtId, siteId, labId, accessibleSiteIds));

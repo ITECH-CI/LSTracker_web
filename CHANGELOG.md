@@ -39,6 +39,7 @@ Règle métier : un convoyeur a accès aux laboratoires situés dans les distric
 - Couleur propre à chaque type d'échantillon, commune au web et au mobile (palette catégorielle validée).
 - Tableau de répartition (régions / districts / sites) : tri par colonne (clic sur l'en-tête), pagination (25 / 50 / 100 lignes) et export CSV pour Excel du niveau affiché (toutes les lignes).
 - Écrans étroits (tablette, mobile) : les blocs et graphiques suivent la largeur de l'écran au lieu d'être tronqués.
+- **Distance totale et km moyen corrigés** : seuls les trajets exploitables comptent (départ renseigné et non nul, arrivée après le départ, 1 000 km au plus), et un trajet partagé par plusieurs échantillons n'est compté qu'une fois. Les données 2024 de l'ancienne application portent un départ à 0 sur le trajet des résultats : la « distance » était le compteur entier du véhicule (386 M km affichés sur la démo, ~238 500 km après correction). Nombre de trajets et de relevés écartés affichés.
 
 ### Administration des utilisateurs
 
