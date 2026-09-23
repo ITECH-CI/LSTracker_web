@@ -274,11 +274,21 @@ public class SampleController {
 		return "redirect:/sample";
 	}
 
+	/**
+	 * Périmètre de l'utilisateur (cahier V.3) : un identifiant d'échantillon
+	 * hors périmètre est traité comme inexistant, pour ne pas en révéler
+	 * l'existence.
+	 */
+	private boolean canAccess(Sample s) {
+		Integer siteId = s.getSampleRetrieving() != null ? s.getSampleRetrieving().getSiteId() : null;
+		return userScopeService.canAccessSample(siteId, s.getDestinationLabId(), s.getLabId(), s.getHubId());
+	}
+
 	@GetMapping(value = "/{id}")
 	public String getOneSample(@PathVariable("id") Integer id, Model model) {
 
 		Sample e = sampleService.getOne(id);
-		if (e == null) {
+		if (e == null || !canAccess(e)) {
 			return "";
 		}
 		model.addAttribute("sample", e);
@@ -291,7 +301,7 @@ public class SampleController {
 		Sample sample = new Sample();
 		try {
 			sample = sampleService.getOne(id);
-			if (ObjectUtils.isEmpty(sample)) {
+			if (ObjectUtils.isEmpty(sample) || !canAccess(sample)) {
 				throw new ResourceNotFoundException("Impossible de retrouver les données de cet échantillon ");
 			}
 
@@ -325,7 +335,7 @@ public class SampleController {
 		Sample oldSample = new Sample();
 		try {
 			oldSample = sampleService.getOne(id);
-			if (ObjectUtils.isEmpty(oldSample)) {
+			if (ObjectUtils.isEmpty(oldSample) || !canAccess(oldSample)) {
 				throw new ResourceNotFoundException("Impossible de retrouver les données de cet échantillon ");
 			}
 
@@ -526,7 +536,7 @@ public class SampleController {
 	@org.springframework.web.bind.annotation.ResponseBody
 	public ResponseEntity<Map<String, Object>> getSampleDetails(@PathVariable("id") Integer id) {
 		Sample sample = sampleService.getOne(id);
-		if (sample == null) {
+		if (sample == null || !canAccess(sample)) {
 			return ResponseEntity.notFound().build();
 		}
 

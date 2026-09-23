@@ -188,6 +188,27 @@ public class UserScopeService {
 				.build();
 	}
 
+	/**
+	 * L'utilisateur connecté peut-il consulter / modifier cet échantillon ?
+	 * Oui s'il est global, si l'échantillon vient d'un site de son périmètre,
+	 * ou s'il est destiné / déposé à l'un de ses laboratoires (cahier V.3).
+	 */
+	public boolean canAccessSample(Integer collectionSiteId, Integer... labIds) {
+		Scope scope = resolveCurrent();
+		if (scope.isGlobal()) {
+			return true;
+		}
+		if (collectionSiteId != null && scope.getSiteIds().contains(collectionSiteId)) {
+			return true;
+		}
+		for (Integer lab : labIds) {
+			if (lab != null && scope.getLabIds().contains(lab)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
 	public ScopedFilter intersectCurrent(Integer region, Integer district, Integer site, Integer lab) {
 		return intersect(resolveCurrent(), region, district, site, lab);
 	}
