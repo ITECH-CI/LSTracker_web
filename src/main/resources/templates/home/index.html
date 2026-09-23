@@ -292,7 +292,12 @@
 	margin-bottom: 1rem;
 }
 .overview-grid > .section { margin-bottom: 0; }
-@media (max-width: 1100px) { .overview-grid { grid-template-columns: 1fr; } }
+/* minmax(0, 1fr) et non 1fr : une piste « 1fr » ne descend pas sous la
+   largeur minimale de son contenu, or Highcharts fixe la largeur de ses
+   graphiques en pixels. Avec 1fr, la colonne gardait la largeur du graphique
+   et tout le bloc débordait de l'écran (tronqué, sans défilement). */
+@media (max-width: 1100px) { .overview-grid { grid-template-columns: minmax(0, 1fr); } }
+.overview-grid > .section, .chart-grid > .chart-card { min-width: 0; }
 
 .stat-list { display: flex; flex-direction: column; gap: .15rem; padding-top: .6rem; padding-bottom: .6rem; }
 .stat-row {
@@ -397,11 +402,11 @@
 /* ===== Charts ===== */
 .chart-grid {
 	display: grid;
-	grid-template-columns: 1fr 1fr;
+	grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
 	gap: 1rem;
 	margin-bottom: 1rem;
 }
-@media (max-width: 992px) { .chart-grid { grid-template-columns: 1fr; } }
+@media (max-width: 992px) { .chart-grid { grid-template-columns: minmax(0, 1fr); } }
 .chart-card {
 	background: #fff;
 	border: 1px solid #e8ebf3;
@@ -475,11 +480,18 @@
 /* Total : barre discrète dans la cellule, proportionnelle au plus grand du niveau. */
 .drill-table td.total-cell { font-weight: 600; }
 .drill-scroll { overflow-x: auto; }
+.drill-pager {
+	display: flex; align-items: center; justify-content: space-between; gap: .75rem; flex-wrap: wrap;
+	padding: .6rem 1.25rem; border-top: 1px solid #f1f5f9;
+}
+.drill-pager .form-select { width: auto; font-size: .75rem; }
+.drill-pager .btn { font-size: .75rem; }
+.drill-pager [data-pager-page] { min-width: 4.5rem; color: #374151; }
 
 /* ===== Top performers ===== */
 .top-grid {
 	display: grid;
-	grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+	grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr));
 	gap: 1rem;
 }
 .top-card {
@@ -874,6 +886,21 @@
 							</tbody>
 						</table>
 						</div>
+						<div class="drill-pager" id="drillPager" style="display:none;">
+							<span class="text-muted-sm" data-pager-info></span>
+							<div class="d-flex align-items-center gap-2">
+								<select class="form-select form-select-sm" id="drillPageSize" aria-label="Lignes par page">
+									<option value="25" selected>25 / page</option>
+									<option value="50">50 / page</option>
+									<option value="100">100 / page</option>
+								</select>
+								<div class="btn-group btn-group-sm" role="group" aria-label="Pagination">
+									<button type="button" class="btn btn-outline-secondary" data-page-nav="-1" title="Page précédente"><i class="fas fa-chevron-left"></i></button>
+									<span class="btn btn-outline-secondary disabled" data-pager-page></span>
+									<button type="button" class="btn btn-outline-secondary" data-page-nav="1" title="Page suivante"><i class="fas fa-chevron-right"></i></button>
+								</div>
+							</div>
+						</div>
 					</div>
 				</div>
 
@@ -1037,6 +1064,7 @@
 			// fetched with the old filter, simpler to re-expand on demand)
 			$('#drillTableBody tr[data-parent], #drillTableBody tr[data-ancestor]').remove();
 			$('#drillTableBody .expander').each(function() { if ($(this).text() === '▼') $(this).text('▶'); });
+			window._drillPage = 1;
 			renderDrillRegions();
 		});
 
@@ -1454,6 +1482,7 @@
 			: (level === 'district' ? 'dashboard/data/by-district' : 'dashboard/data/by-site');
 		$.get(url, { startDate: f.startDate, endDate: f.endDate, lab: f.lab }, function(rows) {
 			window._drillRegions = rows || [];
+			window._drillPage = 1;
 			renderDrillRegions();
 		});
 	}
@@ -1465,6 +1494,7 @@
 		if (!showEmpty) rows = rows.filter(r => num(r.total) > 0);
 		const $body = $('#drillTableBody').empty();
 		if (!rows.length) {
+			$('#drillPager').hide();
 			if (totalRowsRaw === 0) {
 				$body.append('<tr><td colspan="7" class="empty-state">Aucune donnée pour la période sélectionnée.</td></tr>');
 			} else {
@@ -1479,9 +1509,43 @@
 		}
 		const lvl = window._drillLevel || 'region';
 		window._drillMax = Math.max.apply(null, rows.map(r => num(r.total)).concat([0]));
-		sortDrillRows(rows, lvl).forEach(function(r) { $body.append(renderDrillRow(lvl, r, 0)); });
+		// Pagination côté page (données déjà chargées). Les sous-niveaux dépliés
+		// s'insèrent sous leur ligne parente, donc restent sur la même page.
+		const sorted = sortDrillRows(rows, lvl);
+		const size = window._drillPageSize;
+		const pages = Math.max(1, Math.ceil(sorted.length / size));
+		window._drillPage = Math.min(Math.max(1, window._drillPage), pages);
+		const from = (window._drillPage - 1) * size;
+		sorted.slice(from, from + size).forEach(function(r) { $body.append(renderDrillRow(lvl, r, 0)); });
 		renderSortIndicators();
+		renderDrillPager(sorted.length, from, Math.min(from + size, sorted.length), pages);
 	}
+
+	// --- Pagination du tableau de répartition ---
+	window._drillPage = 1;
+	window._drillPageSize = 25;
+
+	function renderDrillPager(total, from, to, pages) {
+		const $p = $('#drillPager');
+		// Inutile d'afficher la pagination quand tout tient sur une page.
+		if (total <= 25 && window._drillPageSize === 25) { $p.hide(); return; }
+		$p.css('display', 'flex');
+		$p.find('[data-pager-info]').text((from + 1) + '–' + to + ' sur ' + formatNumber(total));
+		$p.find('[data-pager-page]').text(window._drillPage + ' / ' + pages);
+		$p.find('[data-page-nav="-1"]').prop('disabled', window._drillPage <= 1);
+		$p.find('[data-page-nav="1"]').prop('disabled', window._drillPage >= pages);
+	}
+
+	$(document).on('click', '[data-page-nav]', function() {
+		window._drillPage += num($(this).data('page-nav'));
+		renderDrillRegions();
+		document.getElementById('drillTable').scrollIntoView({ behavior: 'smooth', block: 'start' });
+	});
+	$(document).on('change', '#drillPageSize', function() {
+		window._drillPageSize = num(this.value) || 25;
+		window._drillPage = 1;
+		renderDrillRegions();
+	});
 
 	// --- Tri du tableau de répartition (clic sur un en-tête) ---
 	// En vue Régions, trier referme les régions dépliées (les lignes sont
@@ -1522,6 +1586,7 @@
 		window._drillSort = s.key === key
 			? { key: key, dir: s.dir === 'asc' ? 'desc' : 'asc' }
 			: { key: key, dir: key === 'name' || key === 'id' ? 'asc' : 'desc' };
+		window._drillPage = 1;
 		renderDrillRegions();
 	});
 

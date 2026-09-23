@@ -37,7 +37,8 @@ Règle métier : un convoyeur a accès aux laboratoires situés dans les distric
 - Nouvelle structure : bandeau « Parcours de l'échantillon » (étapes fléchées, « En transit » en pastille temps réel), puis trois colonnes Qualité & délais / Couverture (jauges) / Répartition par type.
 - Graphiques : même couleur pour une même étape partout (échelle violette validée), rouge réservé aux rejets ; « Parcours par type » sans les types vides, avec bascule Nombre / % des collectés ; durées médianes en tableau de chaleur ; axes et grilles adoucis.
 - Couleur propre à chaque type d'échantillon, commune au web et au mobile (palette catégorielle validée).
-- Tableau de répartition (régions / districts / sites) : tri par colonne (clic sur l'en-tête) et export CSV pour Excel du niveau affiché.
+- Tableau de répartition (régions / districts / sites) : tri par colonne (clic sur l'en-tête), pagination (25 / 50 / 100 lignes) et export CSV pour Excel du niveau affiché (toutes les lignes).
+- Écrans étroits (tablette, mobile) : les blocs et graphiques suivent la largeur de l'écran au lieu d'être tronqués.
 
 ### Administration des utilisateurs
 
