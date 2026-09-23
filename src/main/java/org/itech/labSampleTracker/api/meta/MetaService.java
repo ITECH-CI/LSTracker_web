@@ -85,8 +85,8 @@ public class MetaService {
 
 		List<Map<String, Object>> types = rejectionTypeService.getIdAndNames();
 
-		var labs = labList.stream().map(l -> new LabDto(Long.parseLong(l.get("id").toString()),
-				l.get("name").toString(), l.get("labType").toString())).collect(Collectors.toList());
+		var labs = labList.stream().map(this::toLabDto).collect(Collectors.toList());
+		var allLabs = labService.getLabIdAndNames().stream().map(this::toLabDto).collect(Collectors.toList());
 
 		var circuits = circuitList.stream()
 				.map(l -> new CircuitDto(Long.parseLong(l.get("id").toString()), l.get("name").toString()))
@@ -107,6 +107,11 @@ public class MetaService {
 		var version = "v-" + labs.size() + "-" + circuits.size() + "-" + sites.size() + "-" + rejections.size() + "-"
 				+ Instant.now().toString();
 
-		return new MetaFullResponse(version, labs, circuits, sites, rejections, circuitSites);
+		return new MetaFullResponse(version, labs, circuits, sites, rejections, circuitSites, allLabs);
+	}
+
+	private LabDto toLabDto(Map<String, Object> l) {
+		return new LabDto(Long.parseLong(l.get("id").toString()), l.get("name").toString(),
+				l.get("labType").toString());
 	}
 }
