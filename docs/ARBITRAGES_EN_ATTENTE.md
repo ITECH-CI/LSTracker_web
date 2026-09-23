@@ -120,18 +120,60 @@ développement ne corrige a posteriori :
 **À décider** : une campagne de rappel auprès des convoyeurs, et la
 correction des dossiers existants (liste fournie sur demande).
 
+### 8. Ancienne API mobile (`/api/tracker`) — sécurité
+
+L'ancienne API de l'application mobile (antérieure à `/api_v2`) est toujours
+en ligne. Ses opérations d'écriture sont **déjà inopérantes** (rejetées par la
+protection CSRF), mais ses 13 points de lecture renvoient des listes
+d'échantillons (en transit, par laboratoire, par hub, comptages) **sans filtre
+de périmètre** à tout compte authentifié. L'application mobile actuelle ne
+l'utilise plus.
+
+**Recommandation** : la désactiver. Seule réserve : d'anciennes versions de
+l'application mobile encore installées sur le terrain perdraient ces écrans
+de consultation.
+
+**À décider** : désactivation, et date (idéalement à la migration de la
+production).
+
+### 9. Destinataires des alertes de supervision
+
+La supervision (cahier IX.2) est livrée : métriques, 11 règles d'alerte
+(disponibilité, erreurs, temps de réponse, disque, mémoire, synchronisation
+OpenELIS). Les alertes s'affichent dans l'interface, mais leur **envoi**
+suppose un serveur de messagerie et des destinataires.
+
+**À décider** : le canal (courriel, et lequel) et les destinataires
+(exploitation I-TECH, DISD).
+
+### 10. Périmètre de l'application mobile — cahier VIII
+
+Le cahier précise que l'application mobile **n'entre pas dans le périmètre de
+développement** du contrat, hors répercussions du maillage. Des évolutions
+mobiles ont néanmoins été livrées à la demande (observations 4.1 à 4.3,
+contrôle des dates, résultats prêts en lot, droits du biologiste).
+
+**À décider** : les rattacher au présent contrat, ou à une expression de
+besoin distincte comme le prévoit le cahier.
+
 ---
 
-## Engagé sans attendre d'arbitrage
+## Engagé sans attendre d'arbitrage — réalisé le 23/09
 
-Pour mémoire, les travaux suivants sont lancés :
-
-- conformité au cahier : filtres homogènes sur toutes les visualisations,
-  taux de non-conformité distinct des échecs d'analyse, classement des régions et
-  districts (rang, écart à la moyenne), classement des convoyeurs (délai médian
-  d'acheminement) ;
-- fiabilité : unification du calcul du TAT ;
-- performance : allègement du tableau de bord, mesure des requêtes sur un
-  volume national ;
-- exploitation : verrou distribué de la synchronisation OpenELIS, supervision ;
-- observation 3.2 : manuels téléversables depuis l'administration.
+- **Conformité au cahier** : filtres homogènes sur toutes les visualisations
+  (VI.3), non-conformités et échecs d'analyse distincts, rang et écart à la
+  moyenne dans la répartition, taux de non-conformité par site et par type,
+  classement des convoyeurs avec délai médian d'acheminement (VI.2).
+- **Sécurité (V.3)** : trois défauts de périmètre corrigés — un filtre
+  géographique levait la restriction aux sites de l'utilisateur ; l'export CSV
+  des échantillons renvoyait tout le pays ; la fiche d'un échantillon était
+  accessible par son identifiant hors périmètre.
+- **Fiabilité (VI.4)** : définition unique du TAT sur tous les écrans, les
+  rapports et l'export.
+- **Performance (VII.1)** : sur 600 000 échantillons simulés, requêtes du
+  tableau de bord de 2,35 s à 0,87 s ; ressources statiques mises en cache.
+- **Exploitation (IX.2)** : verrou partagé entre instances pour la
+  synchronisation OpenELIS ; supervision et alertes.
+- **Observation 3.2** : manuels d'aide téléversables depuis l'administration.
+- **Tests** : 20 tests unitaires côté serveur (aucun auparavant), lancés par
+  la CI à chaque modification.
