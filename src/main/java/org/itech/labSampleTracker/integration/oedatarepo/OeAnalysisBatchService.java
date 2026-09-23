@@ -5,6 +5,11 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
+
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.Gauge;
+import io.micrometer.core.instrument.MeterRegistry;
 
 import org.itech.labSampleTracker.config.ClusterLock;
 import org.itech.labSampleTracker.dao.SampleRepository;
@@ -50,8 +55,16 @@ public class OeAnalysisBatchService {
     private final AtomicBoolean running = new AtomicBoolean(false);
     private final ClusterLock clusterLock;
 
+    // Métriques de supervision (cahier IX.2) : volume traité par lot, et heure
+    // du dernier lot terminé, pour alerter si la synchronisation s'arrête.
+    private final Counter examinedCounter;
+    private final Counter updatedCounter;
+    private final Counter errorCounter;
+    private final AtomicLong lastRunEpochSeconds = new AtomicLong(0);
+
     public OeAnalysisBatchService(SampleRepository sampleRepository,
             OeAnalysisSyncService syncService, OeSyncTrackingService trackingService, ClusterLock clusterLock,
+            MeterRegistry meterRegistry,
             @Value("${lstracker.oedatarepo.sync.batch-size:200}") int batchSize,
             @Value("${lstracker.oedatarepo.sync.max-attempts:5}") int maxAttempts) {
         this.sampleRepository = sampleRepository;
@@ -60,6 +73,15 @@ public class OeAnalysisBatchService {
         this.batchSize = batchSize;
         this.maxAttempts = maxAttempts;
         this.clusterLock = clusterLock;
+        this.examinedCounter = Counter.builder("lstracker.oedatarepo.sync.samples").tag("outcome", "examined")
+                .description("Échantillons examinés par la synchronisation OpenELIS").register(meterRegistry);
+        this.updatedCounter = Counter.builder("lstracker.oedatarepo.sync.samples").tag("outcome", "updated")
+                .description("Échantillons mis à jour par la synchronisation OpenELIS").register(meterRegistry);
+        this.errorCounter = Counter.builder("lstracker.oedatarepo.sync.samples").tag("outcome", "error")
+                .description("Erreurs de la synchronisation OpenELIS").register(meterRegistry);
+        Gauge.builder("lstracker.oedatarepo.sync.last.run", lastRunEpochSeconds, AtomicLong::get)
+                .description("Fin du dernier lot de synchronisation OpenELIS (epoch, secondes)")
+                .baseUnit("seconds").register(meterRegistry);
     }
 
     public boolean isRunning() {
@@ -156,6 +178,10 @@ public class OeAnalysisBatchService {
             return new RunSummary(false, examined, updated, errors);
         } finally {
             trackingService.finishRun(run, examined, updated, errors);
+            examinedCounter.increment(examined);
+            updatedCounter.increment(updated);
+            errorCounter.increment(errors);
+            lastRunEpochSeconds.set(System.currentTimeMillis() / 1000);
         }
     }
 

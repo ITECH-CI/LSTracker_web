@@ -1,0 +1,92 @@
+# Règles d'alerte LSTracker (cahier IX.2 : disponibilité, charge, temps de
+# réponse). Seuils de départ, à ajuster après quelques semaines d'observation.
+groups:
+  - name: lstracker-disponibilite
+    rules:
+      - alert: ApplicationIndisponible
+        expr: up{job="lstracker"} == 0
+        for: 2m
+        labels: { severity: critique }
+        annotations:
+          summary: "LSTracker {{ $labels.env }} ne répond plus"
+          description: "La cible {{ $labels.instance }} est injoignable depuis 2 minutes."
+
+      - alert: BaseDeDonneesIndisponible
+        expr: pg_up == 0
+        for: 2m
+        labels: { severity: critique }
+        annotations:
+          summary: "PostgreSQL {{ $labels.env }} injoignable"
+          description: "L'exportateur ne parvient plus à se connecter à la base depuis 2 minutes."
+
+      - alert: SanteApplicationDegradee
+        expr: up{job="lstracker"} == 1 and on(instance) (sum by (instance) (rate(http_server_requests_seconds_count{status=~"5.."}[10m])) / sum by (instance) (rate(http_server_requests_seconds_count[10m]))) > 0.05
+        for: 10m
+        labels: { severity: alerte }
+        annotations:
+          summary: "LSTracker {{ $labels.env }} : plus de 5 % d'erreurs serveur"
+          description: "Taux de réponses 5xx supérieur à 5 % sur 10 minutes."
+
+  - name: lstracker-performance
+    rules:
+      - alert: TempsDeReponseEleve
+        expr: histogram_quantile(0.95, sum by (le, env) (rate(http_server_requests_seconds_bucket{job="lstracker", uri!~"/actuator.*"}[10m]))) > 2
+        for: 10m
+        labels: { severity: alerte }
+        annotations:
+          summary: "LSTracker {{ $labels.env }} : temps de réponse p95 > 2 s"
+          description: "Le 95e centile des temps de réponse dépasse 2 secondes depuis 10 minutes."
+
+      - alert: PoolDeConnexionsSature
+        expr: max by (env) (hikaricp_connections_pending) > 0
+        for: 5m
+        labels: { severity: alerte }
+        annotations:
+          summary: "LSTracker {{ $labels.env }} : requêtes en attente de connexion"
+          description: "Des requêtes attendent une connexion à la base depuis 5 minutes (pool saturé)."
+
+      - alert: MemoireJvmSaturee
+        expr: sum by (env) (jvm_memory_used_bytes{area="heap"}) / sum by (env) (jvm_memory_max_bytes{area="heap"}) > 0.9
+        for: 10m
+        labels: { severity: alerte }
+        annotations:
+          summary: "LSTracker {{ $labels.env }} : mémoire JVM > 90 %"
+
+  - name: lstracker-serveur
+    rules:
+      - alert: EspaceDisqueFaible
+        expr: node_filesystem_avail_bytes{fstype!~"tmpfs|overlay"} / node_filesystem_size_bytes{fstype!~"tmpfs|overlay"} < 0.10
+        for: 10m
+        labels: { severity: critique }
+        annotations:
+          summary: "Moins de 10 % d'espace disque sur {{ $labels.mountpoint }}"
+
+      - alert: MemoireServeurFaible
+        expr: node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes < 0.10
+        for: 10m
+        labels: { severity: alerte }
+        annotations:
+          summary: "Moins de 10 % de mémoire disponible sur le serveur"
+
+      - alert: ChargeProcesseurElevee
+        expr: 1 - avg(rate(node_cpu_seconds_total{mode="idle"}[5m])) > 0.90
+        for: 15m
+        labels: { severity: alerte }
+        annotations:
+          summary: "Processeur du serveur occupé à plus de 90 % depuis 15 minutes"
+
+  - name: lstracker-synchronisation
+    rules:
+      - alert: SynchroOpenElisArretee
+        expr: lstracker_oedatarepo_sync_last_run_seconds > 0 and (time() - lstracker_oedatarepo_sync_last_run_seconds) > 7200
+        for: 10m
+        labels: { severity: alerte }
+        annotations:
+          summary: "LSTracker {{ $labels.env }} : aucune synchronisation OpenELIS depuis 2 h"
+          description: "Le dernier lot de synchronisation s'est terminé il y a plus de 2 heures."
+
+      - alert: ErreursSynchroOpenElis
+        expr: increase(lstracker_oedatarepo_sync_samples_total{outcome="error"}[1h]) > 50
+        labels: { severity: alerte }
+        annotations:
+          summary: "LSTracker {{ $labels.env }} : plus de 50 erreurs de synchronisation OpenELIS en 1 h"

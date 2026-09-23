@@ -10,6 +10,7 @@ target/
 !.env.example
 !.env.demo.example
 !.env.prod.example
+!.env.monitoring.example
 *.local.properties
 
 ### STS ###

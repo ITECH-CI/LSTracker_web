@@ -140,10 +140,11 @@ public class SecurityConfig {
 				.requestMatchers("/webjars/**", "/content/**", "/csrf", "/css/**", "/js/**", "/img/**",
 						"/DataTables/**", "/legal/**")
 				.requestMatchers("/error/**").requestMatchers("/error").requestMatchers("/resources/**")
-				// Actuator health/info exposés sans auth pour healthchecks
-				// Docker / load balancer. show-details=never (cf. application.properties)
-				// → pas de fuite d'info sensible.
-				.requestMatchers("/actuator/health/**", "/actuator/info");
+				// Actuator : servi uniquement sur le port de gestion interne
+				// (management.server.port), jamais publié ; le port public
+				// renvoie 404 sur /actuator/*. Sans authentification pour le
+				// healthcheck du conteneur et le serveur de supervision.
+				.requestMatchers("/actuator/health/**", "/actuator/info", "/actuator/prometheus");
 	}
 
 	@Bean

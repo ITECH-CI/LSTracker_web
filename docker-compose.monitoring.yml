@@ -1,0 +1,95 @@
+# =====================================================================
+# LSTracker — supervision (cahier IX.2) : Prometheus + règles d'alerte,
+# Alertmanager, métriques système (node-exporter) et PostgreSQL
+# (postgres-exporter, démo et prod).
+#
+# À lancer APRÈS les stacks démo et/ou prod (réseaux externes) :
+#   docker compose --env-file .env.monitoring -f docker-compose.monitoring.yml up -d
+#
+# Interfaces liées à 127.0.0.1 : consultation par tunnel SSH, ex.
+#   ssh -L 9090:127.0.0.1:9090 itech@serveur   puis http://localhost:9090
+# Guide : docs/SUPERVISION.md
+# =====================================================================
+
+name: lst_monitoring
+
+networks:
+  lst_monitoring_net:
+    driver: bridge
+  # Réseaux des stacks applicatives (nom réel = <projet>_<réseau>).
+  lst_demo_net:
+    external: true
+    name: lst_demo_lst_demo_net
+  lst_prod_net:
+    external: true
+    name: lst_prod_lst_prod_net
+
+volumes:
+  prometheus_data:
+
+services:
+
+  prometheus:
+    image: prom/prometheus:v2.53.0
+    container_name: lst_prometheus
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=30d
+    volumes:
+      - ./config/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./config/monitoring/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "127.0.0.1:9090:9090"
+    networks:
+      - lst_monitoring_net
+      - lst_demo_net
+      - lst_prod_net
+
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    container_name: lst_alertmanager
+    restart: unless-stopped
+    volumes:
+      - ./config/monitoring/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+    ports:
+      - "127.0.0.1:9093:9093"
+    networks:
+      - lst_monitoring_net
+
+  # Métriques du serveur hôte : CPU, mémoire, disque, réseau.
+  node_exporter:
+    image: prom/node-exporter:v1.8.1
+    container_name: lst_node_exporter
+    restart: unless-stopped
+    pid: host
+    command:
+      - --path.rootfs=/host
+    volumes:
+      - /:/host:ro,rslave
+    networks:
+      - lst_monitoring_net
+
+  # Métriques PostgreSQL. DSN dans .env.monitoring (compte de supervision
+  # en lecture, rôle pg_monitor : cf. docs/SUPERVISION.md).
+  postgres_exporter_demo:
+    image: prometheuscommunity/postgres-exporter:v0.15.0
+    container_name: lst_pg_exporter_demo
+    restart: unless-stopped
+    environment:
+      DATA_SOURCE_NAME: ${PG_DEMO_DSN}
+    networks:
+      - lst_monitoring_net
+      - lst_demo_net
+
+  postgres_exporter_prod:
+    image: prometheuscommunity/postgres-exporter:v0.15.0
+    container_name: lst_pg_exporter_prod
+    restart: unless-stopped
+    environment:
+      DATA_SOURCE_NAME: ${PG_PROD_DSN}
+    networks:
+      - lst_monitoring_net
+      - lst_prod_net

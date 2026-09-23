@@ -47,15 +47,16 @@ COPY --from=build --chown=app:app /workspace/target/app.jar /app/app.jar
 ENV TZ=Africa/Abidjan \
     SERVER_PORT=9200 \
     SPRING_PROFILES_ACTIVE=prod \
+    MANAGEMENT_PORT=9300 \
     JAVA_OPTS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -XX:+ExitOnOutOfMemoryError"
 
 EXPOSE 9200
 
 USER app
 
-# Healthcheck via l'endpoint actuator (assure-toi qu'il est exposé).
+# Healthcheck sur le port de gestion interne (actuator), jamais publié.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=5 \
-    CMD curl -f http://localhost:${SERVER_PORT}/actuator/health || exit 1
+    CMD curl -f http://localhost:${MANAGEMENT_PORT}/actuator/health || exit 1
 
 # `sh -c` pour expansion de $JAVA_OPTS.
 ENTRYPOINT ["sh", "-c", "exec java $JAVA_OPTS -jar /app/app.jar"]

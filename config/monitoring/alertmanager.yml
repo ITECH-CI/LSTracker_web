@@ -1,0 +1,23 @@
+# Alertmanager — destinataires des alertes LSTracker.
+# À COMPLÉTER : serveur SMTP et adresses des destinataires (décision de
+# l'exploitation, cf. docs/ARBITRAGES_EN_ATTENTE.md). Tant que ce n'est pas
+# fait, les alertes restent visibles dans l'interface (127.0.0.1:9093).
+global:
+  resolve_timeout: 5m
+  # smtp_smarthost: "smtp.exemple.ci:587"
+  # smtp_from: "lstracker-alertes@exemple.ci"
+  # smtp_auth_username: "CHANGE_ME"
+  # smtp_auth_password: "CHANGE_ME"
+
+route:
+  receiver: exploitation
+  group_by: [alertname, env]
+  group_wait: 1m
+  group_interval: 10m
+  repeat_interval: 4h
+
+receivers:
+  - name: exploitation
+    # email_configs:
+    #   - to: "exploitation@exemple.ci"
+    #     send_resolved: true

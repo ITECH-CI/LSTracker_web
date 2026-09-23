@@ -123,8 +123,10 @@ jobs:
           cp docker-compose.demo.yml          "$BUNDLE_DIR/"
           cp docker-compose.demo.public.yml   "$BUNDLE_DIR/"
           cp docker-compose.prod.yml          "$BUNDLE_DIR/"
+          cp docker-compose.monitoring.yml    "$BUNDLE_DIR/"
           cp .env.demo.example                "$BUNDLE_DIR/"
           cp .env.prod.example                "$BUNDLE_DIR/"
+          cp .env.monitoring.example          "$BUNDLE_DIR/"
           cp init_db.sql                      "$BUNDLE_DIR/"
 
           # Sous-dossiers : configs nginx + postgres, scripts, docs

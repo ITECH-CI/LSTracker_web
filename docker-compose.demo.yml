@@ -83,6 +83,8 @@ services:
       TZ: ${TZ:-Africa/Abidjan}
       SERVER_PORT: 9200
       SPRING_PROFILES_ACTIVE: prod
+      # Étiquette des métriques de supervision (cahier IX.2).
+      APP_ENV: demo
       SPRING_DATASOURCE_URL: jdbc:postgresql://tracker_db:5432/${POSTGRES_DB}?currentSchema=sample_tracker
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
@@ -106,7 +108,8 @@ services:
     volumes:
       - ./logs/demo:/app/logs
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9200/actuator/health"]
+      # Port de gestion interne (MANAGEMENT_PORT), jamais publié.
+      test: ["CMD", "curl", "-f", "http://localhost:9300/actuator/health"]
       interval: 30s
       timeout: 5s
       retries: 5
