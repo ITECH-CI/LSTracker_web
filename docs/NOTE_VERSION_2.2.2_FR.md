@@ -99,5 +99,6 @@ LSTracker récupère désormais **automatiquement** le statut et les dates d'ana
 - Déploiement en **production** après validation en **démo**.
 - Ajustement des fréquences de synchronisation selon le volume réel.
 - Renforcement de la sécurité du serveur (pare-feu) — planifié.
+- Corriger les bugs trouvés lors du testing, et prendre en compte cette règle: Les convoyeurs ont accès aux laboratoires qui se situent dans les districts dans lesquels ils interviennent (mapping par circuit -> site -> district -> labo)
 
 *Pour toute question : équipe LSTracker / I-TECH Côte d'Ivoire.*
