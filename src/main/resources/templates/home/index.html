@@ -798,7 +798,7 @@
 				<!-- ============ DRILL-DOWN ============ -->
 				<div class="section">
 					<div class="section-header">
-						<h3><i class="fas fa-sitemap"></i> Répartition par région sanitaire</h3>
+						<h3><i class="fas fa-sitemap"></i> <span data-drill-title>Répartition par région sanitaire</span></h3>
 						<div class="d-flex align-items-center gap-3 flex-wrap">
 							<div class="btn-group btn-group-sm drill-level" role="group" aria-label="Niveau géographique">
 								<button type="button" class="btn btn-outline-secondary active" data-level="region">
@@ -823,7 +823,7 @@
 							<thead>
 								<tr>
 									<th class="num" style="width:70px;">ID</th>
-									<th>Région / District / Site</th>
+									<th data-drill-col>Région / District / Site</th>
 									<th class="num">Total</th>
 									<th class="num">En transit</th>
 									<th class="num">Livrés</th>
@@ -1360,6 +1360,15 @@
 		$('.drill-level button').removeClass('active');
 		$(this).addClass('active');
 		$('[data-drill-hint]').toggle(lvl === 'region');
+		// Titre et en-tête suivent le niveau (obs. 1.12 : tableau des districts
+		// sanitaires). En mode Régions, la cascade peut afficher les trois niveaux.
+		const labels = {
+			region: ['Répartition par région sanitaire', 'Région / District / Site'],
+			district: ['Répartition par district sanitaire', 'District (région)'],
+			site: ['Répartition par site', 'Site (région › district)']
+		}[lvl];
+		$('[data-drill-title]').text(labels[0]);
+		$('[data-drill-col]').text(labels[1]);
 		$('#drillTableBody').html('<tr><td colspan="7" class="empty-state">Chargement...</td></tr>');
 		loadDrillRegions();
 	});
