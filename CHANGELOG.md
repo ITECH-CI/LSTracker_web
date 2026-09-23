@@ -1,6 +1,6 @@
 # Changelog — LabSampleTracker (web + backend)
 
-## 2026-09-23 — Accès des convoyeurs aux laboratoires par district
+## 2026-09-23 — Accès des convoyeurs par district, dates, tableau de bord (v2.2.3)
 
 Règle métier : un convoyeur a accès aux laboratoires situés dans les districts où il intervient (circuit → site → district → labo), sur l'ensemble de ses circuits.
 
