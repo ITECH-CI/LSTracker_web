@@ -280,8 +280,17 @@ public class DashboardController {
 	}
 
 	/**
-	 * Same KPIs as {@link #funnel} but for the immediately previous period of
-	 * equal length (used for trend arrows on the cards).
+	 * Same KPIs as {@link #funnel} but for the previous period (used for the
+	 * trend on the cards).
+	 *
+	 * <p>With a calendar {@code period} (today, week, month, quarter, semester,
+	 * year — set by the dashboard presets), the previous period is the same span
+	 * shifted by one calendar unit: month to date 01/09 → 23/09 is compared with
+	 * 01/08 → 23/08, today with yesterday. Otherwise (dates typed by hand), it
+	 * is the period of equal length immediately before.
+	 *
+	 * <p>The response carries {@code prev_start} / {@code prev_end} so the page
+	 * can show which period the comparison refers to.
 	 */
 	@GetMapping(value = "/data/funnel-previous", produces = "application/json")
 	@ResponseBody
@@ -289,19 +298,50 @@ public class DashboardController {
 			@RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate startDate,
 			@RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate endDate,
 			@RequestParam(required = false) Integer region, @RequestParam(required = false) Integer district,
-			@RequestParam(required = false) Integer site, @RequestParam(required = false) Integer lab) {
+			@RequestParam(required = false) Integer site, @RequestParam(required = false) Integer lab,
+			@RequestParam(required = false) String period) {
 		if (startDate == null) startDate = LocalDate.now().minusYears(2);
 		if (endDate == null) endDate = LocalDate.now();
-		long lengthDays = java.time.temporal.ChronoUnit.DAYS.between(startDate, endDate);
-		LocalDate prevEnd = startDate.minusDays(1);
-		LocalDate prevStart = prevEnd.minusDays(lengthDays);
+		LocalDate[] prev = previousPeriod(startDate, endDate, period);
+		LocalDate prevStart = prev[0];
+		LocalDate prevEnd = prev[1];
 
+		Map<String, Object> result = new java.util.HashMap<>();
 		ScopedFilter scope = userScopeService.intersectCurrent(region, district, site, lab);
 		if (scope.isForceEmpty()) {
-			return java.util.Map.of("total", 0);
+			result.put("total", 0);
+		} else {
+			result.putAll(advancedRepo.funnel(prevStart, prevEnd, scope.getRegionId(), scope.getDistrictId(),
+					scope.getSiteId(), scope.getLabId(), scope.getAccessibleSiteIds()));
 		}
-		return advancedRepo.funnel(prevStart, prevEnd, scope.getRegionId(), scope.getDistrictId(),
-				scope.getSiteId(), scope.getLabId(), scope.getAccessibleSiteIds());
+		result.put("prev_start", prevStart.toString());
+		result.put("prev_end", prevEnd.toString());
+		return result;
+	}
+
+	/** [start, end] de la période de comparaison (cf. {@link #funnelPrevious}). */
+	static LocalDate[] previousPeriod(LocalDate start, LocalDate end, String period) {
+		if (period != null) {
+			switch (period) {
+			case "today":
+				return new LocalDate[] { start.minusDays(1), end.minusDays(1) };
+			case "week":
+				return new LocalDate[] { start.minusWeeks(1), end.minusWeeks(1) };
+			case "month":
+				return new LocalDate[] { start.minusMonths(1), end.minusMonths(1) };
+			case "quarter":
+				return new LocalDate[] { start.minusMonths(3), end.minusMonths(3) };
+			case "semester":
+				return new LocalDate[] { start.minusMonths(6), end.minusMonths(6) };
+			case "year":
+				return new LocalDate[] { start.minusYears(1), end.minusYears(1) };
+			default:
+				break;
+			}
+		}
+		long lengthDays = java.time.temporal.ChronoUnit.DAYS.between(start, end);
+		LocalDate prevEnd = start.minusDays(1);
+		return new LocalDate[] { prevEnd.minusDays(lengthDays), prevEnd };
 	}
 
 	/**
