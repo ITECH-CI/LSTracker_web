@@ -30,6 +30,15 @@ Règle métier : un convoyeur a accès aux laboratoires situés dans les distric
 - Script `scripts/sql/labos_dans_les_axes.sql` (à relire, non exécuté automatiquement) : liste les sites homonymes d'un laboratoire, puis retire des axes ceux qui n'ont jamais collecté et renomme « … (collecte) » ceux qui collectent réellement (sur la base de test : 7 à retirer, 5 à renommer, dont HG Zoukougbeu avec 262 collectes).
 - Tableau de bord : la vue « Districts » s'intitule « Répartition par district sanitaire » (observation 1.12).
 
+### Tableau de bord : période comparée (observation 1.5) et refonte visuelle
+
+- Raccourcis de période calendaire : Aujourd'hui, Semaine, Mois, Trimestre, Semestre, Année. La période précédente est calée sur le calendrier à nombre de jours égal (mois au 23/09 → 01→23/08) ; dates saisies à la main : période de même durée juste avant. Premier test métier Java : `DashboardPreviousPeriodTest`.
+- Tendances : plus de « vs préc. » ; la valeur de la période précédente est affichée (« ↑ +15 % · préc. 1 234 »), ses dates en info-bulle ; facteur au-delà de +1000 % (« ×297 ») ; rien quand la période précédente est vide ; hausse des non-conformités, échecs et TAT en rouge.
+- Nouvelle structure : bandeau « Parcours de l'échantillon » (étapes fléchées, « En transit » en pastille temps réel), puis trois colonnes Qualité & délais / Couverture (jauges) / Répartition par type.
+- Graphiques : même couleur pour une même étape partout (échelle violette validée), rouge réservé aux rejets ; « Parcours par type » sans les types vides, avec bascule Nombre / % des collectés ; durées médianes en tableau de chaleur ; axes et grilles adoucis.
+- Couleur propre à chaque type d'échantillon, commune au web et au mobile (palette catégorielle validée).
+- Tableau de répartition (régions / districts / sites) : tri par colonne (clic sur l'en-tête) et export CSV pour Excel du niveau affiché.
+
 ### Administration des utilisateurs
 
 - Page « Modifier l'utilisateur » : après enregistrement, l'identifiant s'affichait vide et l'en-tête « @null » (le champ désactivé n'est pas soumis par le navigateur). Le login est repris de la base. L'ID technique n'est plus affiché.

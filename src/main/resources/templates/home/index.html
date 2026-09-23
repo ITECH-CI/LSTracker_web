@@ -200,114 +200,145 @@
 .help-tip:hover::after,
 .help-tip:hover::before { opacity: 1; visibility: visible; }
 
-/* ===== KPI cards (style "icône en bulle") ===== */
-.kpi-grid {
+/* ===== Parcours de l'échantillon (bandeau fléché) ===== */
+.section-sub { font-size: .74rem; color: #6b7280; margin-top: .15rem; }
+.flow-live {
+	display: inline-flex; align-items: center; gap: .4rem;
+	font-size: .78rem; color: #0e7490;
+	background: #ecfeff; border: 1px solid #a5f3fc;
+	border-radius: 999px; padding: .25rem .75rem;
+}
+.flow-live strong { font-size: .95rem; color: #155e75; }
+.live-dot {
+	width: 8px; height: 8px; border-radius: 50%; background: #06b6d4;
+	box-shadow: 0 0 0 0 rgba(6,182,212,.5); animation: live-pulse 2s infinite;
+}
+@keyframes live-pulse {
+	0% { box-shadow: 0 0 0 0 rgba(6,182,212,.45); }
+	70% { box-shadow: 0 0 0 7px rgba(6,182,212,0); }
+	100% { box-shadow: 0 0 0 0 rgba(6,182,212,0); }
+}
+@media (prefers-reduced-motion: reduce) { .live-dot { animation: none; } }
+.flow {
 	display: grid;
-	grid-template-columns: repeat(auto-fit, minmax(195px, 1fr));
-	gap: .75rem;
+	grid-template-columns: 1fr auto 1fr auto 1fr auto 1fr auto 1fr;
+	align-items: stretch;
+	padding: 1.1rem 1.25rem 1.2rem;
+	gap: .35rem;
+}
+.flow-step {
+	position: relative;
+	padding: .2rem .25rem .2rem .9rem;
+	min-width: 0;
+}
+/* Barre d'accent : échelle ordinale d'une teinte (indigo), plus foncée à
+   mesure que l'échantillon avance. */
+.flow-step::before {
+	content: ""; position: absolute; left: 0; top: .2rem; bottom: .2rem;
+	width: 4px; border-radius: 4px; background: var(--step-color);
+}
+.flow-step.step-1 { --step-color: #8f9bf5; }
+.flow-step.step-2 { --step-color: #6d74ee; }
+.flow-step.step-3 { --step-color: #5048e0; }
+.flow-step.step-4 { --step-color: #3b30b8; }
+.flow-step.step-5 { --step-color: #2a1f82; }
+.flow-label {
+	font-size: .76rem; color: #4b5563; font-weight: 600;
+	display: flex; align-items: center; gap: .3rem;
+}
+.flow-label > i { color: var(--step-color); font-size: .8rem; }
+.flow-value {
+	font-size: 2rem; font-weight: 700; color: #0f172a;
+	line-height: 1.1; letter-spacing: -0.02em; margin: .15rem 0 .1rem;
+}
+.flow-step .trend { font-size: .7rem; min-height: .95rem; display: flex; align-items: center; gap: .2rem; flex-wrap: wrap; }
+.flow-detail { font-size: .7rem; color: #6b7280; margin-top: .3rem; }
+.flow-detail i { font-size: .65rem; margin-right: .15rem; }
+.flow-detail strong { color: #374151; }
+.flow-arrow {
+	display: flex; align-items: center; color: #c7d2fe; font-size: 1.1rem;
+}
+
+/* ===== Carte de chaleur des durées médianes ===== */
+.heatmap-wrap { overflow-x: auto; }
+.heatmap { width: 100%; border-collapse: separate; border-spacing: 3px; font-size: .8rem; }
+.heatmap th { font-weight: 600; color: #4b5563; font-size: .72rem; padding: .35rem .5rem; white-space: nowrap; }
+.heatmap thead th { text-align: center; }
+.heatmap tbody th { text-align: left; font-weight: 500; color: #374151; }
+.heatmap td {
+	text-align: center; padding: .55rem .4rem; border-radius: 4px;
+	font-weight: 600; font-variant-numeric: tabular-nums; min-width: 3.5rem;
+}
+.heatmap td.empty { color: #cbd5e1; background: #f8fafc; font-weight: 400; }
+.heatmap-legend { display: flex; align-items: center; gap: .5rem; font-size: .72rem; color: #6b7280; margin-top: .6rem; }
+.heatmap-legend .scale { width: 140px; height: 8px; border-radius: 4px; background: linear-gradient(90deg, #fff1e6, #c2410c); }
+
+.chart-toggle .btn { font-size: .72rem; padding: .15rem .55rem; }
+#drillTable th.sortable { cursor: pointer; user-select: none; white-space: nowrap; }
+#drillTable th.sortable:hover { color: #4f46e5; }
+#drillTable th .sort-arrow { margin-left: .3rem; font-size: .65rem; color: #cbd5e1; }
+#drillTable th.sorted .sort-arrow { color: #4f46e5; }
+.type-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: .3rem; vertical-align: middle; }
+@media (max-width: 1100px) {
+	.flow { grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); row-gap: 1rem; }
+	.flow-arrow { display: none; }
+}
+
+/* ===== Qualité · Couverture · Types ===== */
+.overview-grid {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr) minmax(0, 1fr);
+	gap: 1rem;
 	margin-bottom: 1rem;
 }
-/* Seconde rangée : 3 colonnes fixes au-dessus de 720px, fluide en dessous. */
-.kpi-grid-secondary {
-	grid-template-columns: repeat(3, 1fr);
-}
-@media (max-width: 720px) {
-	.kpi-grid-secondary { grid-template-columns: repeat(auto-fit, minmax(195px, 1fr)); }
-}
-.kpi-card {
-	background: #fff;
-	border: 1px solid #e6e9f3;
-	border-radius: 6px;
-	padding: .85rem 1rem;
-	transition: box-shadow .2s ease, transform .15s ease, border-color .2s ease;
-	cursor: pointer;
-	display: grid;
-	grid-template-columns: 42px 1fr;
-	grid-template-areas:
-		"icon  label"
-		"icon  value"
-		"icon  trend";
-	column-gap: .85rem;
-	row-gap: .1rem;
-	align-items: center;
-	box-shadow: 0 1px 2px rgba(15, 23, 42, .04);
-}
-.kpi-card:hover {
-	box-shadow: 0 6px 18px rgba(15, 23, 42, .10);
-	transform: translateY(-2px);
-	border-color: #cbd5e1;
-}
-/* Carte "snapshot" (ex: En transit) : fond bleuté + bordure pointillée pour
-   signaler qu'elle mesure un état temps réel, PAS un flux sur la période —
-   donc non comparable directement aux autres cartes. */
-.kpi-card-snapshot {
-	background: #ecfeff;
-	border-style: dashed;
-	border-color: #67e8f9;
-}
-.kpi-card-snapshot:hover {
-	border-color: #22d3ee;
-}
-.kpi-card .kpi-icon {
-	grid-area: icon;
-	width: 42px;
-	height: 42px;
-	border-radius: 50%;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	font-size: 1.1rem;
-	flex-shrink: 0;
-	/* Couleurs par défaut, overridées par les variants accent-* */
-	background: #eef2ff;
-	color: #4f46e5;
-}
-.kpi-card .label {
-	grid-area: label;
-	font-size: .68rem;
-	text-transform: uppercase;
-	color: #6b7280;
-	font-weight: 600;
-	letter-spacing: .04em;
-	display: flex;
-	align-items: center;
-	gap: .25rem;
-	line-height: 1.2;
-	margin-bottom: .1rem;
-}
-.kpi-card .value {
-	grid-area: value;
-	font-size: 1.7rem;
-	font-weight: 700;
-	color: #0f172a;
-	line-height: 1.05;
-	letter-spacing: -0.02em;
-}
-.kpi-card .value small { font-size: .85rem; font-weight: 500; color: #6b7280; }
-.kpi-card .trend {
-	grid-area: trend;
-	font-size: .68rem;
-	display: flex;
-	align-items: center;
-	gap: .2rem;
-	margin-top: .1rem;
-	min-height: .9rem;
-}
-.kpi-trend-up   { color: #16a34a; }
-.kpi-trend-down { color: #dc2626; }
-.kpi-trend-flat { color: #9ca3af; }
+.overview-grid > .section { margin-bottom: 0; }
+@media (max-width: 1100px) { .overview-grid { grid-template-columns: 1fr; } }
 
-/* Couleurs des bulles icônes par variant (pastel pour le fond, foncé pour
-   l'icône — niveaux 700/800 de la palette Tailwind pour passer WCAG AA). */
-.kpi-card.accent-blue   .kpi-icon { background: #dbeafe; color: #1e40af; }
-.kpi-card.accent-cyan   .kpi-icon { background: #cffafe; color: #155e75; }
-.kpi-card.accent-orange .kpi-icon { background: #ffedd5; color: #9a3412; }
-.kpi-card.accent-purple .kpi-icon { background: #ede9fe; color: #6d28d9; }
-.kpi-card.accent-indigo .kpi-icon { background: #e0e7ff; color: #3730a3; }
-.kpi-card.accent-pink   .kpi-icon { background: #fce7f3; color: #9d174d; }
-.kpi-card.accent-green  .kpi-icon { background: #dcfce7; color: #15803d; }
-.kpi-card.accent-red    .kpi-icon { background: #fee2e2; color: #991b1b; }
-.kpi-card.accent-gray   .kpi-icon { background: #f1f5f9; color: #334155; }
+.stat-list { display: flex; flex-direction: column; gap: .15rem; padding-top: .6rem; padding-bottom: .6rem; }
+.stat-row {
+	display: grid; grid-template-columns: 38px 1fr auto; align-items: center;
+	gap: .75rem; padding: .6rem 0; border-bottom: 1px solid #f1f5f9;
+}
+.stat-row:last-child { border-bottom: 0; }
+.stat-icon {
+	width: 38px; height: 38px; border-radius: 10px;
+	display: flex; align-items: center; justify-content: center; font-size: 1rem;
+}
+/* Couleurs de statut réservées : critique / alerte / neutre (toujours avec
+   icône + libellé, jamais la couleur seule). */
+.status-critical .stat-icon { background: #fee2e2; color: #b91c1c; }
+.status-warning  .stat-icon { background: #fef3c7; color: #b45309; }
+.status-neutral  .stat-icon { background: #f1f5f9; color: #334155; }
+.stat-label { font-size: .8rem; font-weight: 600; color: #374151; display: flex; align-items: center; gap: .25rem; }
+.stat-text .trend { font-size: .7rem; min-height: .9rem; display: flex; align-items: center; gap: .2rem; flex-wrap: wrap; }
+.stat-value { font-size: 1.6rem; font-weight: 700; color: #0f172a; letter-spacing: -0.02em; }
+.stat-value small { font-size: .8rem; font-weight: 500; color: #6b7280; }
+
+.meter-row {
+	display: grid; grid-template-columns: 1fr auto; row-gap: .3rem;
+	padding: .35rem 0 .55rem;
+}
+.meter-label { font-size: .8rem; color: #374151; font-weight: 500; }
+.meter-label i { color: #6366f1; width: 1rem; font-size: .75rem; }
+.meter-val { font-size: .8rem; color: #6b7280; }
+.meter-val strong { font-size: 1rem; color: #0f172a; }
+/* Jauge : piste = teinte claire de la même rampe que le remplissage. */
+.meter { grid-column: 1 / -1; height: 6px; border-radius: 3px; background: #e0e7ff; overflow: hidden; }
+.meter-fill { height: 100%; border-radius: 3px; background: #6366f1; transition: width .4s ease; }
+.mini-stats {
+	display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .5rem;
+	margin-top: .6rem; padding-top: .75rem; border-top: 1px solid #f1f5f9;
+}
+.mini-label { display: flex; align-items: center; gap: .25rem; font-size: .7rem; color: #6b7280; }
+.mini-label i { font-size: .68rem; }
+.mini-value { display: block; font-size: 1.1rem; font-weight: 700; color: #0f172a; margin-top: .1rem; }
+.mini-value small { font-size: .72rem; font-weight: 500; color: #6b7280; }
+
+.kpi-trend-up   { color: #16a34a; } /* évolution favorable */
+.kpi-trend-down { color: #dc2626; } /* évolution défavorable */
+.kpi-trend-flat { color: #9ca3af; }
+.kpi-trend-prev { color: #6b7280; }
+
 
 /* ===== Coverage section ===== */
 .drill-parent {
@@ -333,45 +364,6 @@
 	gap: .25rem;
 }
 .cov-warn i { font-size: .62rem; }
-
-.coverage-grid {
-	display: grid;
-	grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-	gap: .5rem;
-}
-.coverage-card {
-	background: #f8fafc;
-	border: 1px solid #e6e9f3;
-	border-radius: 6px;
-	padding: .65rem .85rem;
-}
-.coverage-card .lbl {
-	font-size: .68rem;
-	text-transform: uppercase;
-	color: #6b7280;
-	font-weight: 600;
-	letter-spacing: .03em;
-	display: flex; align-items: center; gap: .35rem;
-}
-.coverage-card .val {
-	font-size: 1.25rem;
-	font-weight: 700;
-	color: #1f2937;
-	line-height: 1.15;
-	margin-top: .1rem;
-}
-.coverage-card .val .sub {
-	font-size: .8rem;
-	font-weight: 500;
-	color: #6b7280;
-}
-.coverage-card .progress {
-	height: 5px;
-	border-radius: 3px;
-	margin-top: .35rem;
-	background: #e5e7eb;
-}
-.coverage-card .progress-bar { border-radius: 3px; }
 
 /* ===== Sections ===== */
 .section {
@@ -563,11 +555,13 @@
 						<!-- Presets -->
 						<div class="filter-group filter-presets">
 							<div class="date-presets">
-								<button type="button" class="btn btn-outline-secondary" data-preset="today">Auj.</button>
-								<button type="button" class="btn btn-outline-secondary" data-preset="7d">7 j</button>
-								<button type="button" class="btn btn-outline-secondary" data-preset="30d">30 j</button>
-								<button type="button" class="btn btn-outline-secondary" data-preset="month">Ce mois</button>
-								<button type="button" class="btn btn-outline-secondary" data-preset="ytd">Cette année</button>
+								<!-- Périodes calendaires en cours, comparées à la précédente (obs. 1.5) -->
+								<button type="button" class="btn btn-outline-secondary" data-preset="today" title="Aujourd'hui, comparé à hier">Auj.</button>
+								<button type="button" class="btn btn-outline-secondary" data-preset="week" title="Semaine en cours, comparée à la précédente">Semaine</button>
+								<button type="button" class="btn btn-outline-secondary" data-preset="month" title="Mois en cours, comparé au précédent">Mois</button>
+								<button type="button" class="btn btn-outline-secondary" data-preset="quarter" title="Trimestre en cours, comparé au précédent">Trimestre</button>
+								<button type="button" class="btn btn-outline-secondary" data-preset="semester" title="Semestre en cours, comparé au précédent">Semestre</button>
+								<button type="button" class="btn btn-outline-secondary" data-preset="year" title="Année en cours, comparée à la précédente">Année</button>
 							</div>
 						</div>
 
@@ -631,132 +625,146 @@
 					</div>
 				</aside>
 
-				<!-- ============ KPI CARDS ============ -->
-				<div class="section-note">
-					<i class="fas fa-info-circle"></i>
-					<div>
-						<strong>Activité par étape sur la période.</strong>
-						Chaque carte compte les échantillons dont l'étape correspondante a eu lieu dans la période — ce ne sont donc pas les mêmes cohortes. La carte <em>En transit</em> (fond bleuté) est un <strong>snapshot temps réel</strong>, non lié à la période. Survolez <span class="help-tip" data-tip="Exemple d'info-bulle : passez le curseur sur les i pour voir la définition exacte de chaque chiffre.">i</span> pour la définition exacte.
-					</div>
-				</div>
-				<div class="kpi-grid">
-					<div class="kpi-card accent-blue">
-						<div class="kpi-icon"><i class="fas fa-vials"></i></div>
-						<span class="label">Total collectés<span class="help-tip" data-tip="Échantillons collectés (collection_date) dans la période.">i</span></span>
-						<span class="value" data-kpi="total">0</span>
-						<span class="trend" data-trend="total"></span>
-					</div>
-					<div class="kpi-card accent-cyan kpi-card-snapshot">
-						<div class="kpi-icon"><i class="fas fa-motorcycle"></i></div>
-						<span class="label">En transit<span class="help-tip" data-tip="Échantillons dont le statut courant est ON_TRANSIT. Snapshot global temps réel, NON lié à la période sélectionnée — c'est pourquoi ce chiffre ne se compare pas directement aux autres cartes.">i</span></span>
-						<span class="value" data-kpi="in_transit">0</span>
-						<span class="trend" data-trend="in_transit"></span>
-					</div>
-					<div class="kpi-card accent-orange">
-						<div class="kpi-icon"><i class="fas fa-warehouse"></i></div>
-						<span class="label">Déposés labo relais<span class="help-tip" data-tip="Échantillons déposés dans un laboratoire relais (hub) pendant la période — date de dépôt au relais. N'inclut pas ceux directement déposés au laboratoire de référence.">i</span></span>
-						<span class="value" data-kpi="at_hub">0</span>
-						<span class="trend" data-trend="at_hub"></span>
-					</div>
-					<div class="kpi-card accent-purple">
-						<div class="kpi-icon"><i class="fas fa-flask"></i></div>
-						<span class="label">Déposés labo référence<span class="help-tip" data-tip="Échantillons déposés au laboratoire de référence (laboratoire d'analyse final) pendant la période — date de dépôt au laboratoire. N'inclut pas ceux encore en attente dans un laboratoire relais.">i</span></span>
-						<span class="value" data-kpi="at_lab">0</span>
-						<span class="trend" data-trend="at_lab"></span>
-					</div>
-					<div class="kpi-card accent-indigo">
-						<div class="kpi-icon"><i class="fas fa-microscope"></i></div>
-						<span class="label">Analysés<span class="help-tip" data-tip="Résultats rendus disponibles (analysis_released_date) dans la période.">i</span></span>
-						<span class="value" data-kpi="analysed">0</span>
-						<span class="trend" data-trend="analysed"></span>
-					</div>
-					<div class="kpi-card accent-pink">
-						<div class="kpi-icon"><i class="fas fa-clipboard-check"></i></div>
-						<span class="label">Résultats collectés<span class="help-tip" data-tip="Résultats récupérés au labo par un convoyeur (result_collection_date) dans la période.">i</span></span>
-						<span class="value" data-kpi="result_collected">0</span>
-						<span class="trend" data-trend="result_collected"></span>
-					</div>
-					<div class="kpi-card accent-green">
-						<div class="kpi-icon"><i class="fas fa-check-circle"></i></div>
-						<span class="label">Résultats livrés<span class="help-tip" data-tip="Résultats livrés sur le site de collecte (result_delivery_date) dans la période.">i</span></span>
-						<span class="value" data-kpi="delivered">0</span>
-						<span class="trend" data-trend="delivered"></span>
-					</div>
-				</div>
-				<!-- Seconde rangée : indicateurs d'incidents + performance (3 cards). -->
-				<div class="kpi-grid kpi-grid-secondary">
-					<div class="kpi-card accent-red">
-						<div class="kpi-icon"><i class="fas fa-ban"></i></div>
-						<span class="label">Non-conformités<span class="help-tip" data-tip="Échantillons rejetés au labo pour non-conformité (rejection_date) dans la période. Statut NON_CONFORM.">i</span></span>
-						<span class="value" data-kpi="non_conform">0</span>
-						<span class="trend" data-trend="non_conform"></span>
-					</div>
-					<div class="kpi-card accent-orange">
-						<div class="kpi-icon"><i class="fas fa-exclamation-triangle"></i></div>
-						<span class="label">Échecs d'analyse<span class="help-tip" data-tip="Analyses techniquement échouées (analysis_completed_date) dans la période. Statut ANALYSIS_FAILED.">i</span></span>
-						<span class="value" data-kpi="failed">0</span>
-						<span class="trend" data-trend="failed"></span>
-					</div>
-					<div class="kpi-card accent-gray">
-						<div class="kpi-icon"><i class="fas fa-stopwatch"></i></div>
-						<span class="label">TAT moyen<span class="help-tip" data-tip="Médiane (result_delivery_date − collection_date) en jours, sur les échantillons collectés dans la période ET dont le résultat a été livré.">i</span></span>
-						<span class="value"><span data-kpi="tat_avg_days">0</span><small> j</small></span>
-						<span class="trend" data-trend="tat_avg_days"></span>
-					</div>
-				</div>
-
-
-				<!-- ============ COUVERTURE ============ -->
-				<div class="section">
+				<!-- ============ PARCOURS DE L'ÉCHANTILLON ============ -->
+				<!-- Les étapes se lisent de gauche à droite ; la teinte fonce avec
+				     l'avancement (échelle ordinale d'une seule teinte). Chaque étape
+				     compte les échantillons dont CETTE étape a eu lieu dans la période :
+				     ce ne sont pas les mêmes cohortes, d'où l'absence de taux de passage
+				     (il pourrait dépasser 100 %, cf. observation 1.1). -->
+				<div class="section flow-section">
 					<div class="section-header">
-						<h3><i class="fas fa-globe-africa"></i> Couverture du programme</h3>
-						<span class="text-muted-sm">Sur la période sélectionnée</span>
+						<div>
+							<h3><i class="fas fa-route"></i> Parcours de l'échantillon</h3>
+							<div class="section-sub">Activité de chaque étape sur la période — les étapes ne portent pas sur les mêmes échantillons.</div>
+						</div>
+						<div class="flow-live" title="Snapshot temps réel, non lié à la période">
+							<span class="live-dot"></span>
+							<strong data-kpi="in_transit">0</strong> en transit maintenant
+							<span class="help-tip" data-tip="Échantillons dont le statut courant est ON_TRANSIT. Snapshot global temps réel, NON lié à la période sélectionnée — c'est pourquoi ce chiffre ne se compare pas aux étapes du parcours.">i</span>
+						</div>
 					</div>
-					<div class="section-body">
-						<div class="coverage-grid">
-							<div class="coverage-card">
-								<div class="lbl"><i class="fas fa-clinic-medical text-primary"></i> Sites actifs</div>
-								<div class="val"><span data-cov="active_sites">0</span><span class="sub"> / <span data-cov="total_sites">0</span></span></div>
-								<div class="progress"><div class="progress-bar bg-primary" data-cov-bar="sites" style="width:0%"></div></div>
+					<div class="flow">
+						<div class="flow-step step-1">
+							<div class="flow-label"><i class="fas fa-vials"></i> Collectés<span class="help-tip" data-tip="Échantillons collectés (collection_date) dans la période.">i</span></div>
+							<div class="flow-value" data-kpi="total">0</div>
+							<div class="trend" data-trend="total"></div>
+						</div>
+						<div class="flow-arrow" aria-hidden="true"><i class="fas fa-chevron-right"></i></div>
+						<div class="flow-step step-2">
+							<div class="flow-label"><i class="fas fa-flask"></i> Déposés au labo<span class="help-tip" data-tip="Échantillons déposés au laboratoire de référence (laboratoire d'analyse final) pendant la période. Le détail indique ceux déposés dans un laboratoire relais (hub) et pas encore arrivés au laboratoire de référence.">i</span></div>
+							<div class="flow-value" data-kpi="at_lab">0</div>
+							<div class="trend" data-trend="at_lab"></div>
+							<div class="flow-detail"><i class="fas fa-warehouse"></i> Labo relais : <strong data-kpi="at_hub">0</strong></div>
+						</div>
+						<div class="flow-arrow" aria-hidden="true"><i class="fas fa-chevron-right"></i></div>
+						<div class="flow-step step-3">
+							<div class="flow-label"><i class="fas fa-microscope"></i> Analysés<span class="help-tip" data-tip="Résultats rendus disponibles (analysis_released_date) dans la période.">i</span></div>
+							<div class="flow-value" data-kpi="analysed">0</div>
+							<div class="trend" data-trend="analysed"></div>
+						</div>
+						<div class="flow-arrow" aria-hidden="true"><i class="fas fa-chevron-right"></i></div>
+						<div class="flow-step step-4">
+							<div class="flow-label"><i class="fas fa-clipboard-check"></i> Résultats collectés<span class="help-tip" data-tip="Résultats récupérés au labo par un convoyeur (result_collection_date) dans la période.">i</span></div>
+							<div class="flow-value" data-kpi="result_collected">0</div>
+							<div class="trend" data-trend="result_collected"></div>
+						</div>
+						<div class="flow-arrow" aria-hidden="true"><i class="fas fa-chevron-right"></i></div>
+						<div class="flow-step step-5">
+							<div class="flow-label"><i class="fas fa-check-circle"></i> Résultats livrés<span class="help-tip" data-tip="Résultats livrés sur le site de collecte (result_delivery_date) dans la période.">i</span></div>
+							<div class="flow-value" data-kpi="delivered">0</div>
+							<div class="trend" data-trend="delivered"></div>
+						</div>
+					</div>
+				</div>
+
+				<!-- ============ QUALITÉ · COUVERTURE · TYPES ============ -->
+				<div class="overview-grid">
+					<div class="section">
+						<div class="section-header">
+							<h3><i class="fas fa-shield-alt"></i> Qualité &amp; délais</h3>
+						</div>
+						<div class="section-body stat-list">
+							<div class="stat-row status-critical">
+								<div class="stat-icon"><i class="fas fa-ban"></i></div>
+								<div class="stat-text">
+									<div class="stat-label">Non-conformités<span class="help-tip" data-tip="Échantillons rejetés au labo pour non-conformité (rejection_date) dans la période. Statut NON_CONFORM.">i</span></div>
+									<div class="trend" data-trend="non_conform"></div>
+								</div>
+								<div class="stat-value" data-kpi="non_conform">0</div>
 							</div>
-							<div class="coverage-card">
-								<div class="lbl"><i class="fas fa-map text-info"></i> Districts couverts</div>
-								<div class="val"><span data-cov="active_districts">0</span><span class="sub"> / <span data-cov="total_districts">0</span></span></div>
-								<div class="progress"><div class="progress-bar bg-info" data-cov-bar="districts" style="width:0%"></div></div>
+							<div class="stat-row status-warning">
+								<div class="stat-icon"><i class="fas fa-exclamation-triangle"></i></div>
+								<div class="stat-text">
+									<div class="stat-label">Échecs d'analyse<span class="help-tip" data-tip="Analyses techniquement échouées (analysis_completed_date) dans la période. Statut ANALYSIS_FAILED.">i</span></div>
+									<div class="trend" data-trend="failed"></div>
+								</div>
+								<div class="stat-value" data-kpi="failed">0</div>
 							</div>
-							<div class="coverage-card">
-								<div class="lbl"><i class="fas fa-globe text-success"></i> Régions couvertes</div>
-								<div class="val"><span data-cov="active_regions">0</span><span class="sub"> / <span data-cov="total_regions">0</span></span></div>
-								<div class="progress"><div class="progress-bar bg-success" data-cov-bar="regions" style="width:0%"></div></div>
+							<div class="stat-row status-neutral">
+								<div class="stat-icon"><i class="fas fa-stopwatch"></i></div>
+								<div class="stat-text">
+									<div class="stat-label">TAT moyen<span class="help-tip" data-tip="Médiane (result_delivery_date − collection_date) en jours, sur les échantillons collectés dans la période ET dont le résultat a été livré.">i</span></div>
+									<div class="trend" data-trend="tat_avg_days"></div>
+								</div>
+								<div class="stat-value"><span data-kpi="tat_avg_days">0</span><small> j</small></div>
 							</div>
-							<div class="coverage-card">
-								<div class="lbl"><i class="fas fa-motorcycle text-warning"></i> Convoyeurs actifs</div>
-								<div class="val"><span data-cov="active_conveyors">0</span></div>
+						</div>
+					</div>
+
+					<div class="section">
+						<div class="section-header">
+							<h3><i class="fas fa-globe-africa"></i> Couverture du programme</h3>
+							<span class="text-muted-sm">Sur la période</span>
+						</div>
+						<div class="section-body">
+							<div class="meter-row">
+								<span class="meter-label"><i class="fas fa-clinic-medical"></i> Sites actifs</span>
+								<span class="meter-val"><strong data-cov="active_sites">0</strong> / <span data-cov="total_sites">0</span></span>
+								<div class="meter"><div class="meter-fill" data-cov-bar="sites" style="width:0%"></div></div>
 							</div>
-							<div class="coverage-card">
-								<div class="lbl"><i class="fas fa-flask text-purple"></i> Labos récepteurs</div>
-								<div class="val"><span data-cov="active_labs">0</span><span class="sub"> / <span data-cov="total_labs">0</span></span></div>
-								<div class="progress"><div class="progress-bar bg-purple" data-cov-bar="labs" style="width:0%; background-color:#8b5cf6;"></div></div>
+							<div class="meter-row">
+								<span class="meter-label"><i class="fas fa-map"></i> Districts couverts</span>
+								<span class="meter-val"><strong data-cov="active_districts">0</strong> / <span data-cov="total_districts">0</span></span>
+								<div class="meter"><div class="meter-fill" data-cov-bar="districts" style="width:0%"></div></div>
 							</div>
-							<div class="coverage-card">
-								<div class="lbl"><i class="fas fa-route text-secondary"></i> Distance totale</div>
-								<div class="val"><span data-cov="total_distance_km">0</span><span class="sub"> km</span></div>
+							<div class="meter-row">
+								<span class="meter-label"><i class="fas fa-globe"></i> Régions couvertes</span>
+								<span class="meter-val"><strong data-cov="active_regions">0</strong> / <span data-cov="total_regions">0</span></span>
+								<div class="meter"><div class="meter-fill" data-cov-bar="regions" style="width:0%"></div></div>
 							</div>
-							<div class="coverage-card">
-								<div class="lbl"><i class="fas fa-tachometer-alt text-secondary"></i> Km moyen / éch.<span
-									class="help-tip"
-									data-tip="Distance totale parcourue ÷ nombre total d'échantillons collectés sur la période (y compris ceux dont le kilométrage n'a pas été saisi).">i</span></div>
-								<div class="val"><span data-cov="avg_distance_per_sample_km">0</span><span class="sub"> km</span></div>
-								<div class="cov-note">Distance totale ÷ total collectés</div>
-								<div class="cov-warn" data-cov-warn="mileage" style="display:none;">
-									<i class="fas fa-exclamation-triangle"></i>
-									<span data-cov="samples_without_mileage">0</span> éch. sans kilométrage saisi
+							<div class="meter-row">
+								<span class="meter-label"><i class="fas fa-flask"></i> Labos récepteurs</span>
+								<span class="meter-val"><strong data-cov="active_labs">0</strong> / <span data-cov="total_labs">0</span></span>
+								<div class="meter"><div class="meter-fill" data-cov-bar="labs" style="width:0%"></div></div>
+							</div>
+							<div class="mini-stats">
+								<div class="mini-stat">
+									<span class="mini-label"><i class="fas fa-motorcycle"></i> Convoyeurs actifs</span>
+									<span class="mini-value" data-cov="active_conveyors">0</span>
+								</div>
+								<div class="mini-stat">
+									<span class="mini-label"><i class="fas fa-route"></i> Distance totale</span>
+									<span class="mini-value"><span data-cov="total_distance_km">0</span> <small>km</small></span>
+								</div>
+								<div class="mini-stat">
+									<span class="mini-label"><i class="fas fa-tachometer-alt"></i> Km moyen / éch.<span class="help-tip" data-tip="Distance totale parcourue ÷ nombre total d'échantillons collectés sur la période (y compris ceux dont le kilométrage n'a pas été saisi).">i</span></span>
+									<span class="mini-value"><span data-cov="avg_distance_per_sample_km">0</span> <small>km</small></span>
 								</div>
 							</div>
-							<div class="coverage-card" style="grid-column: span 2;">
-								<div class="lbl"><i class="fas fa-vial text-indigo"></i> Répartition par type d'échantillon</div>
-								<div id="type-breakdown-chart" style="height: 110px; margin-top: .3rem;"></div>
+							<div class="cov-warn" data-cov-warn="mileage" style="display:none;">
+								<i class="fas fa-exclamation-triangle"></i>
+								<span data-cov="samples_without_mileage">0</span> échantillons sans kilométrage saisi (comptés dans le km moyen)
 							</div>
+						</div>
+					</div>
+
+					<div class="section">
+						<div class="section-header">
+							<h3><i class="fas fa-vial"></i> Répartition par type</h3>
+							<span class="text-muted-sm">Collectés sur la période</span>
+						</div>
+						<div class="section-body">
+							<div id="type-breakdown-chart" style="height: 190px;"></div>
 						</div>
 					</div>
 				</div>
@@ -765,7 +773,11 @@
 				<div class="chart-grid">
 					<div class="chart-card">
 						<div class="chart-header">
-							<span><i class="fas fa-chart-bar"></i> Échantillons par type — statuts</span>
+							<span><i class="fas fa-chart-bar"></i> Parcours par type d'échantillon</span>
+							<div class="btn-group btn-group-sm chart-toggle" role="group" aria-label="Unité">
+								<button type="button" class="btn btn-outline-secondary active" data-status-mode="count">Nombre</button>
+								<button type="button" class="btn btn-outline-secondary" data-status-mode="pct" title="Chaque étape en % des échantillons collectés du même type">% des collectés</button>
+							</div>
 						</div>
 						<div class="chart-body">
 							<div id="chart_status_by_type" class="chart-canvas"></div>
@@ -788,10 +800,13 @@
 
 				<div class="section">
 					<div class="section-header">
-						<h3><i class="fas fa-hourglass-half"></i> Durée médiane par étape (jours)</h3>
+						<div>
+							<h3><i class="fas fa-hourglass-half"></i> Durée médiane par étape (jours)</h3>
+							<div class="section-sub">Plus la case est foncée, plus l'étape est longue.</div>
+						</div>
 					</div>
 					<div class="section-body">
-						<div id="chart_durations" style="height: 360px;"></div>
+						<div class="heatmap-wrap" id="durations_heatmap"></div>
 					</div>
 				</div>
 
@@ -816,19 +831,22 @@
 								<label class="form-check-label text-muted-sm" for="showEmptyZones">Afficher les zones sans données</label>
 							</div>
 							<span class="text-muted-sm" data-drill-hint>Cliquez sur ▶ pour développer</span>
+							<button type="button" class="btn btn-sm btn-outline-secondary" id="btnExportDrill" title="Exporter le niveau affiché (CSV pour Excel)">
+								<i class="fas fa-file-export"></i> Exporter
+							</button>
 						</div>
 					</div>
 					<div class="section-body" style="padding: 0;">
 						<table class="drill-table" id="drillTable">
 							<thead>
 								<tr>
-									<th class="num" style="width:70px;">ID</th>
-									<th data-drill-col>Région / District / Site</th>
-									<th class="num">Total</th>
-									<th class="num">En transit</th>
-									<th class="num">Livrés</th>
-									<th class="num">Rejets</th>
-									<th class="num">TAT moyen</th>
+									<th class="num sortable" style="width:70px;" data-sort="id">ID</th>
+									<th class="sortable" data-sort="name"><span data-drill-col>Région / District / Site</span></th>
+									<th class="num sortable" data-sort="total">Total</th>
+									<th class="num sortable" data-sort="in_transit">En transit</th>
+									<th class="num sortable" data-sort="delivered">Livrés</th>
+									<th class="num sortable" data-sort="rejected">Rejets</th>
+									<th class="num sortable" data-sort="tat_avg_days">TAT moyen</th>
 								</tr>
 							</thead>
 							<tbody id="drillTableBody">
@@ -882,6 +900,12 @@
 		// Highcharts global config: French export menu + offline rendering
 		if (window.Highcharts) {
 			Highcharts.setOptions({
+				// Axes et grille discrets : seules les données sont « fortes ».
+				chart: { style: { fontFamily: 'inherit' } },
+				xAxis: { lineColor: '#e5e7eb', tickColor: '#e5e7eb', labels: { style: { color: '#6b7280' } } },
+				yAxis: { gridLineColor: '#f1f5f9', labels: { style: { color: '#6b7280' } }, title: { style: { color: '#6b7280', fontWeight: 'normal' } } },
+				legend: { itemStyle: { color: '#374151', fontWeight: '500', fontSize: '11px' } },
+				tooltip: { borderColor: '#e5e7eb', shadow: false, style: { fontSize: '12px' } },
 				lang: {
 					contextButtonTitle: 'Options du graphique',
 					downloadJPEG: 'Télécharger en JPEG',
@@ -955,14 +979,20 @@
 				const pad = n => String(n).padStart(2, '0');
 				return pad(d.getDate()) + '/' + pad(d.getMonth()+1) + '/' + d.getFullYear();
 			};
-			let start = '', end = fmt(today);
-			if (p === 'today')      { start = fmt(today); }
-			else if (p === '7d')    { const s = new Date(today); s.setDate(today.getDate() - 7); start = fmt(s); }
-			else if (p === '30d')   { const s = new Date(today); s.setDate(today.getDate() - 30); start = fmt(s); }
-			else if (p === 'month') { start = fmt(new Date(today.getFullYear(), today.getMonth(), 1)); }
-			else if (p === 'ytd')   { start = fmt(new Date(today.getFullYear(), 0, 1)); }
-			$('#input_start_date').val(start);
-			$('#input_end_date').val(end);
+			// Début de la période calendaire en cours ; fin = aujourd'hui.
+			const y = today.getFullYear(), m = today.getMonth();
+			let s;
+			if (p === 'today')         { s = today; }
+			else if (p === 'week')     { s = new Date(today); s.setDate(today.getDate() - ((today.getDay() + 6) % 7)); } // lundi
+			else if (p === 'month')    { s = new Date(y, m, 1); }
+			else if (p === 'quarter')  { s = new Date(y, m - (m % 3), 1); }
+			else if (p === 'semester') { s = new Date(y, m < 6 ? 0 : 6, 1); }
+			else if (p === 'year')     { s = new Date(y, 0, 1); }
+			$('#input_start_date').val(fmt(s));
+			$('#input_end_date').val(fmt(today));
+			// La période est transmise au calcul de la période précédente
+			// (cf. DashboardController.funnelPrevious).
+			window._period = p;
 			applyFiltersToUrl();
 		});
 
@@ -1004,6 +1034,7 @@
 		const ed = isoFromFr($('#input_end_date').val());
 		if (sd) p.set('startDate', sd);
 		if (ed) p.set('endDate', ed);
+		if (window._period) p.set('period', window._period);
 		const region = $('#select_region').val();
 		const district = $('#select_district').val();
 		const site = $('#select_site').val();
@@ -1035,6 +1066,16 @@
 		// Dates (converties ISO→FR pour le datepicker)
 		$('#input_start_date').val(frFromIso(u.get('startDate')));
 		$('#input_end_date').val(frFromIso(u.get('endDate')));
+		// Période calendaire choisie par un raccourci : bouton actif. Une date
+		// modifiée à la main la fait oublier (comparaison à durée égale).
+		window._period = u.get('period');
+		if (window._period) {
+			$('.date-presets .btn[data-preset="' + window._period + '"]').addClass('active');
+		}
+		$('#input_start_date, #input_end_date').on('change', function() {
+			window._period = null;
+			$('.date-presets .btn').removeClass('active');
+		});
 
 		// Lab : indépendant de la cascade
 		if (lab) $('#select_lab').val(lab).trigger('change.select2');
@@ -1102,7 +1143,7 @@
 		const f = currentFilters();
 		$.when(
 			$.get('dashboard/data/funnel', f),
-			$.get('dashboard/data/funnel-previous', f)
+			$.get('dashboard/data/funnel-previous', Object.assign({}, f, { period: window._period || '' }))
 		).done(function(currResp, prevResp) {
 			const curr = currResp[0] || {};
 			const prev = prevResp[0] || {};
@@ -1119,25 +1160,48 @@
 			delivered: 'delivered', tat_avg_days: 'tat_avg_days',
 			non_conform: 'non_conform', failed: 'failed'
 		};
+		const prevRange = (prev.prev_start && prev.prev_end)
+			? 'Période précédente : du ' + frFromIso(prev.prev_start) + ' au ' + frFromIso(prev.prev_end)
+			: '';
 		Object.entries(map).forEach(function(p) {
 			const v = num(curr[p[1]]);
 			$('[data-kpi="' + p[0] + '"]').text(formatNumber(v));
-			renderTrend('[data-trend="' + p[0] + '"]', v, num(prev[p[1]]));
+			renderTrend('[data-trend="' + p[0] + '"]', v, num(prev[p[1]]), prevRange,
+				p[0] === 'tat_avg_days' ? ' j' : '', LOWER_IS_BETTER.includes(p[0]));
 		});
 	}
 
-	function renderTrend(selector, curr, prev) {
+	// Tendance : variation en % puis valeur de la période précédente (obs. 1.5 :
+	// plus de « vs préc. », la valeur précédente est affichée). Les dates de la
+	// période précédente sont en info-bulle.
+	// Indicateurs pour lesquels une hausse est une mauvaise nouvelle : la
+	// flèche suit la valeur, la couleur suit le sens (hausse = rouge).
+	const LOWER_IS_BETTER = ['non_conform', 'failed', 'tat_avg_days'];
+
+	function renderTrend(selector, curr, prev, prevRange, unit, lowerIsBetter) {
+		const good = lowerIsBetter ? 'kpi-trend-down' : 'kpi-trend-up';
+		const bad = lowerIsBetter ? 'kpi-trend-up' : 'kpi-trend-down';
 		const $el = $(selector);
-		if (prev === 0 && curr === 0) { $el.html('<span class="kpi-trend-flat">—</span>'); return; }
-		if (prev === 0) { $el.html('<span class="kpi-trend-up"><i class="fas fa-arrow-up"></i> nouveau</span>'); return; }
+		$el.attr('title', prevRange || '');
+		const prevTxt = ' <span class="kpi-trend-prev">· préc. ' + formatNumber(prev) + (unit || '') + '</span>';
+		// Rien à comparer : pas de flèche ni de « nouveau », seulement la valeur.
+		if (prev === 0) {
+			$el.html(curr === 0 ? '' : '<span class="kpi-trend-prev">préc. 0' + (unit || '') + '</span>');
+			return;
+		}
 		const diff = curr - prev;
 		const pct = Math.round(100 * diff / prev);
+		// Au-delà de +1000 %, un facteur se lit mieux (« ×297 » plutôt que « +29 620 % »).
+		const ratio = curr / prev;
+		const upTxt = pct >= 1000
+			? '×' + (ratio < 10 ? ratio.toFixed(1).replace('.', ',') : Math.round(ratio))
+			: '+' + pct + '%';
 		if (Math.abs(pct) < 1) {
-			$el.html('<span class="kpi-trend-flat"><i class="fas fa-minus"></i> stable</span>');
+			$el.html('<span class="kpi-trend-flat"><i class="fas fa-minus"></i> stable</span>' + prevTxt);
 		} else if (diff > 0) {
-			$el.html('<span class="kpi-trend-up"><i class="fas fa-arrow-up"></i> +' + pct + '% vs préc.</span>');
+			$el.html('<span class="' + good + '"><i class="fas fa-arrow-up"></i> ' + upTxt + '</span>' + prevTxt);
 		} else {
-			$el.html('<span class="kpi-trend-down"><i class="fas fa-arrow-down"></i> ' + pct + '% vs préc.</span>');
+			$el.html('<span class="' + bad + '"><i class="fas fa-arrow-down"></i> ' + pct + '%</span>' + prevTxt);
 		}
 	}
 
@@ -1168,7 +1232,8 @@
 	function loadTypeBreakdown() {
 		const f = currentFilters();
 		$.get('dashboard/data/type-breakdown', f, function(rows) {
-			const data = (rows || []).map(r => ({ name: r.sample_type || '—', y: num(r.total) }));
+			const data = (rows || []).map(r => ({ name: r.sample_type || '—', y: num(r.total), color: typeColor(r.sample_type) }))
+				.sort((x, y) => y.y - x.y);
 			Highcharts.chart('type-breakdown-chart', {
 				chart: { type: 'bar', backgroundColor: 'transparent', spacing: [0, 0, 0, 0] },
 				title: { text: null },
@@ -1178,10 +1243,11 @@
 				xAxis: { type: 'category', labels: { style: { fontSize: '10px' } }, lineWidth: 0, tickWidth: 0 },
 				yAxis: { title: { text: null }, gridLineWidth: 0, labels: { enabled: false }, min: 0 },
 				plotOptions: {
+					// Chaque barre prend la couleur de son type (cf. TYPE_COLORS).
 					bar: {
-						colorByPoint: true,
-						colors: ['#3b82f6','#16a34a','#f59e0b','#8b5cf6','#06b6d4','#ec4899','#dc2626'],
-						dataLabels: { enabled: true, format: '{point.y}', style: { fontSize: '10px', fontWeight: 600 } },
+						maxPointWidth: 16,
+						borderWidth: 0,
+						dataLabels: { enabled: true, format: '{point.y}', style: { fontSize: '10px', fontWeight: 600, color: '#374151', textOutline: 'none' } },
 						borderRadius: 3
 					}
 				},
@@ -1190,30 +1256,86 @@
 		});
 	}
 
+	// Couleurs des étapes du parcours : échelle ordinale d'une teinte, plus
+	// foncée avec l'avancement (validée : dataviz validate_palette --ordinal).
+	// La même étape a la même couleur dans le bandeau et dans tous les graphiques.
+	const STAGE = {
+		collected:       '#8f9bf5',
+		deposited:       '#6d74ee',
+		analysed:        '#5048e0',
+		resultCollected: '#3b30b8',
+		delivered:       '#2a1f82'
+	};
+	const STATUS_CRITICAL = '#dc2626'; // réservé aux rejets / non-conformités
+
+	// Couleur propre à chaque type d'échantillon, identique sur le web et le
+	// mobile (lib/widgets/sample_list_item.dart). Palette catégorielle validée
+	// (dataviz validate_palette, ordre adjacent), attribuée par fréquence. Le
+	// nom du type est toujours écrit à côté : la couleur n'est jamais seule.
+	const TYPE_COLORS = {
+		CV: '#2a78d6', EID: '#eb6834', TB: '#1baf7a', BI: '#eda100',
+		BS: '#e87ba4', HPV: '#008300', PREP: '#4a3aa7', IVSA: '#e34948'
+	};
+	function typeColor(t) {
+		return TYPE_COLORS[String(t || '').trim().toUpperCase()] || '#94a3b8'; // autre : gris
+	}
+	function typeDot(t) {
+		return '<span class="type-dot" style="background:' + typeColor(t) + '"></span>' + escapeHtml(t);
+	}
+
 	function loadChartStatusByType() {
 		const f = currentFilters();
 		$.get('dashboard/sample_status_by_sample_type', f, function(data) {
-			Highcharts.chart('chart_status_by_type', {
-				chart: { type: 'column' },
-				title: { text: null },
-				credits: { enabled: false },
-				exporting: { chartOptions: { title: { text: "Échantillons par type — statuts" } } },
-				xAxis: { categories: data.categories || [], crosshair: true },
-				yAxis: { title: { text: "Nombre d'échantillons" }, allowDecimals: false, min: 0 },
-				legend: { enabled: true, itemStyle: { fontSize: '11px' } },
-				plotOptions: { series: { dataLabels: { enabled: false } } },
-				tooltip: { shared: true, useHTML: true },
-				series: [
-					{ name: 'Collectés', data: data.collected || [], color: '#3b82f6' },
-					{ name: 'Transmis/Déposés', data: data.delivered || [], color: '#06b6d4' },
-					{ name: 'Analyses terminées', data: data.analysisDone || [], color: '#4f46e5' },
-					{ name: 'Résultats collectés', data: data.resultCollected || [], color: '#ec4899' },
-					{ name: 'Résultats livrés', data: data.resultOnSite || [], color: '#16a34a' },
-					{ name: 'Rejets', data: data.nonConform || [], color: '#dc2626' }
-				]
-			});
+			window._statusByType = data || {};
+			renderStatusByType();
 		});
 	}
+
+	// Parcours par type : les types sans aucun échantillon sont masqués ; le
+	// mode « % des collectés » rend lisibles les petits types face à CV.
+	function renderStatusByType() {
+		const data = window._statusByType || {};
+		const pct = window._statusMode === 'pct';
+		const cats = data.categories || [];
+		const collected = data.collected || [];
+		const keep = cats.map((c, i) => i).filter(i => num(collected[i]) > 0
+			|| ['delivered', 'analysisDone', 'resultCollected', 'resultOnSite', 'nonConform']
+				.some(k => num((data[k] || [])[i]) > 0));
+		const pick = arr => keep.map(i => {
+			const v = num((arr || [])[i]);
+			if (!pct) return v;
+			const base = num(collected[i]);
+			return base > 0 ? Math.round(1000 * v / base) / 10 : null;
+		});
+		Highcharts.chart('chart_status_by_type', {
+			chart: { type: 'column' },
+			title: { text: null },
+			credits: { enabled: false },
+			exporting: { chartOptions: { title: { text: "Parcours par type d'échantillon" } } },
+			xAxis: { categories: keep.map(i => cats[i]), crosshair: { color: 'rgba(99,102,241,.06)' },
+				labels: { useHTML: true, formatter: function() { return typeDot(this.value); } } },
+			yAxis: { title: { text: pct ? '% des collectés' : "Nombre d'échantillons" }, allowDecimals: pct, min: 0,
+				labels: { format: pct ? '{value} %' : '{value}' } },
+			legend: { enabled: true },
+			plotOptions: { column: { maxPointWidth: 24, borderRadius: 3, borderWidth: 0, groupPadding: 0.12, pointPadding: 0.06 } },
+			tooltip: { shared: true, valueSuffix: pct ? ' %' : '' },
+			series: [
+				{ name: 'Collectés', data: pick(data.collected), color: STAGE.collected },
+				{ name: 'Déposés', data: pick(data.delivered), color: STAGE.deposited },
+				{ name: 'Analysés', data: pick(data.analysisDone), color: STAGE.analysed },
+				{ name: 'Résultats collectés', data: pick(data.resultCollected), color: STAGE.resultCollected },
+				{ name: 'Résultats livrés', data: pick(data.resultOnSite), color: STAGE.delivered },
+				{ name: 'Rejets', data: pick(data.nonConform), color: STATUS_CRITICAL }
+			]
+		});
+	}
+
+	$(document).on('click', '[data-status-mode]', function() {
+		window._statusMode = $(this).data('status-mode');
+		$('[data-status-mode]').removeClass('active');
+		$(this).addClass('active');
+		renderStatusByType();
+	});
 
 	function loadChartSeries() {
 		const f = currentFilters();
@@ -1231,13 +1353,14 @@
 			exporting: { chartOptions: { title: { text: "Évolution dans le temps (granularité : " + granularity + ")" } } },
 			xAxis: { type: 'datetime' },
 			yAxis: { title: { text: 'Nombre' }, allowDecimals: false, min: 0 },
-			legend: { enabled: true, itemStyle: { fontSize: '11px' } },
+			legend: { enabled: true },
 			tooltip: { shared: true },
+			plotOptions: { line: { lineWidth: 2, marker: { enabled: false, radius: 4 }, states: { hover: { lineWidthPlus: 1 } } } },
 			series: [
-				{ name: 'Collectés', data: bucketize(res.collected, granularity), color: '#3b82f6' },
-				{ name: 'Déposés', data: bucketize(res.deposited, granularity), color: '#06b6d4' },
-				{ name: 'Analysés', data: bucketize(res.analysed, granularity), color: '#4f46e5' },
-				{ name: 'Livrés', data: bucketize(res.delivered, granularity), color: '#16a34a' }
+				{ name: 'Collectés', data: bucketize(res.collected, granularity), color: STAGE.collected },
+				{ name: 'Déposés', data: bucketize(res.deposited, granularity), color: STAGE.deposited },
+				{ name: 'Analysés', data: bucketize(res.analysed, granularity), color: STAGE.analysed },
+				{ name: 'Livrés', data: bucketize(res.delivered, granularity), color: STAGE.delivered }
 			]
 		});
 	}
@@ -1258,25 +1381,45 @@
 				if (!byType[r.sampleType]) byType[r.sampleType] = {};
 				byType[r.sampleType][r.step] = num(r.medianDays);
 			});
-			const series = Object.keys(byType).sort().map(function(type) {
-				return {
-					name: type, type: 'column',
-					data: steps.map(s => byType[type][s] || 0),
-					tooltip: { valueSuffix: ' j' }
-				};
-			});
-			Highcharts.chart('chart_durations', {
-				title: { text: null },
-				credits: { enabled: false },
-				exporting: { chartOptions: { title: { text: "Durée médiane par étape (jours) — par type d'échantillon" } } },
-				xAxis: { categories: steps, labels: { style: { fontSize: '10px' } } },
-				yAxis: { title: { text: 'Jours (médiane)' }, min: 0, allowDecimals: false },
-				legend: { enabled: true, itemStyle: { fontSize: '11px' } },
-				plotOptions: { series: { dataLabels: { enabled: true, format: '{y} j', style: { fontSize: '10px' } } } },
-				tooltip: { shared: true, useHTML: true },
-				series: series
-			});
+			renderDurationsHeatmap(steps, byType);
 		});
+	}
+
+	// Ordre fixe des types (les plus fréquents d'abord) ; les autres suivent.
+	const TYPE_ORDER = ['CV', 'EID', 'TB', 'BI', 'BS', 'HPV', 'PrEP', 'IVSA'];
+
+	// Carte de chaleur étape × type : une seule teinte chaude, plus foncée
+	// quand l'étape est plus longue (échelle séquentielle sur le maximum).
+	function renderDurationsHeatmap(steps, byType) {
+		const types = Object.keys(byType).sort((x, y) => {
+			const ix = TYPE_ORDER.indexOf(x), iy = TYPE_ORDER.indexOf(y);
+			return (ix < 0 ? 99 : ix) - (iy < 0 ? 99 : iy) || x.localeCompare(y);
+		});
+		const $w = $('#durations_heatmap');
+		if (!types.length) {
+			$w.html('<div class="empty-state">Aucune durée calculable sur la période.</div>');
+			return;
+		}
+		let max = 0;
+		types.forEach(t => steps.forEach(st => { max = Math.max(max, num(byType[t][st])); }));
+		const lo = [255, 241, 230], hi = [194, 65, 12]; // #fff1e6 → #c2410c
+		const cell = v => {
+			if (v === undefined || v === null) return '<td class="empty">—</td>';
+			const t = max > 0 ? v / max : 0;
+			const rgb = lo.map((c, k) => Math.round(c + (hi[k] - c) * t));
+			const ink = t > 0.5 ? '#ffffff' : '#1f2937'; // texte lisible selon la luminance
+			return '<td style="background:rgb(' + rgb.join(',') + ');color:' + ink + '" title="' + v + ' j (médiane)">'
+				+ formatNumber(v) + ' j</td>';
+		};
+		let html = '<table class="heatmap"><thead><tr><th></th>'
+			+ types.map(t => '<th>' + typeDot(t) + '</th>').join('') + '</tr></thead><tbody>';
+		steps.forEach(st => {
+			html += '<tr><th>' + escapeHtml(st) + '</th>'
+				+ types.map(t => cell(byType[t][st])).join('') + '</tr>';
+		});
+		html += '</tbody></table>'
+			+ '<div class="heatmap-legend"><span>0 j</span><span class="scale"></span><span>' + formatNumber(max) + ' j</span></div>';
+		$w.html(html);
 	}
 
 	// Niveau courant du tableau de repartition : 'region' (defaut, avec
@@ -1314,8 +1457,83 @@
 			return;
 		}
 		const lvl = window._drillLevel || 'region';
-		rows.forEach(function(r) { $body.append(renderDrillRow(lvl, r, 0)); });
+		sortDrillRows(rows, lvl).forEach(function(r) { $body.append(renderDrillRow(lvl, r, 0)); });
+		renderSortIndicators();
 	}
+
+	// --- Tri du tableau de répartition (clic sur un en-tête) ---
+	// En vue Régions, trier referme les régions dépliées (les lignes sont
+	// reconstruites) ; les sous-niveaux dépliés ensuite suivent le même tri.
+	window._drillSort = { key: 'id', dir: 'asc' }; // défaut : ordre des ID (obs. 1.10)
+
+	function drillId(r, lvl) { return lvl === 'region' ? r.region_id : (lvl === 'district' ? r.district_id : r.site_id); }
+	function drillName(r, lvl) { return lvl === 'region' ? r.region : (lvl === 'district' ? r.district : r.site); }
+
+	function sortDrillRows(rows, lvl) {
+		const sort = window._drillSort;
+		const val = r => sort.key === 'id' ? num(drillId(r, lvl))
+			: sort.key === 'name' ? String(drillName(r, lvl) || '')
+			: num(r[sort.key]);
+		const dir = sort.dir === 'asc' ? 1 : -1;
+		return rows.slice().sort(function(a, b) {
+			const va = val(a), vb = val(b);
+			const c = typeof va === 'string' ? va.localeCompare(vb, 'fr', { sensitivity: 'base' }) : va - vb;
+			return c * dir;
+		});
+	}
+
+	function renderSortIndicators() {
+		$('#drillTable th.sortable').each(function() {
+			const on = $(this).data('sort') === window._drillSort.key;
+			$(this).toggleClass('sorted', on).attr('aria-sort',
+				on ? (window._drillSort.dir === 'asc' ? 'ascending' : 'descending') : 'none');
+			$(this).find('.sort-arrow').remove();
+			$(this).append('<i class="fas sort-arrow ' + (on
+				? (window._drillSort.dir === 'asc' ? 'fa-sort-up' : 'fa-sort-down') : 'fa-sort') + '"></i>');
+		});
+	}
+
+	$(document).on('click', '#drillTable th.sortable', function() {
+		const key = $(this).data('sort');
+		const s = window._drillSort;
+		// Nouveau critère : décroissant pour les nombres, alphabétique pour le nom.
+		window._drillSort = s.key === key
+			? { key: key, dir: s.dir === 'asc' ? 'desc' : 'asc' }
+			: { key: key, dir: key === 'name' || key === 'id' ? 'asc' : 'desc' };
+		renderDrillRegions();
+	});
+
+	// --- Export CSV du niveau affiché (Excel : séparateur « ; », BOM UTF-8) ---
+	$(document).on('click', '#btnExportDrill', function() {
+		const lvl = window._drillLevel || 'region';
+		const showEmpty = $('#showEmptyZones').is(':checked');
+		let rows = window._drillRegions || [];
+		if (!showEmpty) rows = rows.filter(r => num(r.total) > 0);
+		rows = sortDrillRows(rows, lvl);
+		const cols = ['ID'].concat(lvl === 'region' ? ['Région'] : lvl === 'district' ? ['Région', 'District'] : ['Région', 'District', 'Site'])
+			.concat(['Total', 'En transit', 'Livrés', 'Rejets', 'TAT moyen (j)']);
+		const cell = v => {
+			const t = v == null ? '' : String(v);
+			return /[;"\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t;
+		};
+		const dec = v => (v == null || v === '') ? '' : String(num(v)).replace('.', ',');
+		const lines = [cols.join(';')].concat(rows.map(function(r) {
+			const geo = lvl === 'region' ? [r.region] : lvl === 'district' ? [r.region, r.district] : [r.region, r.district, r.site];
+			return [drillId(r, lvl)].concat(geo)
+				.concat([num(r.total), num(r.in_transit), num(r.delivered), num(r.rejected), num(r.total) > 0 ? dec(r.tat_avg_days) : ''])
+				.map(cell).join(';');
+		}));
+		const f = currentFilters();
+		const name = 'repartition_' + { region: 'regions', district: 'districts', site: 'sites' }[lvl]
+			+ (f.startDate ? '_' + f.startDate : '') + (f.endDate ? '_' + f.endDate : '') + '.csv';
+		const blob = new Blob(['\ufeff' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+		const a = document.createElement('a');
+		a.href = URL.createObjectURL(blob);
+		a.download = name;
+		document.body.appendChild(a);
+		a.click();
+		setTimeout(function() { URL.revokeObjectURL(a.href); a.remove(); }, 0);
+	});
 
 	function renderDrillRow(level, r, indent) {
 		// Les vues a plat renvoient aussi les libelles parents (region du
@@ -1415,7 +1633,7 @@
 			}
 			const childLevel = level === 'region' ? 'district' : 'site';
 			const indent = level === 'region' ? 1 : 2;
-			filtered.slice().reverse().forEach(function(r) {
+			sortDrillRows(filtered, childLevel).reverse().forEach(function(r) {
 				const $row = $(renderDrillRow(childLevel, r, indent))
 					.attr('data-parent', rowMarker)
 					.attr('data-ancestor', rowMarker);
