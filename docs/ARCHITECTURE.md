@@ -123,7 +123,7 @@ exports : les données hors périmètre ne sont ni affichées ni comptées. Les
 profils nationaux (rôles ADMIN, SUPPORT, MANAGER) ont un accès global.
 
 Les écrans d'administration (maillage, référentiels, utilisateurs, journaux,
-contrôle de cohérence) sont réservés aux administrateurs.
+page de contrôle de cohérence) sont réservés aux administrateurs.
 
 ---
 
@@ -151,9 +151,9 @@ Conservation : 12 mois, purge quotidienne.
 - Chaque étape du parcours est comptée sur sa propre date (collecte, dépôt,
   validation, remise…), sur la période et le périmètre choisis ; période
   précédente comparable (calendaire ou même durée).
-- Cohérence entre écrans vérifiable à tout moment : Administration → Contrôle
-  de cohérence (même indicateur sur tous les écrans, additivité site →
-  district → région).
+- Cohérence entre écrans vérifiable à tout moment par un administrateur, à
+  l'adresse `/coherence` (outil de recette, hors menu) : même indicateur sur
+  tous les écrans, additivité site → district → région.
 
 ---
 
