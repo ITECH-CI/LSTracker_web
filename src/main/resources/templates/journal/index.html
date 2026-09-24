@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="fr" xmlns="http://www.w3.org/1999/xhtml"
+	xmlns:th="http://www.thymeleaf.org"
+	xmlns:sec="http://www.thymeleaf.org/thymeleaf-extras-springsecurity6">
+
+<head th:replace="~{fragments/header :: head}">
+<title>Journal d'activité</title>
+</head>
+
+<body class="sb-nav-fixed">
+
+<style>
+.jl-toolbar { display: flex; flex-wrap: wrap; gap: .75rem; align-items: center; justify-content: space-between; }
+.jl-periods .btn { min-width: 5.5rem; }
+.jl-note { font-size: .8rem; color: #6b7280; }
+.jl-panel { background: #fff; border: 1px solid #e6e9f3; border-radius: 10px; padding: 1rem 1.1rem; }
+.jl-filters { display: flex; flex-wrap: wrap; gap: .5rem; align-items: end; margin-bottom: .75rem; }
+.jl-filters .form-control, .jl-filters .form-select { font-size: .84rem; }
+.jl-table { width: 100%; font-size: .84rem; }
+.jl-table th { font-size: .72rem; text-transform: uppercase; letter-spacing: .03em; color: #6b7280; font-weight: 600;
+	border-bottom: 1px solid #e6e9f3; padding: .35rem .5rem; white-space: nowrap; background: #f8fafc; }
+.jl-table td { border-bottom: 1px solid #f1f3f8; padding: .5rem; vertical-align: top; }
+.jl-wide { overflow-x: auto; }
+.jl-muted { color: #9ca3af; }
+.jl-empty { color: #9ca3af; font-style: italic; padding: .75rem 0; }
+.chan { display: inline-block; font-size: .7rem; font-weight: 600; border-radius: 999px; padding: .08rem .5rem; }
+.chan-web { background: #e0ecfb; color: #1e4f8f; }
+.chan-mobile { background: #fde9df; color: #9a3d12; }
+.chan-système { background: #f1f5f9; color: #475569; }
+.act { display: inline-block; font-size: .72rem; font-weight: 600; border-radius: 4px; padding: .08rem .45rem; white-space: nowrap; }
+.act-CREATE { background: #dcfce7; color: #166534; }
+.act-UPDATE { background: #e0e7ff; color: #3730a3; }
+.act-DELETE { background: #fee2e2; color: #991b1b; }
+.act-EXPORT, .act-RUN { background: #f1f5f9; color: #334155; }
+.chg { list-style: none; margin: 0; padding: 0; }
+.chg li { line-height: 1.45; }
+.chg .f { color: #6b7280; }
+.chg .old { color: #9ca3af; text-decoration: line-through; }
+.chg .arrow { color: #9ca3af; margin: 0 .2rem; }
+.jl-table details summary { cursor: pointer; color: #4f46e5; font-size: .8rem; }
+</style>
+
+	<div class="d-flex" id="wrapper">
+		<div id="page-content-wrapper">
+
+			<div th:insert="~{fragments/header :: header(content='Journal d\'activité', module='journal')}"></div>
+
+			<div class="container-fluid py-3">
+
+				<div class="jl-toolbar mb-3">
+					<div class="btn-group jl-periods" role="group" aria-label="Période">
+						<a th:each="p : ${periods}" class="btn btn-sm"
+							th:classappend="${p == days} ? 'btn-primary' : 'btn-outline-primary'"
+							th:href="@{/journal(jours=${p},login=${fLogin},objet=${fObjet},action=${fAction},id=${fId},canal=${fCanal})}"
+							th:text="${p == 1} ? 'Aujourd\'hui' : (${p == 365} ? '1 an' : ${p} + ' jours')">7 jours</a>
+					</div>
+					<div class="jl-note">
+						Du <strong th:text="${#temporals.format(start, 'dd/MM/yyyy')}">17/09/2026</strong> à aujourd'hui.
+						Toute création, modification ou suppression, avec la valeur antérieure. Conservé 12 mois.
+						Mots de passe et identifiants patients ne sont jamais enregistrés.
+					</div>
+				</div>
+
+				<div class="jl-panel">
+					<form class="jl-filters" method="get" th:action="@{/journal}">
+						<input type="hidden" name="jours" th:value="${days}" />
+						<div>
+							<label class="form-label small mb-1" for="fLogin">Utilisateur</label>
+							<input class="form-control form-control-sm" id="fLogin" name="login" th:value="${fLogin}" placeholder="identifiant contient…" />
+						</div>
+						<div>
+							<label class="form-label small mb-1" for="fObjet">Objet</label>
+							<select class="form-select form-select-sm" id="fObjet" name="objet">
+								<option value="">Tous</option>
+								<option th:each="t : ${entityTypes}" th:value="${t}" th:selected="${t == fObjet}"
+									th:text="${entities.getOrDefault(t, t)}">Échantillon</option>
+							</select>
+						</div>
+						<div>
+							<label class="form-label small mb-1" for="fId">N°</label>
+							<input class="form-control form-control-sm" id="fId" name="id" th:value="${fId}" style="width: 7rem;" />
+						</div>
+						<div>
+							<label class="form-label small mb-1" for="fAction">Action</label>
+							<select class="form-select form-select-sm" id="fAction" name="action">
+								<option value="">Toutes</option>
+								<option th:each="a : ${actions}" th:value="${a.key}" th:selected="${a.key == fAction}"
+									th:text="${a.value}">Création</option>
+							</select>
+						</div>
+						<div>
+							<label class="form-label small mb-1" for="fCanal">Canal</label>
+							<select class="form-select form-select-sm" id="fCanal" name="canal">
+								<option value="">Tous</option>
+								<option value="web" th:selected="${fCanal == 'web'}">Web</option>
+								<option value="mobile" th:selected="${fCanal == 'mobile'}">Mobile</option>
+								<option value="système" th:selected="${fCanal == 'système'}">Système</option>
+							</select>
+						</div>
+						<button class="btn btn-sm btn-primary" type="submit"><i class="fas fa-filter me-1"></i>Filtrer</button>
+						<a class="btn btn-sm btn-outline-secondary" th:href="@{/journal(jours=${days})}">Effacer</a>
+						<a class="btn btn-sm btn-outline-secondary"
+							th:href="@{/journal/export.csv(jours=${days},login=${fLogin},objet=${fObjet},action=${fAction},id=${fId},canal=${fCanal})}">
+							<i class="fas fa-file-csv me-1"></i>Exporter (CSV)</a>
+						<span class="small text-muted ms-auto" th:text="${total} + ' entrée' + (${total} > 1 ? 's' : '')">0 entrée</span>
+					</form>
+
+					<div class="jl-wide">
+						<table class="jl-table" th:if="${!#lists.isEmpty(rows)}">
+							<thead><tr><th>Date</th><th>Utilisateur</th><th>Canal</th><th>Action</th><th>Objet</th><th>Détail</th></tr></thead>
+							<tbody>
+								<tr th:each="r : ${rows}">
+									<td class="text-nowrap" th:text="${#dates.format(r.created_at, 'dd/MM/yyyy HH:mm')}">24/09/2026 10:12</td>
+									<td><span th:text="${r.who}">Nom</span>
+										<div class="jl-muted small" th:if="${r.login != null and r.who != r.login}" th:text="${r.login}">login</div></td>
+									<td><span class="chan" th:classappend="'chan-' + ${r.channel}" th:text="${r.channel}">web</span></td>
+									<td><span class="act" th:classappend="'act-' + ${r.action}" th:text="${r.actionLabel}">Modification</span></td>
+									<td class="text-nowrap">
+										<span th:text="${r.entityLabel}">Échantillon</span>
+										<th:block th:if="${r.entity_id != null}">
+											<a th:if="${r.entity_type == 'Sample'}" th:href="@{/sample/update/{id}(id=${r.entity_id})}" th:text="'n° ' + ${r.entity_id}">n° 12</a>
+											<a th:if="${r.entity_type == 'AppUser'}" th:href="@{/appuser/update/{id}(id=${r.entity_id})}" th:text="'n° ' + ${r.entity_id}">n° 3</a>
+											<span th:unless="${r.entity_type == 'Sample' or r.entity_type == 'AppUser'}" class="jl-muted" th:text="'n° ' + ${r.entity_id}">n° 7</span>
+										</th:block>
+										<div><a class="small" th:if="${r.entity_id != null}"
+											th:href="@{/journal(jours=365,objet=${r.entity_type},id=${r.entity_id})}">historique</a></div>
+									</td>
+									<td>
+										<span th:if="${r.summary != null}" th:text="${r.summary}">Export CSV…</span>
+										<th:block th:if="${r.summary == null}" th:with="n=${#lists.size(r.changes)}">
+											<ul class="chg" th:if="${n <= 6}">
+												<li th:each="c : ${r.changes}" th:insert="~{journal/change :: change(${c}, ${r.action})}"></li>
+											</ul>
+											<details th:if="${n > 6}">
+												<summary th:text="${n} + ' champs'">24 champs</summary>
+												<ul class="chg mt-1">
+													<li th:each="c : ${r.changes}" th:insert="~{journal/change :: change(${c}, ${r.action})}"></li>
+												</ul>
+											</details>
+										</th:block>
+									</td>
+								</tr>
+							</tbody>
+						</table>
+						<div class="jl-empty" th:if="${#lists.isEmpty(rows)}">Aucune activité ne correspond.</div>
+					</div>
+
+					<nav class="d-flex justify-content-between align-items-center mt-2" th:if="${pages > 1}">
+						<span class="small text-muted" th:text="'Page ' + ${page} + ' sur ' + ${pages}">Page 1 sur 3</span>
+						<div class="btn-group btn-group-sm">
+							<a class="btn btn-outline-secondary" th:classappend="${page <= 1} ? 'disabled' : ''"
+								th:href="@{/journal(jours=${days},login=${fLogin},objet=${fObjet},action=${fAction},id=${fId},canal=${fCanal},page=${page - 1})}">
+								<i class="fas fa-chevron-left"></i> Précédente</a>
+							<a class="btn btn-outline-secondary" th:classappend="${page >= pages} ? 'disabled' : ''"
+								th:href="@{/journal(jours=${days},login=${fLogin},objet=${fObjet},action=${fAction},id=${fId},canal=${fCanal},page=${page + 1})}">
+								Suivante <i class="fas fa-chevron-right"></i></a>
+						</div>
+					</nav>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<footer class="py-4 bg-light mt-auto" th:insert="~{fragments/footer :: footer}"></footer>
+
+	<!-- Le fragment d'en-tête ne charge pas les scripts : chaque page les inclut. -->
+	<script th:src="@{/webjars/jquery/3.6.0/jquery.min.js}"></script>
+	<script th:src="@{/webjars/bootstrap/5.1.3/js/bootstrap.bundle.min.js}"></script>
+	<script th:src="@{/webjars/font-awesome/5.15.4/js/all.js}"></script>
+</body>
+</html>

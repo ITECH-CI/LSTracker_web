@@ -26,6 +26,10 @@
 		relativeToChangelogFile="true" />
 	<include file="./add_help_document_table.xml"
 		relativeToChangelogFile="true" />
+	<include file="./add_connection_log_tables.xml"
+		relativeToChangelogFile="true" />
+	<include file="./add_activity_log_table.xml"
+		relativeToChangelogFile="true" />
 
 
 

@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+	xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.1.xsd">
+
+	<!--
+		Journal d'activité (cahier : changements d'état « auteur, date »,
+		maillage et profils « utilisateur, date, action, valeur antérieure »,
+		actions sensibles, historique consultable).
+
+		Une ligne par création, modification ou suppression enregistrée en base
+		(capturée par Hibernate, ActivityLogListener), et par action sensible
+		sans écriture (exports). changes : {"champ": [avant, après]} ; les
+		valeurs sensibles (mot de passe, identifiant patient) ne sont jamais
+		stockées. Conservé 12 mois (purge quotidienne, ActivityLogService).
+	-->
+	<changeSet id="007-activity-log" author="pkomena">
+		<createTable tableName="activity_log">
+			<column name="id" type="BIGINT" autoIncrement="true">
+				<constraints primaryKey="true" primaryKeyName="pk_activity_log" />
+			</column>
+			<column name="created_at" type="TIMESTAMP" defaultValueComputed="LOCALTIMESTAMP">
+				<constraints nullable="false" />
+			</column>
+			<column name="app_user_id" type="INT" />
+			<column name="login" type="VARCHAR(100)" />
+			<column name="channel" type="VARCHAR(10)">
+				<constraints nullable="false" />
+			</column>
+			<column name="action" type="VARCHAR(10)">
+				<constraints nullable="false" />
+			</column>
+			<column name="entity_type" type="VARCHAR(60)">
+				<constraints nullable="false" />
+			</column>
+			<column name="entity_id" type="VARCHAR(64)" />
+			<column name="changes" type="JSONB" />
+			<column name="summary" type="VARCHAR(500)" />
+			<column name="ip" type="VARCHAR(64)" />
+		</createTable>
+		<createIndex tableName="activity_log" indexName="idx_activity_log_created_at">
+			<column name="created_at" />
+		</createIndex>
+		<createIndex tableName="activity_log" indexName="idx_activity_log_entity">
+			<column name="entity_type" />
+			<column name="entity_id" />
+		</createIndex>
+		<createIndex tableName="activity_log" indexName="idx_activity_log_user">
+			<column name="app_user_id" />
+			<column name="created_at" />
+		</createIndex>
+	</changeSet>
+
+</databaseChangeLog>

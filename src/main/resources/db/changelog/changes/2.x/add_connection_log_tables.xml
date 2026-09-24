@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+	xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.1.xsd">
+
+	<!--
+		Journal des connexions et fréquentation (cahier V, journalisation).
+
+		connection_log : une ligne par tentative de connexion (web ou mobile),
+		réussie ou non, avec l'adresse IP. Données personnelles : conservées
+		12 mois (purge quotidienne, ConnectionLogService).
+
+		user_activity_day : une ligne par utilisateur, par jour et par canal
+		où il a été actif (une « visite »). Sert aux compteurs du pied de page
+		et aux statistiques de fréquentation ; même durée de conservation.
+	-->
+	<changeSet id="006-connection-log" author="pkomena">
+		<createTable tableName="connection_log">
+			<column name="id" type="BIGINT" autoIncrement="true">
+				<constraints primaryKey="true" primaryKeyName="pk_connection_log" />
+			</column>
+			<column name="created_at" type="TIMESTAMP" defaultValueComputed="LOCALTIMESTAMP">
+				<constraints nullable="false" />
+			</column>
+			<column name="app_user_id" type="INT" />
+			<column name="login" type="VARCHAR(100)">
+				<constraints nullable="false" />
+			</column>
+			<column name="role" type="VARCHAR(45)" />
+			<column name="channel" type="VARCHAR(10)">
+				<constraints nullable="false" />
+			</column>
+			<column name="outcome" type="VARCHAR(20)">
+				<constraints nullable="false" />
+			</column>
+			<column name="ip" type="VARCHAR(64)" />
+			<column name="user_agent" type="VARCHAR(255)" />
+		</createTable>
+		<createIndex tableName="connection_log" indexName="idx_connection_log_created_at">
+			<column name="created_at" />
+		</createIndex>
+		<createIndex tableName="connection_log" indexName="idx_connection_log_user">
+			<column name="app_user_id" />
+			<column name="created_at" />
+		</createIndex>
+
+		<createTable tableName="user_activity_day">
+			<column name="app_user_id" type="INT">
+				<constraints nullable="false" />
+			</column>
+			<column name="day" type="DATE">
+				<constraints nullable="false" />
+			</column>
+			<column name="channel" type="VARCHAR(10)">
+				<constraints nullable="false" />
+			</column>
+			<column name="first_seen" type="TIMESTAMP" defaultValueComputed="LOCALTIMESTAMP">
+				<constraints nullable="false" />
+			</column>
+		</createTable>
+		<addPrimaryKey tableName="user_activity_day" columnNames="app_user_id, day, channel"
+			constraintName="pk_user_activity_day" />
+		<createIndex tableName="user_activity_day" indexName="idx_user_activity_day_day">
+			<column name="day" />
+		</createIndex>
+	</changeSet>
+
+</databaseChangeLog>

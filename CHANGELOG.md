@@ -8,6 +8,22 @@
 - Saisie : toute date antérieure au 01/01/2024 (mise en service) est refusée, comme les dates futures (`SampleDateValidator`, web et synchronisation mobile ; bornes des champs du formulaire web). Le mobile était déjà protégé par ses sélecteurs de date.
 - Script `scripts/sql/dates_aberrantes.sql` : audit (lecture seule), puis correction avec `-v corriger=1`. L'année corrigée est la plus proche de la date d'enregistrement (`created_at`) ; un échantillon n'est corrigé que si ses dates corrigées respectent les règles de saisie, sinon il est listé « à vérifier à la main ». Valeurs d'origine gardées dans `sample_dates_avant_correction` ; annulation automatique si le contrôle final échoue. À appliquer en démonstration, puis en production lors de la migration.
 
+### Connexions et fréquentation
+
+- Journal des connexions (`connection_log`) : chaque tentative, web ou mobile, réussie ou non (mauvais mot de passe, compte verrouillé, désactivé, expiré), avec l'adresse IP et le navigateur ou l'application. Les réussites sont limitées aux connexions explicites (formulaire web, `/api_v2/auth/login`) ; les échecs sont tous enregistrés, identifiant inconnu compris.
+- Visites (`user_activity_day`) : un utilisateur actif un jour donné, sur un canal ; au plus une écriture par utilisateur, jour et canal.
+- Pied de page, sur une ligne : utilisateurs en ligne (actifs dans les 15 dernières minutes, web et mobile), utilisateurs et visites du mois. Totaux seulement ; chargé une fois par page, pour ne pas maintenir la session ouverte.
+- Page Administration → Connexions : en ligne maintenant, visites par jour, fréquentation par type de compte et niveau, comptes inactifs (jamais connectés en tête), échecs regroupés par identifiant et adresse, journal filtrable et exportable (CSV).
+- Correctif : `@EnableWebMvc` privait les filtres de sécurité de la requête courante (`RequestContextHolder`) ; le filtre standard de Spring Boot est rétabli (`WebConfig`).
+
+### Journal d'activité (cahier V, journalisation)
+
+- Toute création, modification ou suppression enregistrée par JPA est journalisée (`activity_log`) : auteur, date, canal (web, mobile, système), objet et **valeur antérieure** de chaque champ modifié — échantillons (web, synchronisation mobile, synchronisation OpenELIS), utilisateurs et périmètres, maillage, référentiels, manuels.
+- Les entrées d'une transaction ne sont écrites qu'après sa validation ; un périmètre réenregistré à l'identique ne laisse aucune trace (retrait + ajout identiques annulés). Champs techniques ignorés (version, dernière connexion…) ; mot de passe et identifiant patient jamais stockés (« masqué »).
+- Exports journalisés : CSV des échantillons, rapports PDF, exports des journaux.
+- Page Administration → Journal d'activité : période, filtres (utilisateur, objet, n°, action, canal), références affichées par leur nom (statut, labo, site…), historique d'un objet en un clic, export CSV. Bouton « Historique » sur la fiche de modification d'un échantillon (administrateurs).
+- Journal des connexions, visites et journal d'activité conservés 12 mois (purge quotidienne, une seule instance) ; consultation réservée aux administrateurs.
+
 ## 2026-09-23 — Accès des convoyeurs par district, dates, tableau de bord (v2.2.3)
 
 Règle métier : un convoyeur a accès aux laboratoires situés dans les districts où il intervient (circuit → site → district → labo), sur l'ensemble de ses circuits.

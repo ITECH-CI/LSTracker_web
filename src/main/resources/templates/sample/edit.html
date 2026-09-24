@@ -237,6 +237,10 @@
 						<a th:href="@{/sample}" class="btn btn-sm btn-outline-secondary">
 							<i class="fas fa-arrow-left"></i> Retour à la liste
 						</a>
+						<a th:href="@{/journal(jours=365,objet='Sample',id=${sample?.id})}" class="btn btn-sm btn-outline-secondary"
+							sec:authorize="hasAnyRole('ADMIN', 'SUPER_ADMIN')" title="Toutes les modifications de cet échantillon : qui, quand, valeur antérieure">
+							<i class="fas fa-history"></i> Historique
+						</a>
 						<button type="button" class="btn btn-sm btn-outline-danger"
 							sec:authorize="hasAnyRole('ADMIN', 'SUPER_ADMIN')"
 							th:attr="data-id=${sample?.id}"

@@ -25,6 +25,18 @@ public class WebConfig implements WebMvcConfigurer {
 		return new BCryptPasswordEncoder();
 	}
 
+	/**
+	 * Expose la requête courante (RequestContextHolder) dès l'entrée, avant la
+	 * chaîne de sécurité, comme le fait Spring Boot par défaut — filtre perdu
+	 * avec {@code @EnableWebMvc}, qui désactive l'auto-configuration MVC. Sans
+	 * lui, les événements de connexion web (formulaire /login, traité par un
+	 * filtre) n'ont pas accès à la requête (journal des connexions).
+	 */
+	@Bean
+	public org.springframework.boot.web.servlet.filter.OrderedRequestContextFilter springRequestContextFilter() {
+		return new org.springframework.boot.web.servlet.filter.OrderedRequestContextFilter();
+	}
+
 	@Bean
 	public LocaleChangeInterceptor localeInterceptor() {
 		LocaleChangeInterceptor localeInterceptor = new LocaleChangeInterceptor();

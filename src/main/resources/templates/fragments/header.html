@@ -329,7 +329,7 @@
 						or ${module}=='region' or ${module}=='district'
 						or ${module}=='sampletype' or ${module}=='samplestatus' or ${module}=='samplerejectiontype'
 						or ${module}=='approle' or ${module}=='convoyeur'
-						or ${module}=='oedatarepo'
+						or ${module}=='oedatarepo' or ${module}=='connexions' or ${module}=='journal'
 						? ' active' : ''"
 					href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false"
 					onclick="return false;">
@@ -338,6 +338,8 @@
 				<ul class="dropdown-menu">
 					<li><h6 class="dropdown-header"><i class="fas fa-users-cog"></i> Utilisateurs</h6></li>
 					<li><a class="dropdown-item" th:href="@{/appuser}"><i class="fas fa-users"></i> Utilisateurs</a></li>
+					<li><a class="dropdown-item" th:href="@{/connexions}"><i class="fas fa-signal"></i> Connexions</a></li>
+					<li><a class="dropdown-item" th:href="@{/journal}"><i class="fas fa-history"></i> Journal d'activité</a></li>
 					<li><hr class="dropdown-divider"/></li>
 					<li><h6 class="dropdown-header"><i class="fas fa-sitemap"></i> Organisation</h6></li>
 					<li><a class="dropdown-item" th:href="@{/region}"><i class="fas fa-globe-africa"></i> Régions</a></li>
@@ -454,6 +456,8 @@
 			<div sec:authorize="hasAnyRole('ADMIN','SUPER_ADMIN')">
 				<div class="nav-section">Utilisateurs &amp; rôles</div>
 				<a th:href="@{/appuser}" class="nav-link"><i class="fas fa-users"></i> Utilisateurs</a>
+				<a th:href="@{/connexions}" class="nav-link"><i class="fas fa-signal"></i> Connexions</a>
+				<a th:href="@{/journal}" class="nav-link"><i class="fas fa-history"></i> Journal d'activité</a>
 				<a th:href="@{/approle}" class="nav-link"><i class="fas fa-user-shield"></i> Rôles</a>
 				<a th:href="@{/convoyeur}" class="nav-link"><i class="fas fa-motorcycle"></i> Convoyeurs</a>
 
@@ -538,7 +542,9 @@
 						: (${module == 'samplerejectiontype'} ? 'fa-ban'
 						: (${module == 'oedatarepo'} ? 'fa-sync'
 						: (${module == 'user'} ? 'fa-users'
-						: (${module == 'setting'} ? 'fa-cog' : 'fa-folder-open'))))))))))))))">
+						: (${module == 'connexions'} ? 'fa-signal'
+						: (${module == 'journal'} ? 'fa-history'
+						: (${module == 'setting'} ? 'fa-cog' : 'fa-folder-open'))))))))))))))))">
 				</i>
 			</span>
 			<div class="ls-pagetitle-text">

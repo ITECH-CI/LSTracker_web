@@ -24,6 +24,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
+import org.itech.labSampleTracker.security.ActivityLogService;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -57,6 +58,9 @@ public class ReportController {
 
 	@Autowired
 	private UserScopeService userScopeService;
+
+	@Autowired
+	private ActivityLogService activityLog;
 
 	@GetMapping(value = "")
 	public String reportIndex(Model model) {
@@ -92,6 +96,11 @@ public class ReportController {
 			reportFileName = "region_report.jasper";
 			fileName = "rapport_region.pdf";
 		}
+
+		activityLog.recordAction(ActivityLogService.EXPORT, "Rapport", null,
+				"Rapport PDF " + fileName + " : du " + start + " au " + end
+						+ (regionId != null ? ", région " + regionId : "") + (districtId != null ? ", district " + districtId : "")
+						+ (labId != null ? ", labo " + labId : "") + (conveyorId != null ? ", convoyeur " + conveyorId : ""));
 
 		// Apply geographic scope to silently restrict report content to the
 		// user's accessible regions/districts/sites/labs.

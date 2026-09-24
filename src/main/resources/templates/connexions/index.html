@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="fr" xmlns="http://www.w3.org/1999/xhtml"
+	xmlns:th="http://www.thymeleaf.org"
+	xmlns:sec="http://www.thymeleaf.org/thymeleaf-extras-springsecurity6">
+
+<head th:replace="~{fragments/header :: head}">
+<title>Connexions</title>
+</head>
+
+<body class="sb-nav-fixed">
+
+<style>
+.cx-toolbar { display: flex; flex-wrap: wrap; gap: .75rem; align-items: center; justify-content: space-between; }
+.cx-periods .btn { min-width: 5.5rem; }
+.cx-since { font-size: .8rem; color: #6b7280; }
+.cx-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(170px, 100%), 1fr)); gap: .75rem; }
+.cx-card { background: #fff; border: 1px solid #e6e9f3; border-radius: 10px; padding: .8rem 1rem; }
+.cx-card .label { font-size: .7rem; text-transform: uppercase; letter-spacing: .03em; font-weight: 600; color: #6b7280; }
+.cx-card .value { font-size: 1.45rem; font-weight: 700; color: #111827; line-height: 1.2; margin-top: .2rem; }
+.cx-card .hint { font-size: .78rem; color: #6b7280; }
+.cx-card.alert-soft .value { color: #b91c1c; }
+.cx-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(460px, 100%), 1fr)); gap: 1rem; }
+.cx-panel { background: #fff; border: 1px solid #e6e9f3; border-radius: 10px; padding: 1rem 1.1rem; min-width: 0; }
+.cx-panel h2 { font-size: .95rem; font-weight: 600; color: #111827; margin: 0 0 .15rem; }
+.cx-panel h2 i { color: #4f46e5; margin-right: .35rem; }
+.cx-panel .sub { font-size: .78rem; color: #6b7280; margin-bottom: .75rem; }
+.cx-table { width: 100%; font-size: .84rem; }
+.cx-table th { font-size: .72rem; text-transform: uppercase; letter-spacing: .03em; color: #6b7280; font-weight: 600;
+	border-bottom: 1px solid #e6e9f3; padding: .35rem .5rem; white-space: nowrap; background: #f8fafc; position: sticky; top: 0; }
+.cx-table td { border-bottom: 1px solid #f1f3f8; padding: .4rem .5rem; vertical-align: middle; }
+.cx-table td.num, .cx-table th.num { text-align: right; font-variant-numeric: tabular-nums; }
+.cx-scroll { max-height: 340px; overflow: auto; }
+.cx-wide { overflow-x: auto; }
+.cx-muted { color: #9ca3af; }
+.cx-empty { color: #9ca3af; font-style: italic; padding: .75rem 0; }
+.chan { display: inline-block; font-size: .7rem; font-weight: 600; border-radius: 999px; padding: .08rem .5rem; }
+.chan-web { background: #e0ecfb; color: #1e4f8f; }
+.chan-mobile { background: #fde9df; color: #9a3d12; }
+.res { display: inline-block; font-size: .72rem; font-weight: 600; border-radius: 4px; padding: .08rem .45rem; }
+.res-ok { background: #dcfce7; color: #166534; }
+.res-ko { background: #fee2e2; color: #991b1b; }
+.rate { display: flex; align-items: center; gap: .45rem; justify-content: flex-end; }
+.rate .bar { width: 70px; height: 6px; border-radius: 3px; background: #eef1f7; overflow: hidden; }
+.rate .bar span { display: block; height: 100%; background: #4f46e5; }
+.cx-filters { display: flex; flex-wrap: wrap; gap: .5rem; align-items: end; margin-bottom: .75rem; }
+.cx-filters .form-control, .cx-filters .form-select { font-size: .84rem; }
+.cx-dot { display: inline-block; width: .55rem; height: .55rem; border-radius: 50%; background: #16a34a; margin-right: .35rem; }
+</style>
+
+	<div class="d-flex" id="wrapper">
+		<div id="page-content-wrapper">
+
+			<div th:insert="~{fragments/header :: header(content='Connexions', module='connexions')}"></div>
+
+			<div class="container-fluid py-3">
+
+				<!-- Période -->
+				<div class="cx-toolbar mb-3">
+					<div class="btn-group cx-periods" role="group" aria-label="Période">
+						<a th:each="p : ${periods}" class="btn btn-sm"
+							th:classappend="${p == days} ? 'btn-primary' : 'btn-outline-primary'"
+							th:href="@{/connexions(jours=${p})}"
+							th:text="${p == 1} ? 'Aujourd\'hui' : ${p} + ' jours'">30 jours</a>
+					</div>
+					<div class="cx-since">
+						Période : du <strong th:text="${#temporals.format(start, 'dd/MM/yyyy')}">01/09/2026</strong>
+						à aujourd'hui.
+						<span th:if="${since != null}">Suivi depuis le
+							<strong th:text="${#temporals.format(since, 'dd/MM/yyyy')}">24/09/2026</strong>
+							: rien n'est compté avant cette date.</span>
+						<span th:if="${since == null}">Aucune donnée pour l'instant : le suivi commence à la première connexion.</span>
+					</div>
+				</div>
+
+				<!-- Indicateurs -->
+				<div class="cx-cards mb-3">
+					<div class="cx-card" title="Utilisateurs ayant utilisé LSTracker dans les 15 dernières minutes">
+						<div class="label"><span class="cx-dot"></span>En ligne maintenant</div>
+						<div class="value" th:text="${#lists.size(online)}">0</div>
+						<div class="hint">
+							<span th:text="${#lists.size(online.?[channel == 'web'])}">0</span> web ·
+							<span th:text="${#lists.size(online.?[channel == 'mobile'])}">0</span> mobile
+						</div>
+					</div>
+					<div class="cx-card" title="Comptes actifs venus au moins une fois sur la période, web ou mobile">
+						<div class="label">Utilisateurs venus</div>
+						<div class="value" th:text="${summary.active_users}">0</div>
+						<div class="hint">sur <span th:text="${summary.accounts}">0</span> comptes actifs
+							(<span th:text="${summary.accounts > 0} ? ${#numbers.formatInteger(100.0 * summary.active_users / summary.accounts, 1)} : 0">0</span> %)</div>
+					</div>
+					<div class="cx-card" title="Une visite = un utilisateur actif un jour donné, sur le web ou sur le mobile">
+						<div class="label">Visites</div>
+						<div class="value" th:text="${summary.visits}">0</div>
+						<div class="hint">utilisateur × jour × canal</div>
+					</div>
+					<div class="cx-card" title="Connexions avec identifiant et mot de passe (le mobile reste ensuite connecté sans ressaisie)">
+						<div class="label">Connexions réussies</div>
+						<div class="value" th:text="${summary.logins}">0</div>
+						<div class="hint">saisies d'identifiant</div>
+					</div>
+					<div class="cx-card" th:classappend="${summary.failures > 0} ? 'alert-soft' : ''"
+						title="Mauvais mot de passe, identifiant inconnu, compte verrouillé ou désactivé">
+						<div class="label">Échecs de connexion</div>
+						<div class="value" th:text="${summary.failures}">0</div>
+						<div class="hint">détail plus bas</div>
+					</div>
+					<div class="cx-card" th:classappend="${summary.locked > 0} ? 'alert-soft' : ''"
+						title="Comptes actifs verrouillés après 5 échecs consécutifs ; à déverrouiller depuis Utilisateurs">
+						<div class="label">Comptes verrouillés</div>
+						<div class="value" th:text="${summary.locked}">0</div>
+						<div class="hint">aujourd'hui</div>
+					</div>
+				</div>
+
+				<div class="cx-grid mb-3">
+					<!-- En ligne -->
+					<div class="cx-panel">
+						<h2><i class="fas fa-signal"></i>En ligne maintenant</h2>
+						<div class="sub">Actifs dans les 15 dernières minutes.</div>
+						<div class="cx-scroll">
+							<table class="cx-table" th:if="${!#lists.isEmpty(online)}">
+								<thead><tr><th>Utilisateur</th><th>Type de compte</th><th>Canal</th><th class="num">Dernière action</th></tr></thead>
+								<tbody>
+									<tr th:each="o : ${online}">
+										<td><span th:text="${o.name != null} ? ${o.name} : ${o.login}">Nom</span>
+											<div class="cx-muted small" th:if="${o.name != null}" th:text="${o.login}">login</div></td>
+										<td><span th:text="${o.userType != null} ? ${userTypes.getOrDefault(o.userType, o.userType)} : '—'">Convoyeur</span>
+											<span class="cx-muted" th:if="${o.userLevel != null}"
+												th:text="'· ' + ${userLevels.getOrDefault(o.userLevel, o.userLevel)}">· circuit</span></td>
+										<td><span class="chan" th:classappend="'chan-' + ${o.channel}" th:text="${o.channel}">web</span></td>
+										<td class="num" th:text="${o.minutesAgo == 0} ? 'à l\'instant' : 'il y a ' + ${o.minutesAgo} + ' min'">il y a 2 min</td>
+									</tr>
+								</tbody>
+							</table>
+							<div class="cx-empty" th:if="${#lists.isEmpty(online)}">Personne en ce moment.</div>
+						</div>
+					</div>
+
+					<!-- Visites par jour -->
+					<div class="cx-panel">
+						<h2><i class="fas fa-chart-bar"></i>Visites par jour</h2>
+						<div class="sub">Utilisateurs venus chaque jour, sur le web et sur le mobile.</div>
+						<div id="visitsChart" style="height: 300px;"></div>
+					</div>
+				</div>
+
+				<!-- Par type de compte -->
+				<div class="cx-panel mb-3">
+					<h2><i class="fas fa-users"></i>Fréquentation par type de compte</h2>
+					<div class="sub">Comptes actifs, et combien sont venus sur la période. Un utilisateur venu sur les deux canaux compte dans chacun.</div>
+					<div class="cx-wide">
+						<table class="cx-table">
+							<thead><tr><th>Type de compte</th><th>Niveau</th><th class="num">Comptes actifs</th>
+								<th class="num">Venus sur la période</th><th class="num">Web</th><th class="num">Mobile</th></tr></thead>
+							<tbody>
+								<tr th:each="r : ${profiles}">
+									<td th:text="${userTypes.getOrDefault(r.user_type, r.user_type)}">Convoyeur</td>
+									<td th:text="${r.user_level != null} ? ${userLevels.getOrDefault(r.user_level, r.user_level)} : '—'">circuit</td>
+									<td class="num" th:text="${r.accounts}">17</td>
+									<td class="num">
+										<div class="rate" th:with="pct=${r.accounts > 0} ? ${100.0 * r.active / r.accounts} : 0">
+											<span th:text="${r.active} + ' (' + ${#numbers.formatInteger(pct, 1)} + ' %)'">12 (70 %)</span>
+											<span class="bar"><span th:style="'width:' + ${#numbers.formatDecimal(pct, 1, 1, 'POINT')} + '%'"></span></span>
+										</div>
+									</td>
+									<td class="num" th:text="${r.web}">3</td>
+									<td class="num" th:text="${r.mobile}">10</td>
+								</tr>
+							</tbody>
+						</table>
+					</div>
+				</div>
+
+				<div class="cx-grid mb-3">
+					<!-- Comptes inactifs -->
+					<div class="cx-panel">
+						<h2><i class="fas fa-user-clock"></i>Comptes inactifs sur la période</h2>
+						<div class="sub"><span th:text="${#lists.size(inactive)}">0</span> comptes actifs ne sont pas venus.
+							Dernière activité : dernière connexion ou dernière visite connue.</div>
+						<div class="cx-scroll">
+							<table class="cx-table" th:if="${!#lists.isEmpty(inactive)}">
+								<thead><tr><th>Utilisateur</th><th>Type de compte</th><th class="num">Dernière activité</th></tr></thead>
+								<tbody>
+									<tr th:each="u : ${inactive}">
+										<td><a th:href="@{/appuser/update/{id}(id=${u.id})}"
+												th:text="${u.first_name != null or u.last_name != null} ? ${#strings.trim((u.first_name ?: '') + ' ' + (u.last_name ?: ''))} : ${u.login}">Nom</a>
+											<span class="res res-ko ms-1" th:if="${u.is_locked}">verrouillé</span>
+											<div class="cx-muted small" th:text="${u.login}">login</div></td>
+										<td><span th:text="${userTypes.getOrDefault(u.user_type, u.user_type)}">Convoyeur</span>
+											<span class="cx-muted" th:if="${u.user_level != null}"
+												th:text="'· ' + ${userLevels.getOrDefault(u.user_level, u.user_level)}">· circuit</span></td>
+										<td class="num" th:text="${u.last_activity != null} ? ${#dates.format(u.last_activity, 'dd/MM/yyyy')} : 'jamais'">12/08/2026</td>
+									</tr>
+								</tbody>
+							</table>
+							<div class="cx-empty" th:if="${#lists.isEmpty(inactive)}">Tous les comptes actifs sont venus sur la période.</div>
+						</div>
+					</div>
+
+					<!-- Échecs -->
+					<div class="cx-panel">
+						<h2><i class="fas fa-user-shield"></i>Échecs de connexion</h2>
+						<div class="sub">Regroupés par identifiant saisi et adresse. Beaucoup d'essais sur des identifiants
+							inconnus depuis une même adresse peuvent signaler une tentative d'intrusion.</div>
+						<div class="cx-scroll">
+							<table class="cx-table" th:if="${!#lists.isEmpty(failures)}">
+								<thead><tr><th>Identifiant saisi</th><th>Adresse</th><th class="num">Essais</th><th class="num">Dernier</th></tr></thead>
+								<tbody>
+									<tr th:each="f : ${failures}">
+										<td><span th:text="${f.login}">login</span>
+											<span class="res res-ko ms-1" th:if="${f.unknown_login}">inconnu</span>
+											<span class="res res-ko ms-1" th:if="${f.locked}">verrouillé</span></td>
+										<td th:text="${f.ip}">10.0.0.1</td>
+										<td class="num" th:text="${f.attempts}">3</td>
+										<td class="num" th:text="${#dates.format(f.last_attempt, 'dd/MM HH:mm')}">24/09 10:12</td>
+									</tr>
+								</tbody>
+							</table>
+							<div class="cx-empty" th:if="${#lists.isEmpty(failures)}">Aucun échec sur la période.</div>
+						</div>
+					</div>
+				</div>
+
+				<!-- Journal -->
+				<div class="cx-panel">
+					<h2><i class="fas fa-list"></i>Journal des connexions</h2>
+					<div class="sub">Chaque tentative de connexion, réussie ou non. Conservé 12 mois.</div>
+
+					<form class="cx-filters" method="get" th:action="@{/connexions}">
+						<input type="hidden" name="jours" th:value="${days}" />
+						<div>
+							<label class="form-label small mb-1" for="fLogin">Identifiant</label>
+							<input class="form-control form-control-sm" id="fLogin" name="login" th:value="${fLogin}" placeholder="contient…" />
+						</div>
+						<div>
+							<label class="form-label small mb-1" for="fResultat">Résultat</label>
+							<select class="form-select form-select-sm" id="fResultat" name="resultat">
+								<option value="">Tous</option>
+								<option value="success" th:selected="${fResultat == 'success'}">Réussies</option>
+								<option value="failure" th:selected="${fResultat == 'failure'}">Échecs</option>
+							</select>
+						</div>
+						<div>
+							<label class="form-label small mb-1" for="fCanal">Canal</label>
+							<select class="form-select form-select-sm" id="fCanal" name="canal">
+								<option value="">Tous</option>
+								<option value="web" th:selected="${fCanal == 'web'}">Web</option>
+								<option value="mobile" th:selected="${fCanal == 'mobile'}">Mobile</option>
+							</select>
+						</div>
+						<button class="btn btn-sm btn-primary" type="submit"><i class="fas fa-filter me-1"></i>Filtrer</button>
+						<a class="btn btn-sm btn-outline-secondary"
+							th:href="@{/connexions/journal.csv(jours=${days},login=${fLogin},resultat=${fResultat},canal=${fCanal})}">
+							<i class="fas fa-file-csv me-1"></i>Exporter (CSV)</a>
+						<span class="small text-muted ms-auto" th:text="${logTotal} + ' ligne' + (${logTotal} > 1 ? 's' : '')">0 ligne</span>
+					</form>
+
+					<div class="cx-wide">
+						<table class="cx-table" th:if="${!#lists.isEmpty(log)}">
+							<thead><tr><th>Date</th><th>Identifiant</th><th>Type de compte</th><th>Canal</th><th>Résultat</th>
+								<th>Adresse</th><th>Navigateur ou application</th></tr></thead>
+							<tbody>
+								<tr th:each="c : ${log}">
+									<td class="text-nowrap" th:text="${#dates.format(c.created_at, 'dd/MM/yyyy HH:mm')}">24/09/2026 10:12</td>
+									<td><span th:text="${c.login}">login</span>
+										<div class="cx-muted small" th:if="${c.first_name != null or c.last_name != null}"
+											th:text="${#strings.trim((c.first_name ?: '') + ' ' + (c.last_name ?: ''))}">Nom</div></td>
+									<td th:text="${c.user_type != null} ? ${userTypes.getOrDefault(c.user_type, c.user_type)} : '—'">Convoyeur</td>
+									<td><span class="chan" th:classappend="'chan-' + ${c.channel}" th:text="${c.channel}">web</span></td>
+									<td><span class="res" th:classappend="${c.outcome == 'SUCCESS'} ? 'res-ok' : 'res-ko'"
+										th:text="${outcomes.getOrDefault(c.outcome, c.outcome)}">Réussie</span></td>
+									<td class="text-nowrap" th:text="${c.ip}">10.0.0.1</td>
+									<td class="cx-muted small" style="max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"
+										th:title="${c.user_agent}" th:text="${c.user_agent}">Mozilla/5.0</td>
+								</tr>
+							</tbody>
+						</table>
+						<div class="cx-empty" th:if="${#lists.isEmpty(log)}">Aucune connexion ne correspond.</div>
+					</div>
+
+					<nav class="d-flex justify-content-between align-items-center mt-2" th:if="${pages > 1}">
+						<span class="small text-muted" th:text="'Page ' + ${page} + ' sur ' + ${pages}">Page 1 sur 3</span>
+						<div class="btn-group btn-group-sm">
+							<a class="btn btn-outline-secondary" th:classappend="${page <= 1} ? 'disabled' : ''"
+								th:href="@{/connexions(jours=${days},login=${fLogin},resultat=${fResultat},canal=${fCanal},page=${page - 1})}">
+								<i class="fas fa-chevron-left"></i> Précédente</a>
+							<a class="btn btn-outline-secondary" th:classappend="${page >= pages} ? 'disabled' : ''"
+								th:href="@{/connexions(jours=${days},login=${fLogin},resultat=${fResultat},canal=${fCanal},page=${page + 1})}">
+								Suivante <i class="fas fa-chevron-right"></i></a>
+						</div>
+					</nav>
+				</div>
+
+			</div>
+		</div>
+	</div>
+
+	<footer class="py-4 bg-light mt-auto" th:insert="~{fragments/footer :: footer}"></footer>
+
+	<!-- Le fragment d'en-tête ne charge pas les scripts : chaque page les inclut. -->
+	<script th:src="@{/webjars/jquery/3.6.0/jquery.min.js}"></script>
+	<script th:src="@{/webjars/bootstrap/5.1.3/js/bootstrap.bundle.min.js}"></script>
+	<script th:src="@{/webjars/font-awesome/5.15.4/js/all.js}"></script>
+	<script th:src="@{/webjars/highcharts/9.3.2/highcharts.js}"></script>
+	<script th:inline="javascript">
+		(function () {
+			const days = /*[[${chartDays}]]*/ [];
+			const web = /*[[${chartWeb}]]*/ [];
+			const mobile = /*[[${chartMobile}]]*/ [];
+			const label = d => d.slice(8, 10) + '/' + d.slice(5, 7);
+			Highcharts.chart('visitsChart', {
+				chart: { type: 'column', backgroundColor: 'transparent' },
+				title: { text: null },
+				credits: { enabled: false },
+				xAxis: { categories: days.map(label), crosshair: { color: 'rgba(99,102,241,.12)' },
+					labels: { step: days.length > 31 ? 7 : (days.length > 10 ? 2 : 1) } },
+				yAxis: { title: { text: 'Utilisateurs' }, allowDecimals: false, min: 0 },
+				legend: { enabled: true },
+				tooltip: { shared: true, headerFormat: '<b>{point.key}</b><br/>',
+					pointFormat: '<span style="color:{point.color}">●</span> {series.name} : <b>{point.y}</b><br/>' },
+				plotOptions: { column: { stacking: 'normal', borderWidth: 0, borderRadius: 2, maxPointWidth: 28,
+					groupPadding: 0.08, pointPadding: 0.04 } },
+				// Couleurs des deux premiers types de la palette validée du tableau de bord.
+				series: [
+					{ name: 'Web', data: web, color: '#2a78d6' },
+					{ name: 'Mobile', data: mobile, color: '#eb6834' }
+				]
+			});
+		})();
+	</script>
+</body>
+</html>

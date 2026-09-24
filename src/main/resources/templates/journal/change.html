@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="fr" xmlns:th="http://www.thymeleaf.org">
+<body>
+	<!-- Une ligne de détail : création → nouvelle valeur, suppression → ancienne, modification → les deux. -->
+	<th:block th:fragment="change(c, action)">
+		<span class="f" th:text="${c.label} + ' :'">Statut :</span>
+		<th:block th:switch="${action}">
+			<span th:case="'CREATE'" th:text="${c.after}">Collecté</span>
+			<span th:case="'DELETE'" class="old" th:text="${c.before}">Site A</span>
+			<th:block th:case="*">
+				<span class="old" th:text="${c.before}">Collecté</span><span class="arrow">→</span><span th:text="${c.after}">Déposé</span>
+			</th:block>
+		</th:block>
+	</th:block>
+</body>
+</html>

@@ -17,6 +17,7 @@ import org.itech.labSampleTracker.enums.ESampleStatus;
 import org.itech.labSampleTracker.exception.ResourceNotFoundException;
 import org.itech.labSampleTracker.helper.ExportUtils;
 import org.itech.labSampleTracker.helper.SampleDateValidator;
+import org.itech.labSampleTracker.security.ActivityLogService;
 import org.itech.labSampleTracker.service.DistrictService;
 import org.itech.labSampleTracker.service.LabService;
 import org.itech.labSampleTracker.service.RegionService;
@@ -67,6 +68,9 @@ public class SampleController {
 
 	@Autowired
 	private SampleService sampleService;
+
+	@Autowired
+	private ActivityLogService activityLog;
 
 	@Autowired
 	private SampleTypeService sampleTypeService;
@@ -752,6 +756,12 @@ public class SampleController {
 		List<Map<String, String>> sampleRecords = scope.isForceEmpty() ? java.util.List.of()
 				: sampleService.getAll(scope.getRegionId(), scope.getDistrictId(), scope.getSiteId(), scope.getLabId(),
 						startDate, endDate, status, sampleType, patientIdentifier, scope.getAccessibleSiteIds());
+
+		activityLog.recordAction(ActivityLogService.EXPORT, "Export", null,
+				"Export CSV des échantillons : " + sampleRecords.size() + " lignes, du " + startDate + " au " + endDate
+						+ (region != null ? ", région " + region : "") + (district != null ? ", district " + district : "")
+						+ (site != null ? ", site " + site : "") + (lab != null ? ", labo " + lab : "")
+						+ (patientIdentifier != null ? ", recherche par identifiant patient" : ""));
 
 		InputStreamResource file = new InputStreamResource(ExportUtils.writeCSVData(sampleRecords));
 

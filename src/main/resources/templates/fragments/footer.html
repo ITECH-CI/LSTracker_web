@@ -1,52 +1,113 @@
 <!DOCTYPE HTML>
 <html lang="fr" xmlns="http://www.w3.org/1999/xhtml"
-	xmlns:th="http://www.thymeleaf.org">
+	xmlns:th="http://www.thymeleaf.org"
+	xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 <body>
 	<footer class="mt-auto site-footer" th:fragment="footer">
-		<div class="container py-3">
-			<div class="row align-items-center gy-2">
-				<!-- Copyright + organisation -->
-				<div class="col-12 col-md text-center text-md-start small text-muted">
-					<i class="fas fa-copyright"></i>
-					I-TECH CIV
-					<span th:text="${#dates.format(#dates.createNow(), 'yyyy')}">2026</span>
-					&nbsp;&middot;&nbsp;
-					<span class="text-nowrap">Tous droits réservés</span>
-				</div>
+		<div class="container footer-bar small text-muted">
+			<!-- Copyright + organisation -->
+			<div class="footer-cell">
+				<i class="fas fa-copyright"></i>
+				I-TECH CIV
+				<span th:text="${#dates.format(#dates.createNow(), 'yyyy')}">2026</span>
+				<span class="footer-sep">&middot;</span>
+				<span class="text-nowrap">Tous droits réservés</span>
+			</div>
 
-				<!-- Liens légaux -->
-				<div class="col-12 col-md text-center">
-					<a class="small text-muted mx-2 footer-link" th:href="@{/legal/privacy}" target="_blank">
-						<i class="fas fa-shield-alt"></i> Confidentialité
-					</a>
-					<span class="text-muted">&middot;</span>
-					<a class="small text-muted mx-2 footer-link" th:href="@{/legal/terms}" target="_blank">
-						<i class="fas fa-file-contract"></i> CGU
-					</a>
-				</div>
+			<!-- Fréquentation : totaux seulement, chargés une fois par page -->
+			<div class="footer-presence" id="presenceLine"
+				sec:authorize="isAuthenticated()" th:attr="data-url=@{/presence}" hidden>
+				<span title="Utilisateurs ayant utilisé LSTracker dans les 15 dernières minutes">
+					<span class="presence-dot"></span>
+					<strong data-presence="online">0</strong> en ligne
+					<span class="presence-detail">(<span data-presence="onlineWeb">0</span> web,
+						<span data-presence="onlineMobile">0</span> mobile)</span>
+				</span>
+				<span class="presence-divider"></span>
+				<span title="Depuis le 1er du mois. Une visite = un utilisateur actif un jour donné, sur le web ou sur le mobile.">
+					Ce mois : <strong data-presence="monthUsers">0</strong>
+					<span data-plural="monthUsers" data-one="utilisateur" data-many="utilisateurs">utilisateurs</span>,
+					<strong data-presence="monthVisits">0</strong>
+					<span data-plural="monthVisits" data-one="visite" data-many="visites">visites</span>
+				</span>
+			</div>
 
-				<!-- Version applicative -->
-				<div class="col-12 col-md text-center text-md-end small text-muted">
-					<span class="version-badge">
-						<i class="fas fa-code-branch"></i>
-						LS Tracker v<span th:text="${appVersion}">2.0.0</span>
-					</span>
-				</div>
+			<!-- Liens légaux + version applicative -->
+			<div class="footer-cell footer-end">
+				<a class="footer-link" th:href="@{/legal/privacy}" target="_blank">
+					<i class="fas fa-shield-alt"></i> Confidentialité
+				</a>
+				<a class="footer-link" th:href="@{/legal/terms}" target="_blank">
+					<i class="fas fa-file-contract"></i> CGU
+				</a>
+				<span class="version-badge">
+					<i class="fas fa-code-branch"></i>
+					LS Tracker v<span th:text="${appVersion}">2.0.0</span>
+				</span>
 			</div>
 		</div>
 
+		<script>
+			(function () {
+				const el = document.getElementById('presenceLine');
+				if (!el || !window.fetch) return;
+				fetch(el.dataset.url, { credentials: 'same-origin', headers: { 'Accept': 'application/json' } })
+					.then(r => r.ok ? r.json() : null)
+					.then(p => {
+						if (!p) return;
+						p.online = (p.onlineWeb || 0) + (p.onlineMobile || 0);
+						el.querySelectorAll('[data-presence]').forEach(s => {
+							s.textContent = (p[s.dataset.presence] || 0).toLocaleString('fr-FR');
+						});
+						el.querySelectorAll('[data-plural]').forEach(s => {
+							s.textContent = (p[s.dataset.plural] || 0) > 1 ? s.dataset.many : s.dataset.one;
+						});
+						el.hidden = false;
+					})
+					.catch(() => {});
+			})();
+		</script>
+
 		<style>
 			.site-footer { background:#f8fafc; border-top:1px solid #e6e9f3; }
-			.footer-link { transition: color .15s ease; text-decoration:none; }
-			.footer-link:hover { color:#233B8B !important; text-decoration:underline; }
-			.footer-link i { margin-right:.25rem; opacity:.7; }
+			/* Une seule ligne : gauche, centre, droite ; empilé et centré sur écran étroit. */
+			.footer-bar {
+				display:flex; align-items:center; justify-content:space-between;
+				flex-wrap:wrap; gap:.5rem 1.5rem; padding-top:.85rem; padding-bottom:.85rem;
+			}
+			.footer-cell { display:flex; align-items:center; gap:.35rem; white-space:nowrap; }
+			.footer-end { gap:1rem; }
+			.footer-sep { margin:0 .15rem; }
+			.footer-link { color:inherit; transition:color .15s ease; text-decoration:none; }
+			.footer-link:hover { color:#233B8B; text-decoration:underline; }
+			.footer-link i { margin-right:.2rem; opacity:.7; }
 			.version-badge {
-				display:inline-flex; align-items:center; gap:.35rem;
-				padding:.15rem .55rem;
+				display:inline-flex; align-items:center; gap:.3rem;
+				padding:.1rem .55rem;
 				background:#fff; border:1px solid #e6e9f3; border-radius:1rem;
 				font-size:.72rem; color:#4b5563;
 			}
 			.version-badge i { color:#233B8B; }
+			.footer-presence:not([hidden]) {
+				display:inline-flex; align-items:center; gap:.75rem;
+				padding:.2rem .8rem; background:#fff;
+				border:1px solid #e6e9f3; border-radius:1rem; white-space:nowrap;
+			}
+			.footer-presence span[title] { cursor:help; }
+			.footer-presence strong { color:#1f2937; }
+			.presence-divider { width:1px; height:.9rem; background:#e6e9f3; }
+			.presence-dot {
+				display:inline-block; width:.5rem; height:.5rem; border-radius:50%;
+				background:#16a34a; margin-right:.2rem; vertical-align:middle;
+				box-shadow:0 0 0 2px rgba(22,163,74,.18);
+			}
+			@media (max-width: 767.98px) {
+				.footer-bar { justify-content:center; text-align:center; }
+				.footer-cell, .footer-presence:not([hidden]) { justify-content:center; }
+			}
+			@media (max-width: 420px) {
+				.presence-detail { display:none; }
+			}
 		</style>
 	</footer>
 </body>
