@@ -73,6 +73,9 @@ public class SampleController {
 	private ActivityLogService activityLog;
 
 	@Autowired
+	private org.itech.labSampleTracker.helper.ExportPreamble exportPreamble;
+
+	@Autowired
 	private SampleTypeService sampleTypeService;
 
 	@Autowired
@@ -763,7 +766,24 @@ public class SampleController {
 						+ (site != null ? ", site " + site : "") + (lab != null ? ", labo " + lab : "")
 						+ (patientIdentifier != null ? ", recherche par identifiant patient" : ""));
 
-		InputStreamResource file = new InputStreamResource(ExportUtils.writeCSVData(sampleRecords));
+		SimpleDateFormat fr = new SimpleDateFormat("dd/MM/yyyy");
+		String period = (ObjectUtils.isEmpty(startDateString) ? "depuis le début" : "du " + fr.format(startDate))
+				+ " au " + fr.format(new Date(endDate.getTime() - 24L * 3600 * 1000)) + " (date de collecte)";
+		List<String> filters = new java.util.ArrayList<>();
+		if (status != null) {
+			filters.add("statut " + exportPreamble.statusName(status));
+		}
+		if (sampleType != null) {
+			filters.add("type " + exportPreamble.typeName(sampleType));
+		}
+		if (patientIdentifier != null) {
+			filters.add("recherche par identifiant patient");
+		}
+		List<String> preamble = exportPreamble.lines("Export des échantillons (" + sampleRecords.size() + " lignes)",
+				period, region, district, site, lab, String.join(", ", filters));
+		filename = "echantillons_" + new SimpleDateFormat("yyyy-MM-dd_HHmm").format(new Date()) + ".csv";
+
+		InputStreamResource file = new InputStreamResource(ExportUtils.writeCSVData(preamble, sampleRecords));
 
 		return ResponseEntity.ok().header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + filename)
 				.contentType(MediaType.parseMediaType("application/csv")).body(file);

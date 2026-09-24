@@ -43,11 +43,27 @@ public class ExportUtils {
 			"DELAI DE TRANSMISSION DES RESULTATS", "DELAI GLOBAL DE RENDU DES RESULTATS (TAT)" };
 
 	public static ByteArrayInputStream writeCSVData(List<Map<String, String>> data) {
+		return writeCSVData(List.of(), data);
+	}
+
+	/**
+	 * @param preamble lignes d'en-tête (cahier V.5 : date, période, périmètre),
+	 *                 suivies d'une ligne vide avant le tableau
+	 */
+	public static ByteArrayInputStream writeCSVData(List<String> preamble, List<Map<String, String>> data) {
 		final CSVFormat format = CSVFormat.DEFAULT.withQuoteMode(QuoteMode.MINIMAL);
 
 		try {
 			ByteArrayOutputStream out = new ByteArrayOutputStream();
-			try (CSVPrinter csvPrinter = new CSVPrinter(new PrintWriter(out), format)) {
+			out.write(new byte[] { (byte) 0xEF, (byte) 0xBB, (byte) 0xBF }); // BOM : Excel reconnaît l'UTF-8
+			try (CSVPrinter csvPrinter = new CSVPrinter(
+					new PrintWriter(new java.io.OutputStreamWriter(out, java.nio.charset.StandardCharsets.UTF_8)), format)) {
+				for (String line : preamble) {
+					csvPrinter.printRecord(line);
+				}
+				if (!preamble.isEmpty()) {
+					csvPrinter.println();
+				}
 				csvPrinter.printRecord(header);
 
 				// int k = 1;

@@ -747,7 +747,7 @@
 		annotateRank(rows);
 		rows = sortDrillRows(rows, lvl);
 		const cols = ['ID'].concat(lvl === 'region' ? ['Région'] : lvl === 'district' ? ['Région', 'District'] : ['Région', 'District', 'Site'])
-			.concat(['Rang', 'Total', 'Écart à la moyenne (%)', 'En transit', 'Livrés', 'Non-conformités', "Échecs d'analyse", 'TAT moyen (j)']);
+			.concat(['Rang', 'Total', 'Écart à la moyenne (%)', 'En transit', 'Livrés', 'Non-conformités', "Échecs d'analyse", 'TAT médian (j)']);
 		const cell = v => {
 			let t = v == null ? '' : String(v);
 			// Un tableur interprète comme formule un texte commençant par

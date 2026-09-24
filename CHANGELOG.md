@@ -31,6 +31,12 @@
 - Taux de couverture : dénominateurs limités aux éléments actifs.
 - Sécurité : les écrans d'administration des sites, laboratoires et circuits, et la suppression des régions et districts, étaient accessibles à tout utilisateur connecté ; ils sont réservés aux administrateurs. La suppression se faisait par un simple lien (GET), déclenchable à l'insu d'un administrateur depuis une autre page : elle passe en POST avec jeton anti-falsification.
 
+### Exports : date, période et périmètre (cahier V.5)
+
+- Export CSV des échantillons : en-tête avec la date et l'auteur de l'export, la période (date de collecte), le périmètre (zone demandée, et accès national ou restriction de l'utilisateur) et les filtres ; fichier horodaté, encodé en UTF-8 lisible directement par Excel.
+- Export du tableau de répartition : il portait déjà ces mentions ; la colonne « TAT moyen » est renommée « TAT médian », conformément au calcul.
+- Rapports PDF : date d'édition, période et zone déjà présentes.
+
 ## 2026-09-23 — Accès des convoyeurs par district, dates, tableau de bord (v2.2.3)
 
 Règle métier : un convoyeur a accès aux laboratoires situés dans les districts où il intervient (circuit → site → district → labo), sur l'ensemble de ses circuits.
