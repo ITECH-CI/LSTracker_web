@@ -37,6 +37,11 @@
 - Export du tableau de répartition : il portait déjà ces mentions ; la colonne « TAT moyen » est renommée « TAT médian », conformément au calcul.
 - Rapports PDF : date d'édition, période et zone déjà présentes.
 
+### Contrôle de cohérence des indicateurs (cahier VI.4, V.5, XII.3)
+
+- Page Administration → Contrôle de cohérence : pour une période et une région, chaque indicateur (collectés, reçus au laboratoire, analysés, résultats livrés, non-conformités, échecs) est recalculé par le code réel de chaque écran — répartitions régions / districts / sites, répartition par type, courbes, parcours par type, rapports PDF — et comparé aux cartes du tableau de bord ; l'additivité site → district → région est vérifiée. Verdict global et liste des écarts : outil de recette.
+- Écart trouvé et corrigé : le rapport laboratoire (« Nombre de résultats disponibles ») ne comptait que les résultats encore en attente de récupération (16 contre 991 « analysés » sur la base de test) ; il compte désormais tous les résultats validés sur la période, comme le tableau de bord.
+
 ## 2026-09-23 — Accès des convoyeurs par district, dates, tableau de bord (v2.2.3)
 
 Règle métier : un convoyeur a accès aux laboratoires situés dans les districts où il intervient (circuit → site → district → labo), sur l'ensemble de ses circuits.

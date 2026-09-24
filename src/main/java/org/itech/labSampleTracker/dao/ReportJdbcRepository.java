@@ -118,7 +118,10 @@ public class ReportJdbcRepository {
 		String sql = "SELECT stype.name AS type_code, COUNT(*) AS cnt FROM sample s "
 				+ "JOIN sample_status ss ON ss.id = s.sample_status_id "
 				+ "JOIN sample_type   stype ON stype.id = s.sample_type_id " + SCOPE_JOIN
-				+ "WHERE ss.status = 'ANALYSIS_DONE' "
+				// Résultats validés sur la période, quel que soit le statut actuel
+				// (déjà récupérés ou remis compris) : même définition que
+				// « Analysés » au tableau de bord (cahier VI.4).
+				+ "WHERE s.analysis_released_date IS NOT NULL "
 				+ "  AND (CAST(:startDate AS date) IS NULL OR CAST(s.analysis_released_date AS DATE) >= :startDate) "
 				+ "  AND (CAST(:endDate   AS date) IS NULL OR CAST(s.analysis_released_date AS DATE) <= :endDate) "
 				+ SCOPE_WHERE + "GROUP BY stype.name";

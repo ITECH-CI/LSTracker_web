@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="fr" xmlns="http://www.w3.org/1999/xhtml"
+	xmlns:th="http://www.thymeleaf.org"
+	xmlns:sec="http://www.thymeleaf.org/thymeleaf-extras-springsecurity6">
+
+<head th:replace="~{fragments/header :: head}">
+<title>Contrôle de cohérence</title>
+</head>
+
+<body class="sb-nav-fixed">
+
+<style>
+.ck-panel { background: #fff; border: 1px solid #e6e9f3; border-radius: 10px; padding: 1rem 1.1rem; margin-bottom: 1rem; }
+.ck-panel h2 { font-size: .95rem; font-weight: 600; color: #111827; margin: 0 0 .15rem; }
+.ck-panel h2 i { color: #4f46e5; margin-right: .35rem; }
+.ck-panel .sub { font-size: .8rem; color: #6b7280; margin-bottom: .75rem; }
+.ck-form { display: flex; flex-wrap: wrap; gap: .5rem; align-items: end; }
+.ck-form .form-control, .ck-form .form-select { font-size: .85rem; }
+.ck-verdict { display: flex; align-items: center; gap: .6rem; font-size: .95rem; font-weight: 600; border-radius: 10px;
+	padding: .75rem 1rem; margin-bottom: 1rem; }
+.ck-verdict.ok { background: #dcfce7; color: #166534; }
+.ck-verdict.ko { background: #fee2e2; color: #991b1b; }
+.ck-table { width: 100%; font-size: .85rem; }
+.ck-table th { font-size: .72rem; text-transform: uppercase; letter-spacing: .03em; color: #6b7280; font-weight: 600;
+	border-bottom: 1px solid #e6e9f3; padding: .35rem .5rem; background: #f8fafc; white-space: nowrap; }
+.ck-table td { border-bottom: 1px solid #f1f3f8; padding: .4rem .5rem; }
+.ck-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+.ck-table tr.bad td { background: #fff7f7; }
+.st-ok { color: #15803d; font-weight: 600; }
+.st-ko { color: #b91c1c; font-weight: 600; }
+</style>
+
+	<div class="d-flex" id="wrapper">
+		<div id="page-content-wrapper">
+
+			<div th:insert="~{fragments/header :: header(content='Contrôle de cohérence', module='coherence')}"></div>
+
+			<div class="container-fluid py-3">
+
+				<div class="ck-panel">
+					<h2><i class="fas fa-balance-scale"></i>Un même indicateur, la même valeur partout</h2>
+					<div class="sub">Chaque indicateur est recalculé par le code réel de chaque écran (tableau de bord,
+						répartitions, courbes, rapports PDF) et comparé aux cartes du tableau de bord ; les sites doivent
+						s'additionner en districts, les districts en régions (cahier VI.4, V.5, XII.3). Vue nationale.</div>
+					<form class="ck-form" method="get" th:action="@{/coherence}">
+						<div>
+							<label class="form-label small mb-1" for="start">Du</label>
+							<input class="form-control form-control-sm" type="date" id="start" name="start" th:value="${start}" />
+						</div>
+						<div>
+							<label class="form-label small mb-1" for="end">Au</label>
+							<input class="form-control form-control-sm" type="date" id="end" name="end" th:value="${end}" />
+						</div>
+						<div>
+							<label class="form-label small mb-1" for="region">Région</label>
+							<select class="form-select form-select-sm" id="region" name="region">
+								<option value="">Toutes</option>
+								<option th:each="r : ${regions}" th:value="${r.id}" th:selected="${region != null and r.id == region}"
+									th:text="${r.name}">Région</option>
+							</select>
+						</div>
+						<button class="btn btn-sm btn-primary" type="submit"><i class="fas fa-play me-1"></i>Contrôler</button>
+					</form>
+				</div>
+
+				<div class="ck-verdict" th:classappend="${failures == 0} ? 'ok' : 'ko'">
+					<i th:class="${failures == 0} ? 'fas fa-check-circle' : 'fas fa-exclamation-triangle'"></i>
+					<span th:if="${failures == 0}">Tout est cohérent sur la période.</span>
+					<span th:if="${failures > 0}" th:text="${failures} + ' écart(s) à examiner.'">2 écarts</span>
+				</div>
+
+				<div class="ck-panel">
+					<h2><i class="fas fa-th-list"></i>Indicateurs, écran par écran</h2>
+					<div class="sub">Référence : cartes et entonnoir du tableau de bord, sur la même période.</div>
+					<table class="ck-table">
+						<thead><tr><th>Indicateur</th><th class="num">Tableau de bord</th><th>Comparé à</th>
+							<th class="num">Valeur</th><th class="num">Écart</th><th>État</th></tr></thead>
+						<tbody>
+							<tr th:each="c : ${indicators}" th:classappend="${c.ok()} ? '' : 'bad'">
+								<td th:text="${c.indicator()}">Collectés</td>
+								<td class="num" th:text="${c.reference()}">120</td>
+								<td th:text="${c.source()}">Répartition par région</td>
+								<td class="num" th:text="${c.value()}">120</td>
+								<td class="num" th:text="${c.value() - c.reference()}">0</td>
+								<td th:class="${c.ok()} ? 'st-ok' : 'st-ko'" th:text="${c.ok()} ? 'identique' : 'écart'">identique</td>
+							</tr>
+						</tbody>
+					</table>
+				</div>
+
+				<div class="ck-panel">
+					<h2><i class="fas fa-sitemap"></i>Additivité des niveaux</h2>
+					<div class="sub">Chaque région doit valoir la somme de ses districts, chaque district la somme de ses sites.</div>
+					<table class="ck-table" th:if="${!#lists.isEmpty(gaps)}">
+						<thead><tr><th>Niveau</th><th>Élément</th><th>Indicateur</th><th class="num">Valeur</th>
+							<th class="num">Somme des enfants</th></tr></thead>
+						<tbody>
+							<tr class="bad" th:each="g : ${gaps}">
+								<td th:text="${g.level()}">District</td>
+								<td th:text="${g.name()}">Région › District</td>
+								<td th:text="${g.indicator()}">Collectés</td>
+								<td class="num" th:text="${g.parent()}">10</td>
+								<td class="num" th:text="${g.children()}">9</td>
+							</tr>
+						</tbody>
+					</table>
+					<div class="st-ok" th:if="${#lists.isEmpty(gaps)}"><i class="fas fa-check me-1"></i>Tous les niveaux s'additionnent exactement.</div>
+				</div>
+
+			</div>
+		</div>
+	</div>
+
+	<footer class="py-4 bg-light mt-auto" th:insert="~{fragments/footer :: footer}"></footer>
+
+	<!-- Le fragment d'en-tête ne charge pas les scripts : chaque page les inclut. -->
+	<script th:src="@{/webjars/jquery/3.6.0/jquery.min.js}"></script>
+	<script th:src="@{/webjars/bootstrap/5.1.3/js/bootstrap.bundle.min.js}"></script>
+	<script th:src="@{/webjars/font-awesome/5.15.4/js/all.js}"></script>
+</body>
+</html>
