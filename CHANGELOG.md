@@ -46,6 +46,13 @@
 
 - `docs/REGLAGES.md` : paramètres PostgreSQL retenus (production et démonstration) avec leur règle de calcul, limites des conteneurs, pool de connexions, JVM, lots, délais et purges ; vérification du dimensionnement du serveur à faire avant la migration de la production (les valeurs de production réservent 27 Gio et plafonnent à 46 Gio).
 
+### Test de montée en charge (cahier XI) et deux défauts corrigés
+
+- `scripts/charge/test_charge.py` : utilisateurs web et mobiles simultanés par paliers ; rapport `docs/TEST_CHARGE.md` (600 000 échantillons).
+- Défaut corrigé : les répartitions par site ou district pouvaient tourner plusieurs minutes (plan d'exécution « générique » de PostgreSQL ignorant les filtres optionnels), épuisant le pool de connexions : effondrement à 50 utilisateurs. Plans calculés avec les valeurs réelles et durée maximale de 2 minutes par requête. Résultat à 50 utilisateurs : 0 erreur et 46,5 requêtes/s, contre 34 erreurs et 4,7 requêtes/s.
+- Défaut corrigé : mémoire partagée de 64 Mo par défaut du conteneur PostgreSQL, épuisée par les requêtes parallèles ; `shm_size` fixé (1 Go en production, 256 Mo en démonstration).
+- Reste à améliorer : comptage total de la liste des échantillons (4,5 s à 50 utilisateurs sur 600 000 échantillons).
+
 ## 2026-09-23 — Accès des convoyeurs par district, dates, tableau de bord (v2.2.3)
 
 Règle métier : un convoyeur a accès aux laboratoires situés dans les districts où il intervient (circuit → site → district → labo), sur l'ensemble de ses circuits.

@@ -67,6 +67,7 @@ Règles de calcul usuelles, appliquées à la mémoire **allouée à la base**
 | `autovacuum_max_workers` / `autovacuum_naptime` | 4 / 30 s | 2 / 60 s | Table `sample` très mise à jour : nettoyage fréquent. |
 | `log_min_duration_statement` | 1000 ms | 500 ms | Journal des requêtes lentes (dans `pg_log`). |
 | `log_lock_waits`, `log_temp_files`, `log_autovacuum_min_duration` | activés | — | Diagnostic en production. |
+| Mémoire partagée du conteneur (`shm_size`) | 1 Go | 256 Mo | Requêtes parallèles ; les 64 Mo par défaut de Docker s'épuisent sous charge (voir `docs/TEST_CHARGE.md`). |
 | `password_encryption` | scram-sha-256 | idem | Sécurité. |
 | `timezone` | Africa/Abidjan | idem | Dates cohérentes avec l'application. |
 
@@ -86,6 +87,7 @@ docker exec lst_prod_db psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c \
 |---|---|---|---|
 | Pool de connexions (`DB_POOL_MAX` / `DB_POOL_MIN`) | prod 50 / 10, démo 15 / 3 | `.env` | Nombre de requêtes simultanées vers la base ; rester sous `max_connections`. |
 | Délais du pool | inactivité 5 min, durée de vie 20 min, attente 20 s, fuite signalée après 30 s | `application.properties` | Connexions recyclées ; une connexion oubliée est signalée dans les journaux. |
+| Plans d'exécution et durée maximale | `plan_cache_mode = force_custom_plan`, `statement_timeout` 120 s | `application.properties` (`DB_STATEMENT_TIMEOUT`) | Plans calculés avec les valeurs réelles des filtres ; une requête emballée ne bloque pas une connexion plus de 2 minutes (voir `docs/TEST_CHARGE.md`). |
 | Écritures par lots Hibernate | 50 | `application.properties` | Synchronisation mobile : insertions groupées. |
 | Mémoire de la JVM | 75 % du plafond du conteneur | `JAVA_OPTS` (compose) | La JVM respecte la limite du conteneur ; arrêt propre et redémarrage en cas de mémoire épuisée. |
 | Synchronisation OpenELIS | lots de 200, toutes les 30 min, 5 essais par échantillon | `.env` (`OEDATAREPO_*`) | Charge étalée ; un échantillon introuvable n'est pas réinterrogé indéfiniment. |
@@ -101,5 +103,7 @@ docker exec lst_prod_db psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c \
 - Tableau de bord sur 600 000 échantillons simulés : 2,35 s avant la revue
   des requêtes, 0,87 s après (index de jointure, filtres de dates indexables,
   agrégation avant jointure géographique).
+- Test de montée en charge : `docs/TEST_CHARGE.md` (0 erreur à 50 utilisateurs
+  simultanés sur 600 000 échantillons).
 - Requêtes lentes : suivies par `log_min_duration_statement` et par la
   supervision (`docs/SUPERVISION.md`, alerte au-delà de 2 s au 95ᵉ centile).

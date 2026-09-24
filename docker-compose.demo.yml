@@ -37,6 +37,10 @@ services:
       - trackerdb_demo:/var/lib/postgresql/data
       - ./init_db.sql:/docker-entrypoint-initdb.d/01_init_db.sql:ro
       - ./config/postgres/postgresql.demo.conf:/etc/postgresql/postgresql.conf:ro
+    # Mémoire partagée des requêtes parallèles (/dev/shm) : Docker n'en donne
+    # que 64 Mo par défaut, épuisés sous charge (« could not resize shared
+    # memory segment … No space left on device », relevé au test de charge).
+    shm_size: 256m
     command:
       - "postgres"
       - "-c"
