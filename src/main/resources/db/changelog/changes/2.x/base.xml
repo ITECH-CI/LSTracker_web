@@ -30,6 +30,8 @@
 		relativeToChangelogFile="true" />
 	<include file="./add_activity_log_table.xml"
 		relativeToChangelogFile="true" />
+	<include file="./add_mesh_is_active.xml"
+		relativeToChangelogFile="true" />
 
 
 

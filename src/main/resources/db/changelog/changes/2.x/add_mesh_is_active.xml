@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+	xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.1.xsd">
+
+	<!--
+		Maillage (cahier IV.b et IV.f) : un élément référencé par des données
+		existantes est désactivé plutôt que supprimé. Les laboratoires et les
+		circuits ont déjà cet état ; on l'ajoute aux régions, districts et sites.
+		Tout l'existant reste actif.
+	-->
+	<changeSet id="008-mesh-is-active" author="pkomena">
+		<addColumn tableName="region">
+			<column name="is_active" type="BOOLEAN" defaultValueBoolean="true">
+				<constraints nullable="false" />
+			</column>
+		</addColumn>
+		<addColumn tableName="district">
+			<column name="is_active" type="BOOLEAN" defaultValueBoolean="true">
+				<constraints nullable="false" />
+			</column>
+		</addColumn>
+		<addColumn tableName="site">
+			<column name="is_active" type="BOOLEAN" defaultValueBoolean="true">
+				<constraints nullable="false" />
+			</column>
+		</addColumn>
+	</changeSet>
+
+</databaseChangeLog>

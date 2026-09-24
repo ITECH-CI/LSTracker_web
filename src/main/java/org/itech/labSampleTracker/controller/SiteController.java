@@ -15,6 +15,7 @@ import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -45,12 +46,8 @@ public class SiteController extends BaseController {
 	private org.itech.labSampleTracker.service.security.UserScopeService userScopeService;
 
 
-	@GetMapping(value = "/delete/{id}")
-	public String deleteSite(@PathVariable("id") int id) {
-		siteService.delete(id);
-		return "redirect:/site";
-	}
 
+	@PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
 	@PostMapping(value = "/new")
 	public String createSite(Model model, @Valid Site site) {
 		try {
@@ -67,6 +64,7 @@ public class SiteController extends BaseController {
 		return "site/new";
 	}
 
+	@PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
 	@GetMapping(value = "/new")
 	public String newAppUser(Model model) {
 		model.addAttribute("districts", districtService.getDistrictIdAndNames());
@@ -74,6 +72,7 @@ public class SiteController extends BaseController {
 		return "site/new";
 	}
 
+	@PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
 	@GetMapping(value = "")
 	public String getAllSite(Model model) {
 		// La liste réelle est chargée via /site/data (DataTables server-side).
@@ -86,6 +85,7 @@ public class SiteController extends BaseController {
 	/**
 	 * JSON endpoint feeding the DataTables-driven site admin list.
 	 */
+	@PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
 	@GetMapping(value = "/data", produces = "application/json")
 	@org.springframework.web.bind.annotation.ResponseBody
 	public Map<String, Object> getSitesData(
@@ -128,6 +128,7 @@ public class SiteController extends BaseController {
 		return out;
 	}
 
+	@PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
 	@GetMapping(value = "/update/{id}")
 	public String getOneSite(@PathVariable("id") Integer id, Model model) {
 		Site site = new Site();
@@ -144,6 +145,7 @@ public class SiteController extends BaseController {
 		return "site/edit";
 	}
 
+	@PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
 	@PostMapping(value = "/update/{id}")
 	public String updateSite(@PathVariable("id") Integer id, @Valid Site site, Model model) {
 		Site siteToUpdate;
@@ -155,7 +157,7 @@ public class SiteController extends BaseController {
 				return "site/edit";
 			}
 
-			BeanUtils.copyProperties(site, siteToUpdate, "id");
+			BeanUtils.copyProperties(site, siteToUpdate, "id", "isActive");
 			siteService.create(siteToUpdate);
 			model.addAttribute("message_success", "Modification effectuée avec succès");
 		} catch (Exception ex) {

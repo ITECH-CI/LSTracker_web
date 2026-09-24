@@ -24,6 +24,13 @@
 - Page Administration → Journal d'activité : période, filtres (utilisateur, objet, n°, action, canal), références affichées par leur nom (statut, labo, site…), historique d'un objet en un clic, export CSV. Bouton « Historique » sur la fiche de modification d'un échantillon (administrateurs).
 - Journal des connexions, visites et journal d'activité conservés 12 mois (purge quotidienne, une seule instance) ; consultation réservée aux administrateurs.
 
+### Maillage : désactivation plutôt que suppression (cahier IV.b, IV.f)
+
+- Régions, districts et sites ont désormais un état actif / inactif (les laboratoires et circuits l'avaient déjà). Un élément utilisé (rattachements, échantillons, utilisateurs) ne peut plus être supprimé : il est désactivé, disparaît des listes de saisie (web et mobile) et garde son historique. Un parent ne peut être désactivé tant qu'il a des enfants actifs, ni un enfant réactivé sous un parent inactif.
+- Listes d'administration : état affiché (« Inactif »), inactifs en fin de liste, boutons Désactiver / Réactiver / Supprimer.
+- Taux de couverture : dénominateurs limités aux éléments actifs.
+- Sécurité : les écrans d'administration des sites, laboratoires et circuits, et la suppression des régions et districts, étaient accessibles à tout utilisateur connecté ; ils sont réservés aux administrateurs. La suppression se faisait par un simple lien (GET), déclenchable à l'insu d'un administrateur depuis une autre page : elle passe en POST avec jeton anti-falsification.
+
 ## 2026-09-23 — Accès des convoyeurs par district, dates, tableau de bord (v2.2.3)
 
 Règle métier : un convoyeur a accès aux laboratoires situés dans les districts où il intervient (circuit → site → district → labo), sur l'ensemble de ses circuits.

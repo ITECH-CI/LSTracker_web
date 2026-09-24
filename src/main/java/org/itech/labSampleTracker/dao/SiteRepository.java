@@ -25,7 +25,7 @@ public interface SiteRepository extends JpaRepository<Site, Integer>, JpaSpecifi
 	 * Returns enriched rows (region name, district name) to avoid N+1 queries
 	 * at render time.
 	 */
-	@Query(value = "SELECT s.id, s.name, s.dhis_code, s.datim_code, s.longitude, s.latitude, "
+	@Query(value = "SELECT s.id, s.name, s.is_active, s.dhis_code, s.datim_code, s.longitude, s.latitude, "
 			+ "       s.district_id, d.name AS district, d.region_id, r.name AS region "
 			+ "FROM site s "
 			+ "LEFT JOIN district d ON d.id = s.district_id "
@@ -38,7 +38,7 @@ public interface SiteRepository extends JpaRepository<Site, Integer>, JpaSpecifi
 			+ "AND (CAST(:regionId AS INT) IS NULL OR d.region_id = CAST(:regionId AS INT)) "
 			+ "AND (CAST(:districtId AS INT) IS NULL OR s.district_id = CAST(:districtId AS INT)) "
 			+ "AND (:accessibleSiteIdsActive = FALSE OR s.id IN (:accessibleSiteIds)) "
-			+ "ORDER BY r.name NULLS LAST, d.name NULLS LAST, s.name",
+			+ "ORDER BY s.is_active DESC, r.name NULLS LAST, d.name NULLS LAST, s.name",
 			countQuery = "SELECT COUNT(s.id) FROM site s "
 					+ "LEFT JOIN district d ON d.id = s.district_id "
 					+ "LEFT JOIN region r ON r.id = d.region_id "

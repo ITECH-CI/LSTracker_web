@@ -178,7 +178,7 @@ public class SiteServiceImpl implements SiteService {
 
 	@Override
 	public List<Map<String, Object>> getSiteIdAndNames() {
-		String sql = "SELECT s.id,s.name,s.dhis_code FROM site s ORDER BY s.name";
+		String sql = "SELECT s.id,s.name,s.dhis_code FROM site s WHERE s.is_active ORDER BY s.name";
 		List<Map<String, Object>> response = new ArrayList<Map<String, Object>>();
 		try {
 			Query query = em.createNativeQuery(sql);
@@ -198,7 +198,7 @@ public class SiteServiceImpl implements SiteService {
 
 	@Override
 	public List<Map<String, Object>> getSiteIdAndNamesAndCicuit() {
-		String sql = "SELECT s.id,s.name,s.dhis_code, c.id FROM site s JOIN circuit_site cs ON s.id=cs.site_id LEFT JOIN circuit c ON c.id = cs.circuit_id ORDER BY s.name";
+		String sql = "SELECT s.id,s.name,s.dhis_code, c.id FROM site s JOIN circuit_site cs ON s.id=cs.site_id LEFT JOIN circuit c ON c.id = cs.circuit_id WHERE s.is_active ORDER BY s.name";
 		List<Map<String, Object>> response = new ArrayList<Map<String, Object>>();
 		try {
 			Query query = em.createNativeQuery(sql);
@@ -219,7 +219,7 @@ public class SiteServiceImpl implements SiteService {
 
 	@Override
 	public List<Map<String, Object>> getSiteIdAndNamesByDistrict(Integer districtId) {
-		String sql = "SELECT id,name FROM site where district_id = :id ORDER BY name ";
+		String sql = "SELECT id,name FROM site where district_id = :id AND is_active ORDER BY name ";
 		List<Map<String, Object>> response = new ArrayList<Map<String, Object>>();
 		try {
 			Query query = em.createNativeQuery(sql);
@@ -239,7 +239,7 @@ public class SiteServiceImpl implements SiteService {
 
 	@Override
 	public List<Map<String, Object>> getSiteIdAndNamesByDistricts(List<Integer> districtIds) {
-		String sql = "SELECT id,name FROM site where district_id in :ids ORDER BY name ";
+		String sql = "SELECT id,name FROM site where district_id in :ids AND is_active ORDER BY name ";
 		List<Map<String, Object>> response = new ArrayList<Map<String, Object>>();
 		try {
 			Query query = em.createNativeQuery(sql);
@@ -262,10 +262,10 @@ public class SiteServiceImpl implements SiteService {
 		// Sites des axes actifs de l'utilisateur (rattachement actif), ou affectés
 		// directement.
 		String sql = "SELECT distinct s.id,dhis_code,name FROM site s "
-				+ " where exists (select 1 from circuit_site cs join circuit c on c.id = cs.circuit_id "
+				+ " where s.is_active and (exists (select 1 from circuit_site cs join circuit c on c.id = cs.circuit_id "
 				+ "   join app_user_has_circuit auhc on auhc.circuit_id = cs.circuit_id "
 				+ "   where cs.site_id = s.id and auhc.app_user_id = :userId and c.is_active and cs.is_active) "
-				+ " or exists (select 1 from app_user_has_site auhs where auhs.site_id = s.id and auhs.app_user_id = :userId)";
+				+ " or exists (select 1 from app_user_has_site auhs where auhs.site_id = s.id and auhs.app_user_id = :userId))";
 		List<Map<String, Object>> response = new ArrayList<Map<String, Object>>();
 		try {
 			Query query = em.createNativeQuery(sql);
@@ -288,7 +288,7 @@ public class SiteServiceImpl implements SiteService {
 	public List<Map<String, Object>> getSiteIdAndCodeAndNamesAndCircuitByUser(Integer userId) {
 		String sql = "SELECT s.id,dhis_code,name,c.id FROM site s join app_user_has_site aus on s.id = aus.site_id "
 				+ " JOIN circuit_site cs ON s.id=cs.site_id "
-				+ " LEFT JOIN circuit c ON c.id = cs.circuit_id where aus.app_user_id = :userId ";
+				+ " LEFT JOIN circuit c ON c.id = cs.circuit_id where aus.app_user_id = :userId AND s.is_active ";
 		List<Map<String, Object>> response = new ArrayList<Map<String, Object>>();
 		try {
 			Query query = em.createNativeQuery(sql);

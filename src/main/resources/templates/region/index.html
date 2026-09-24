@@ -254,18 +254,7 @@ table#tab_regions tbody tr:hover { background: #fafcff; }
 	// une apostrophe (l'attribut HTML se ferme trop tot, et la confirmation
 	// est alors purement et simplement ignoree).
 	function renderActions(data, type, row) {
-		const id = row.id;
-		const blocked = (row.district_count != null && row.district_count > 0);
-		const deleteMsg = blocked
-			? 'Cette région contient ' + row.district_count + ' district(s) et ne peut pas être supprimée.'
-			: 'Supprimer définitivement cette région ?';
-		return ''
-			+ '<div class="row-actions">'
-			+   '<a class="btn-action btn-warning-soft" title="Modifier" href="/region/update/' + id + '"><i class="fas fa-pencil-alt"></i></a>'
-			+   '<a class="btn-action btn-danger-soft js-delete" title="Supprimer" href="/region/delete/' + id + '"'
-			+     ' data-blocked="' + (blocked ? '1' : '0') + '"'
-			+     ' data-message="' + escapeHtml(deleteMsg) + '"><i class="fas fa-trash-alt"></i></a>'
-			+ '</div>';
+		return meshActions('region', row, 'cette région');
 	}
 
 	// Delegation : les lignes sont redessinees a chaque rechargement DataTables.
@@ -298,5 +287,6 @@ table#tab_regions tbody tr:hover { background: #fafcff; }
 	}
 	</script>
 
+	<script th:src="@{/js/mesh-actions.js}"></script>
 </body>
 </html>

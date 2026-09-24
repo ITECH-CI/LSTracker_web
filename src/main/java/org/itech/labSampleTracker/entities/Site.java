@@ -57,6 +57,10 @@ private static final long serialVersionUID = 1L;
     @Column(name="district_id")
     private Integer districtId ;
 
+    /** Désactivé plutôt que supprimé dès qu'il est référencé (cahier IV.f). */
+    @Column(name="is_active", nullable=false)
+    private Boolean isActive = true;
+
     @Column(name="longitude")
     private Double longitude ;
 

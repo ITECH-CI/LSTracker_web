@@ -33,6 +33,10 @@ public class Region implements Serializable {
 	@Column(name = "name", nullable = false, length = 100)
 	private String name;
 
+	/** Désactivé plutôt que supprimé dès qu'il est référencé (cahier IV.f). */
+	@Column(name = "is_active", nullable = false)
+	private Boolean isActive = true;
+
 	@OneToMany(mappedBy = "region")
 	private List<District> listOfDistrict;
 

@@ -40,22 +40,6 @@ public class DistrictController extends BaseController {
 	@Autowired
 	private RegionService regionService;
 
-	@GetMapping(value = "/delete/{id}")
-	public String deleteDistrict(@PathVariable("id") int id, RedirectAttributes redirectAttributes) {
-		long children = districtService.countSites(id);
-		if (children > 0) {
-			redirectAttributes.addFlashAttribute("message_error",
-					"Impossible de supprimer ce district : il contient " + children + " site(s).");
-			return "redirect:/district";
-		}
-		boolean ok = districtService.delete(id);
-		if (ok) {
-			redirectAttributes.addFlashAttribute("message_success", "District supprimé avec succès");
-		} else {
-			redirectAttributes.addFlashAttribute("message_error", "Impossible de supprimer le district");
-		}
-		return "redirect:/district";
-	}
 
 	@PostMapping(value = "/new")
 	@PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
@@ -149,7 +133,7 @@ public class DistrictController extends BaseController {
 				return "district/edit";
 			}
 
-			BeanUtils.copyProperties(district, districtToUpdate, "id");
+			BeanUtils.copyProperties(district, districtToUpdate, "id", "isActive");
 			districtService.create(districtToUpdate);
 			model.addAttribute("message_success", "Modification effectuée avec succès");
 		} catch (Exception ex) {

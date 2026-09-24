@@ -30,7 +30,7 @@ public interface DistrictRepository  extends JpaRepository<District, Integer> , 
 	 * Paginated admin district list with full-text search, region filter and
 	 * aggregated child counts (sites, labs).
 	 */
-	@Query(value = "SELECT d.id, d.name, d.region_id, r.name AS region_name, "
+	@Query(value = "SELECT d.id, d.name, d.region_id, d.is_active, r.name AS region_name, "
 			+ "       (SELECT COUNT(s.id) FROM site s WHERE s.district_id = d.id) AS site_count, "
 			+ "       (SELECT COUNT(l.id) FROM lab l WHERE l.district_id = d.id) AS lab_count "
 			+ "FROM district d "
@@ -39,7 +39,7 @@ public interface DistrictRepository  extends JpaRepository<District, Integer> , 
 			+ "      d.name ILIKE CONCAT('%', CAST(:searchText AS TEXT), '%') "
 			+ "   OR r.name ILIKE CONCAT('%', CAST(:searchText AS TEXT), '%'))) "
 			+ "AND (CAST(:regionId AS INT) IS NULL OR d.region_id = CAST(:regionId AS INT)) "
-			+ "ORDER BY r.name NULLS LAST, d.name",
+			+ "ORDER BY d.is_active DESC, r.name NULLS LAST, d.name",
 			countQuery = "SELECT COUNT(d.id) FROM district d "
 					+ "LEFT JOIN region r ON r.id = d.region_id "
 					+ "WHERE (CAST(:searchText AS TEXT) IS NULL OR ("

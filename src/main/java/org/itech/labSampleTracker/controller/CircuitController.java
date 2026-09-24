@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 
@@ -48,12 +49,8 @@ public class CircuitController extends BaseController{
 	@Autowired
 	private org.itech.labSampleTracker.dao.CircuitRepository circuitRepository;
 
-	@GetMapping(value = "/delete/{id}")
-	public String deleteCircuit(@PathVariable("id") int id) {
-		circuitService.delete(id);
-		return "redirect:/circuit";
-	}
 
+	@PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
 	@PostMapping(value = "/new")
 	public String createCircuit(Model model, @Valid CircuitDTO circuitDTO) {
 		model.addAttribute("sites", siteService.getSiteIdAndNames());
@@ -86,6 +83,7 @@ public class CircuitController extends BaseController{
 		return "circuit/new";
 	}
 
+	@PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
 	@GetMapping(value = "/new")
 	public String newAppUser(Model model) {
 		model.addAttribute("sites", siteService.getSiteIdAndNames());
@@ -93,6 +91,7 @@ public class CircuitController extends BaseController{
 		return "circuit/new";
 	}
 
+	@PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
 	@GetMapping(value = "")
 	public String getAllCircuit(Model model) {
 		// La liste réelle est chargée via /circuit/data (DataTables server-side).
@@ -102,6 +101,7 @@ public class CircuitController extends BaseController{
 	/**
 	 * JSON endpoint feeding the DataTables-driven circuit admin list.
 	 */
+	@PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
 	@GetMapping(value = "/data", produces = "application/json")
 	@org.springframework.web.bind.annotation.ResponseBody
 	public Map<String, Object> getCircuitsData(
@@ -127,6 +127,7 @@ public class CircuitController extends BaseController{
 		return out;
 	}
 
+	@PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
 	@GetMapping(value = "/update/{id}")
 	public String getOneCircuit(@PathVariable("id") Integer id, Model model) {
 		model.addAttribute("sites", siteService.getSiteIdAndNames());
@@ -149,6 +150,7 @@ public class CircuitController extends BaseController{
 		return "circuit/edit";
 	}
 
+	@PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
 	@PostMapping(value = "/update/{id}")
 	public String updateCircuit(@PathVariable("id") Integer id, @Valid CircuitDTO circuitDTO, Model model) {
 		model.addAttribute("sites", siteService.getSiteIdAndNames());

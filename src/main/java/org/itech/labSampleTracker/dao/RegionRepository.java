@@ -30,13 +30,13 @@ public interface RegionRepository  extends JpaRepository<Region, Integer> , JpaS
 	 * Paginated admin region list with full-text search and aggregated
 	 * child counts (districts, sites, labs).
 	 */
-	@Query(value = "SELECT r.id, r.name, "
+	@Query(value = "SELECT r.id, r.name, r.is_active, "
 			+ "       (SELECT COUNT(d.id) FROM district d WHERE d.region_id = r.id) AS district_count, "
 			+ "       (SELECT COUNT(s.id) FROM site s LEFT JOIN district d ON d.id = s.district_id WHERE d.region_id = r.id) AS site_count, "
 			+ "       (SELECT COUNT(l.id) FROM lab l LEFT JOIN district d ON d.id = l.district_id WHERE d.region_id = r.id) AS lab_count "
 			+ "FROM region r "
 			+ "WHERE (CAST(:searchText AS TEXT) IS NULL OR r.name ILIKE CONCAT('%', CAST(:searchText AS TEXT), '%')) "
-			+ "ORDER BY r.name",
+			+ "ORDER BY r.is_active DESC, r.name",
 			countQuery = "SELECT COUNT(r.id) FROM region r "
 					+ "WHERE (CAST(:searchText AS TEXT) IS NULL OR r.name ILIKE CONCAT('%', CAST(:searchText AS TEXT), '%'))",
 			nativeQuery = true)

@@ -36,22 +36,6 @@ public class RegionController extends BaseController {
 	@Autowired
 	private RegionService regionService;
 
-	@GetMapping(value = "/delete/{id}")
-	public String deleteRegion(@PathVariable("id") int id, RedirectAttributes redirectAttributes) {
-		long children = regionService.countDistricts(id);
-		if (children > 0) {
-			redirectAttributes.addFlashAttribute("message_error",
-					"Impossible de supprimer cette région : elle contient " + children + " district(s).");
-			return "redirect:/region";
-		}
-		boolean ok = regionService.delete(id);
-		if (ok) {
-			redirectAttributes.addFlashAttribute("message_success", "Région supprimée avec succès");
-		} else {
-			redirectAttributes.addFlashAttribute("message_error", "Impossible de supprimer la région");
-		}
-		return "redirect:/region";
-	}
 
 	@PostMapping(value = "/new")
 	@PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
@@ -139,7 +123,7 @@ public class RegionController extends BaseController {
 				return "region/edit";
 			}
 
-			BeanUtils.copyProperties(region, regionToUpdate, "id");
+			BeanUtils.copyProperties(region, regionToUpdate, "id", "isActive");
 			regionService.create(regionToUpdate);
 			model.addAttribute("message_success", "Modification effectuée avec succès");
 		} catch (Exception ex) {

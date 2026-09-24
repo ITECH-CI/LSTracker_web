@@ -47,6 +47,10 @@ public class District implements Serializable {
 	@Column(name = "region_id")
 	private Integer regionId;
 
+	/** Désactivé plutôt que supprimé dès qu'il est référencé (cahier IV.f). */
+	@Column(name = "is_active", nullable = false)
+	private Boolean isActive = true;
+
 	@OneToMany(mappedBy = "district")
 	private List<Site> listOfSite;
 

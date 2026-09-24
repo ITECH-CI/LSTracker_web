@@ -267,18 +267,7 @@ table#tab_districts tbody tr:hover { background: #fafcff; }
 	// Cf. region/index.html : message porte par un attribut data-*, pas par un
 	// onclick inline (dont les guillemets casseraient l'attribut HTML).
 	function renderActions(data, type, row) {
-		const id = row.id;
-		const blocked = (row.site_count != null && row.site_count > 0);
-		const deleteMsg = blocked
-			? 'Ce district contient ' + row.site_count + ' site(s) et ne peut pas être supprimé.'
-			: 'Supprimer définitivement ce district ?';
-		return ''
-			+ '<div class="row-actions">'
-			+   '<a class="btn-action btn-warning-soft" title="Modifier" href="/district/update/' + id + '"><i class="fas fa-pencil-alt"></i></a>'
-			+   '<a class="btn-action btn-danger-soft js-delete" title="Supprimer" href="/district/delete/' + id + '"'
-			+     ' data-blocked="' + (blocked ? '1' : '0') + '"'
-			+     ' data-message="' + escapeHtml(deleteMsg) + '"><i class="fas fa-trash-alt"></i></a>'
-			+ '</div>';
+		return meshActions('district', row, 'ce district');
 	}
 
 	// Delegation : les lignes sont redessinees a chaque rechargement DataTables.
@@ -311,5 +300,6 @@ table#tab_districts tbody tr:hover { background: #fafcff; }
 	}
 	</script>
 
+	<script th:src="@{/js/mesh-actions.js}"></script>
 </body>
 </html>

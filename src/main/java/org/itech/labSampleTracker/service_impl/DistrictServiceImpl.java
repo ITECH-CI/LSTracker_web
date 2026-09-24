@@ -110,7 +110,7 @@ public class DistrictServiceImpl implements DistrictService {
 
 	@Override
 	public List<Map<String, Object>> getDistrictIdAndNames() {
-		String sql = "SELECT id,name FROM district ORDER BY name ";
+		String sql = "SELECT id,name FROM district WHERE is_active ORDER BY name ";
 		List<Map<String, Object>> response = new ArrayList<Map<String, Object>>();
 		try {
 			Query query = em.createNativeQuery(sql);
@@ -129,7 +129,7 @@ public class DistrictServiceImpl implements DistrictService {
 
 	@Override
 	public List<Map<String, Object>> getDistrictIdAndNamesByRegion(Integer regionId) {
-		String sql = "SELECT id,name FROM district where region_id = :id ORDER BY name ";
+		String sql = "SELECT id,name FROM district where region_id = :id AND is_active ORDER BY name ";
 		List<Map<String, Object>> response = new ArrayList<Map<String, Object>>();
 		try {
 			Query query = em.createNativeQuery(sql);
@@ -149,7 +149,7 @@ public class DistrictServiceImpl implements DistrictService {
 
 	@Override
 	public List<Map<String, Object>> getDistrictIdAndNamesByRegions(List<Integer> regions) {
-		String sql = "SELECT id,name FROM district where region_id in :ids ORDER BY name ";
+		String sql = "SELECT id,name FROM district where region_id in :ids AND is_active ORDER BY name ";
 		List<Map<String, Object>> response = new ArrayList<Map<String, Object>>();
 		try {
 			Query query = em.createNativeQuery(sql);

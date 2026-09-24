@@ -97,7 +97,7 @@ public class RegionServiceImpl implements RegionService {
 
 	@Override
 	public List<Map<String, Object>> getRegionIdAndName() {
-		String sql = "SELECT id,name FROM region ORDER BY name ";
+		String sql = "SELECT id,name FROM region WHERE is_active ORDER BY name ";
 		List<Map<String, Object>> response = new ArrayList<Map<String, Object>>();
 		try {
 			Query query = em.createNativeQuery(sql);

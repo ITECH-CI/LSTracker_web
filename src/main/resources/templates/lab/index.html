@@ -155,6 +155,9 @@ table#tab_labs tbody tr:hover { background: #fafcff; }
 
 			<div class="container-fluid py-3">
 
+				<div th:if="${message_error != null}" class="alert alert-danger" th:text="${message_error}"></div>
+				<div th:if="${message_success != null}" class="alert alert-success" th:text="${message_success}"></div>
+
 				<div class="admin-layout">
 
 					<!-- ============ SIDEBAR FILTRES ============ -->
@@ -397,12 +400,7 @@ table#tab_labs tbody tr:hover { background: #fafcff; }
 		return '<span class="badge-status b-inactive"><i class="fas fa-times-circle"></i> Inactif</span>';
 	}
 	function renderActions(data, type, row) {
-		const id = row.id;
-		return ''
-			+ '<div class="row-actions">'
-			+   '<a class="btn-action btn-warning-soft" title="Modifier" href="lab/update/' + id + '"><i class="fas fa-pencil-alt"></i></a>'
-			+   '<a class="btn-action btn-danger-soft" title="Supprimer" href="lab/delete/' + id + '" onclick="return confirm(\'Supprimer ce laboratoire ?\')"><i class="fas fa-trash-alt"></i></a>'
-			+ '</div>';
+		return meshActions('lab', row, 'ce laboratoire');
 	}
 
 	function debounce(fn, ms) {
@@ -421,5 +419,6 @@ table#tab_labs tbody tr:hover { background: #fafcff; }
 	}
 	</script>
 
+	<script th:src="@{/js/mesh-actions.js}"></script>
 </body>
 </html>
