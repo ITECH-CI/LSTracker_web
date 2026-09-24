@@ -11,7 +11,11 @@
 				xAxis: { lineColor: '#e5e7eb', tickColor: '#e5e7eb', labels: { style: { color: '#6b7280' } } },
 				yAxis: { gridLineColor: '#f1f5f9', labels: { style: { color: '#6b7280' } }, title: { style: { color: '#6b7280', fontWeight: 'normal' } } },
 				legend: { itemStyle: { color: '#374151', fontWeight: '500', fontSize: '11px' } },
-				tooltip: { borderColor: '#e5e7eb', shadow: false, style: { fontSize: '12px' } },
+				// Bulles lisibles : plus grandes, contrastées, ombrées.
+				tooltip: { backgroundColor: '#ffffff', borderColor: '#c7d2fe', borderRadius: 8, borderWidth: 1,
+					shadow: { color: 'rgba(15,23,42,0.18)', offsetX: 0, offsetY: 4, width: 12 },
+					padding: 10, style: { fontSize: '13px', color: '#111827' },
+					headerFormat: '<span style="font-size:13px;font-weight:700">{point.key}</span><br/>' },
 				lang: {
 					contextButtonTitle: 'Options du graphique',
 					downloadJPEG: 'Télécharger en JPEG',
@@ -154,6 +158,61 @@
 		window.location = '/dashboard' + (qs ? '?' + qs : '');
 	}
 
+	// Bulle d'information attachée à la page : jamais coupée par un bloc
+	// parent, retournée sous l'élément près du haut de l'écran, et ouverte au
+	// tap sur tablette (le survol n'y existe pas).
+	(function initTips() {
+		const tip = $('<div id="dashTip" role="tooltip"></div>').appendTo('body');
+		let current = null;
+		function show(el) {
+			current = el;
+			tip.text($(el).attr('data-tip')).addClass('show');
+			const r = el.getBoundingClientRect();
+			const w = tip.outerWidth(), h = tip.outerHeight();
+			let left = Math.min(Math.max(8, r.left + r.width / 2 - w / 2), window.innerWidth - w - 8);
+			let top = r.top - h - 8;
+			if (top < 8) top = r.bottom + 8; // pas la place au-dessus : en dessous
+			tip.css({ left: left + 'px', top: top + 'px' });
+			$(el).addClass('is-open');
+		}
+		function hide() {
+			tip.removeClass('show');
+			if (current) $(current).removeClass('is-open');
+			current = null;
+		}
+		$(document).on('mouseenter focus', '[data-tip]', function() { show(this); })
+			.on('mouseleave blur', '[data-tip]', hide)
+			.on('click', '[data-tip]', function(e) {
+				e.preventDefault(); e.stopPropagation();
+				current === this ? hide() : show(this);
+			})
+			.on('click', hide);
+		$(window).on('scroll resize', hide);
+		$('[data-tip]').attr('tabindex', '0');
+	})();
+
+	function frFromDate(d) {
+		const pad = n => String(n).padStart(2, '0');
+		return pad(d.getDate()) + '/' + pad(d.getMonth() + 1) + '/' + d.getFullYear();
+	}
+
+	// Bandeau « Période analysée · Comparée à » : toujours visible, rempli dès
+	// que la période précédente est connue (réponse de funnel-previous).
+	const PERIOD_NAMES = { today: "Aujourd'hui", week: 'Semaine en cours', month: 'Mois en cours',
+		quarter: 'Trimestre en cours', semester: 'Semestre en cours', year: 'Année en cours' };
+	function renderPeriodBanner(prev) {
+		const f = currentFilters();
+		const range = 'du ' + frFromIso(f.startDate) + ' au ' + frFromIso(f.endDate);
+		$('[data-period-name]').text((PERIOD_NAMES[window._period] || 'Période analysée') + ' :');
+		$('[data-period-range]').text(range);
+		$('[data-period-short]').text(frFromIso(f.startDate) + ' → ' + frFromIso(f.endDate));
+		$('[data-period-prev]').text(prev && prev.prev_start
+			? 'du ' + frFromIso(prev.prev_start) + ' au ' + frFromIso(prev.prev_end) : '—');
+		$('[data-period-rule]').text(window._period
+			? '(même nombre de jours de la période précédente)'
+			: '(période de même durée juste avant)');
+	}
+
 	// ISO yyyy-MM-dd → format datepicker dd/mm/yyyy. Null-safe.
 	function frFromIso(s) {
 		if (!s) return '';
@@ -170,9 +229,13 @@
 		const site = u.get('site');
 		const lab = u.get('lab');
 
-		// Dates (converties ISO→FR pour le datepicker)
-		$('#input_start_date').val(frFromIso(u.get('startDate')));
-		$('#input_end_date').val(frFromIso(u.get('endDate')));
+		// Dates (converties ISO→FR pour le datepicker). Sans dates dans l'URL,
+		// les champs affichent la période par défaut appliquée par le serveur
+		// (2 ans jusqu'à aujourd'hui) au lieu de rester vides.
+		const today = new Date();
+		const twoYearsAgo = new Date(today.getFullYear() - 2, today.getMonth(), today.getDate());
+		$('#input_start_date').val(frFromIso(u.get('startDate')) || frFromDate(twoYearsAgo));
+		$('#input_end_date').val(frFromIso(u.get('endDate')) || frFromDate(today));
 		// Période calendaire choisie par un raccourci : bouton actif. Une date
 		// modifiée à la main la fait oublier (comparaison à durée égale).
 		// Liste fermée : une valeur arbitraire de l'URL cassait le sélecteur
@@ -258,6 +321,7 @@
 		).done(function(currResp, prevResp) {
 			const curr = currResp[0] || {};
 			const prev = prevResp[0] || {};
+			renderPeriodBanner(prev);
 			updateKpis(curr, prev);
 		}).fail(function() {
 			$('[data-kpi]').text('—');
@@ -293,7 +357,6 @@
 		const good = lowerIsBetter ? 'kpi-trend-down' : 'kpi-trend-up';
 		const bad = lowerIsBetter ? 'kpi-trend-up' : 'kpi-trend-down';
 		const $el = $(selector);
-		$el.attr('title', prevRange || '');
 		const prevTxt = ' <span class="kpi-trend-prev">· préc. ' + formatNumber(prev) + (unit || '') + '</span>';
 		// Rien à comparer : pas de flèche ni de « nouveau », seulement la valeur.
 		if (prev === 0) {
@@ -369,14 +432,15 @@
 	}
 
 	// Couleurs des étapes du parcours : échelle ordinale d'une teinte, plus
-	// foncée avec l'avancement (validée : dataviz validate_palette --ordinal).
+	// foncée avec l'avancement, bleu clair → violet foncé, écarts de clarté
+	// maximaux (validée : dataviz validate_palette --ordinal).
 	// La même étape a la même couleur dans le bandeau et dans tous les graphiques.
 	const STAGE = {
-		collected:       '#8f9bf5',
-		deposited:       '#6d74ee',
-		analysed:        '#5048e0',
-		resultCollected: '#3b30b8',
-		delivered:       '#2a1f82'
+		collected:       '#7aacf6',
+		deposited:       '#5481ed',
+		analysed:        '#4353d6',
+		resultCollected: '#3b28a7',
+		delivered:       '#2b086c'
 	};
 	const STATUS_CRITICAL = '#dc2626'; // réservé aux rejets / non-conformités
 
@@ -424,20 +488,21 @@
 			title: { text: null },
 			credits: { enabled: false },
 			exporting: { chartOptions: { title: { text: "Parcours par type d'échantillon" } } },
-			xAxis: { categories: keep.map(i => cats[i]), crosshair: { color: 'rgba(99,102,241,.06)' },
+			xAxis: { categories: keep.map(i => cats[i]), crosshair: { color: 'rgba(99,102,241,.12)' },
 				labels: { useHTML: true, formatter: function() { return typeDot(this.value); } } },
 			yAxis: { title: { text: pct ? '% des collectés' : "Nombre d'échantillons" }, allowDecimals: pct, min: 0,
 				labels: { format: pct ? '{value} %' : '{value}' } },
 			legend: { enabled: true },
 			plotOptions: { column: { maxPointWidth: 24, borderRadius: 3, borderWidth: 0, groupPadding: 0.12, pointPadding: 0.06 } },
-			tooltip: { shared: true, valueSuffix: pct ? ' %' : '' },
+			tooltip: { shared: true, valueSuffix: pct ? ' %' : '',
+				pointFormat: '<span style="color:{point.color}">\u25CF</span> {series.name} : <b>{point.y}</b><br/>' },
 			series: [
 				{ name: 'Collectés', data: pick(data.collected), color: STAGE.collected },
 				{ name: 'Déposés', data: pick(data.delivered), color: STAGE.deposited },
 				{ name: 'Analysés', data: pick(data.analysisDone), color: STAGE.analysed },
 				{ name: 'Résultats collectés', data: pick(data.resultCollected), color: STAGE.resultCollected },
 				{ name: 'Résultats livrés', data: pick(data.resultOnSite), color: STAGE.delivered },
-				{ name: 'Rejets', data: pick(data.nonConform), color: STATUS_CRITICAL }
+				{ name: 'Non-conformités', data: pick(data.nonConform), color: STATUS_CRITICAL }
 			]
 		});
 	}
@@ -463,11 +528,12 @@
 			title: { text: null },
 			credits: { enabled: false },
 			exporting: { chartOptions: { title: { text: "Évolution dans le temps (granularité : " + granularity + ")" } } },
-			xAxis: { type: 'datetime' },
+			xAxis: { type: 'datetime', crosshair: { color: '#a5b4fc', width: 1, dashStyle: 'Solid' } },
 			yAxis: { title: { text: 'Nombre' }, allowDecimals: false, min: 0 },
 			legend: { enabled: true },
-			tooltip: { shared: true },
-			plotOptions: { line: { lineWidth: 2, marker: { enabled: false, radius: 4 }, states: { hover: { lineWidthPlus: 1 } } } },
+			tooltip: { shared: true, xDateFormat: '%d/%m/%Y',
+				pointFormat: '<span style="color:{point.color}">\u25CF</span> {series.name} : <b>{point.y}</b><br/>' },
+			plotOptions: { line: { lineWidth: 2.5, marker: { enabled: false, radius: 5 }, states: { hover: { lineWidthPlus: 1 } } } },
 			series: [
 				{ name: 'Collectés', data: bucketize(res.collected, granularity), color: STAGE.collected },
 				{ name: 'Déposés', data: bucketize(res.deposited, granularity), color: STAGE.deposited },
@@ -496,6 +562,22 @@
 			renderDurationsHeatmap(steps, byType);
 		});
 	}
+
+	// Étapes du tableau des durées : libellé lisible et dates utilisées.
+	const STEP_DEFS = {
+		'collecte→dépôt': { label: 'Collecte → dépôt',
+			tip: "De la collecte (prélèvement) au dépôt au laboratoire ou au labo relais." },
+		'dépôt→réception': { label: 'Dépôt → acceptation',
+			tip: "Du dépôt à l'acceptation de l'échantillon par le laboratoire." },
+		'réception→analyse': { label: 'Acceptation → fin d\'analyse',
+			tip: "De l'acceptation par le laboratoire à la fin de l'analyse." },
+		'analyse→résultat prêt': { label: 'Fin d\'analyse → validation',
+			tip: "De la fin de l'analyse à la validation biologique du résultat (résultat prêt)." },
+		'résultat prêt→collecte résultat': { label: 'Validation → récupération',
+			tip: "De la validation du résultat à sa récupération au laboratoire par un convoyeur." },
+		'collecte résultat→dépôt résultat': { label: 'Récupération → remise au site',
+			tip: "De la récupération du résultat à sa remise au site de collecte." }
+	};
 
 	// Ordre fixe des types (les plus fréquents d'abord) ; les autres suivent.
 	const TYPE_ORDER = ['CV', 'EID', 'TB', 'BI', 'BS', 'HPV', 'PrEP', 'IVSA'];
@@ -526,7 +608,9 @@
 		let html = '<table class="heatmap"><thead><tr><th></th>'
 			+ types.map(t => '<th>' + typeDot(t) + '</th>').join('') + '</tr></thead><tbody>';
 		steps.forEach(st => {
-			html += '<tr><th>' + escapeHtml(st) + '</th>'
+			const d = STEP_DEFS[st] || {};
+			html += '<tr><th>' + escapeHtml(d.label || st)
+				+ (d.tip ? '<span class="help-tip" data-tip="' + escapeHtml(d.tip) + '" tabindex="0">i</span>' : '') + '</th>'
 				+ types.map(t => cell(byType[t][st])).join('') + '</tr>';
 		});
 		html += '</tbody></table>'
@@ -858,7 +942,7 @@
 			renderRanking('#slowestLabs', resp.slowest_labs, function(r) {
 				return {
 					name: r.lab || '—',
-					sub: r.total + ' échantillons',
+					sub: 'TAT labo médian (dépôt → validation) · ' + formatNumber(r.total) + ' échantillons',
 					metric: r.avg_tat_days + ' j',
 					value: r.avg_tat_days
 				};

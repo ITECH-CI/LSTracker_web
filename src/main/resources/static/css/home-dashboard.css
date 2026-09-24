@@ -137,18 +137,19 @@
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	width: 14px; height: 14px;
+	width: 16px; height: 16px;
 	border-radius: 50%;
-	background: #d1d5db;
-	color: #1f2937;
-	font-size: .65rem;
+	background: #e0e7ff;
+	color: #3730a3;
+	border: 1px solid #c7d2fe;
+	font-size: .7rem;
 	font-weight: 700;
 	font-style: italic;
 	font-family: Georgia, "Times New Roman", serif;
 	cursor: help;
 	margin-left: .25rem;
 }
-.help-tip:hover { background: #9ca3af; color: #111827; }
+.help-tip:hover, .help-tip:focus, .help-tip.is-open { background: #4f46e5; color: #fff; border-color: #4f46e5; outline: none; }
 
 .help-tip::after {
 	content: attr(data-tip);
@@ -188,8 +189,30 @@
 	transition: opacity .15s ease, visibility .15s ease;
 	z-index: 1000;
 }
-.help-tip:hover::after,
-.help-tip:hover::before { opacity: 1; visibility: visible; }
+/* L'ancienne bulle CSS (::after) était coupée par les blocs parents : elle est
+   remplacée par une bulle attachée à la page (#dashTip, home-dashboard.js). */
+.help-tip::after, .help-tip::before { display: none; }
+#dashTip {
+	position: fixed; z-index: 2000; max-width: 320px;
+	padding: .6rem .75rem; border-radius: 8px;
+	background: #111827; color: #fff; font-size: .8rem; line-height: 1.45;
+	box-shadow: 0 10px 30px rgba(15, 23, 42, .25);
+	pointer-events: none; opacity: 0; transition: opacity .12s ease;
+}
+#dashTip.show { opacity: 1; }
+
+/* Bandeau de période : période analysée + période de comparaison. */
+.period-banner {
+	display: flex; flex-wrap: wrap; gap: .5rem 1.5rem; align-items: center;
+	margin: 0 0 1rem; padding: .7rem 1.1rem;
+	background: #eef2ff; border: 1px solid #c7d2fe; border-radius: 10px;
+	font-size: .88rem; color: #312e81;
+}
+.period-banner i { margin-right: .35rem; color: #4f46e5; }
+.period-banner strong { color: #1e1b4b; }
+.period-banner .period-label { font-weight: 600; }
+.period-banner .period-prev { color: #4338ca; }
+.period-banner .period-hint { color: #6366f1; font-size: .78rem; }
 
 /* ===== Parcours de l'échantillon (bandeau fléché) ===== */
 .section-sub { font-size: .74rem; color: #6b7280; margin-top: .15rem; }
@@ -228,11 +251,11 @@
 	content: ""; position: absolute; left: 0; top: .2rem; bottom: .2rem;
 	width: 4px; border-radius: 4px; background: var(--step-color);
 }
-.flow-step.step-1 { --step-color: #8f9bf5; }
-.flow-step.step-2 { --step-color: #6d74ee; }
-.flow-step.step-3 { --step-color: #5048e0; }
-.flow-step.step-4 { --step-color: #3b30b8; }
-.flow-step.step-5 { --step-color: #2a1f82; }
+.flow-step.step-1 { --step-color: #7aacf6; }
+.flow-step.step-2 { --step-color: #5481ed; }
+.flow-step.step-3 { --step-color: #4353d6; }
+.flow-step.step-4 { --step-color: #3b28a7; }
+.flow-step.step-5 { --step-color: #2b086c; }
 .flow-label {
 	font-size: .76rem; color: #4b5563; font-weight: 600;
 	display: flex; align-items: center; gap: .3rem;
@@ -338,7 +361,10 @@
 .kpi-trend-up   { color: #16a34a; } /* évolution favorable */
 .kpi-trend-down { color: #dc2626; } /* évolution défavorable */
 .kpi-trend-flat { color: #9ca3af; }
-.kpi-trend-prev { color: #6b7280; }
+.kpi-trend-prev {
+	display: inline-block; margin-left: .15rem; padding: .02rem .45rem;
+	border-radius: 999px; background: #f1f5f9; color: #334155; font-weight: 600;
+}
 
 
 /* ===== Coverage section ===== */

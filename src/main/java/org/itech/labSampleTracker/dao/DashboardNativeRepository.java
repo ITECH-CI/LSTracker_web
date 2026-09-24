@@ -79,18 +79,20 @@ public class DashboardNativeRepository {
 		final String sql = "SELECT CAST(d AS DATE) AS day, COALESCE(c.cnt, 0) AS cnt "
 				+ "FROM generate_series(CAST(:startDate AS DATE), CAST(:endDate AS DATE), interval '1 day') d "
 				+ "LEFT JOIN ( "
-				+ "  SELECT COALESCE(CAST(s.pickup_date AS DATE), CAST(s.created_at AS DATE)) AS day, COUNT(*) AS cnt "
+				// Même date que la carte « Collectés » du parcours : la date de
+				// collecte (cahier VI.4). Auparavant : enlèvement, à défaut saisie.
+				+ "  SELECT CAST(s.collection_date AS DATE) AS day, COUNT(*) AS cnt "
 				+ "  FROM sample s "
 				+ "  LEFT JOIN sample_retrieving sr ON sr.id = s.sample_retrieving_id "
 				+ "  LEFT JOIN site st ON st.id = sr.site_id "
 				+ "  LEFT JOIN district dis ON dis.id = st.district_id "
-				+ "  WHERE COALESCE(CAST(s.pickup_date AS DATE), CAST(s.created_at AS DATE)) BETWEEN CAST(:startDate AS DATE) AND CAST(:endDate AS DATE) "
+				+ "  WHERE s.collection_date >= CAST(:startDate AS DATE) AND s.collection_date < CAST(:endDate AS DATE) + 1 "
 				+ "    AND (CAST(:labId AS INT) IS NULL OR s.destination_lab_id = CAST(:labId AS INT)) "
 				+ "    AND (CAST(:siteId AS INT) IS NULL OR st.id = CAST(:siteId AS INT)) "
 				+ "    AND (CAST(:districtId AS INT) IS NULL OR st.district_id = CAST(:districtId AS INT)) "
 				+ "    AND (CAST(:regionId AS INT) IS NULL OR dis.region_id = CAST(:regionId AS INT)) "
 				+ "    AND (:accessibleSiteIdsActive = FALSE OR st.id IN (:accessibleSiteIds)) "
-				+ "  GROUP BY COALESCE(CAST(s.pickup_date AS DATE), CAST(s.created_at AS DATE)) "
+				+ "  GROUP BY CAST(s.collection_date AS DATE) "
 				+ ") c ON c.day = CAST(d AS DATE) "
 				+ "ORDER BY CAST(d AS DATE)";
 		return jdbc.queryForList(sql, params(startDate, endDate, regionId, districtId, siteId, labId, accessibleSiteIds));
@@ -101,18 +103,20 @@ public class DashboardNativeRepository {
 		final String sql = "SELECT CAST(d AS DATE) AS day, COALESCE(c.cnt, 0) AS cnt "
 				+ "FROM generate_series(CAST(:startDate AS DATE), CAST(:endDate AS DATE), interval '1 day') d "
 				+ "LEFT JOIN ( "
-				+ "  SELECT COALESCE(CAST(s.deliver_at_lab_date AS DATE), CAST(s.deliver_at_hub_date AS DATE)) AS day, COUNT(*) AS cnt "
+				// Même date que la carte « Déposés au labo » : dépôt au labo (le
+				// labo relais est compté à part). Auparavant : labo OU relais.
+				+ "  SELECT CAST(s.deliver_at_lab_date AS DATE) AS day, COUNT(*) AS cnt "
 				+ "  FROM sample s "
 				+ "  LEFT JOIN sample_retrieving sr ON sr.id = s.sample_retrieving_id "
 				+ "  LEFT JOIN site st ON st.id = sr.site_id "
 				+ "  LEFT JOIN district dis ON dis.id = st.district_id "
-				+ "  WHERE COALESCE(CAST(s.deliver_at_lab_date AS DATE), CAST(s.deliver_at_hub_date AS DATE)) BETWEEN CAST(:startDate AS DATE) AND CAST(:endDate AS DATE) "
+				+ "  WHERE s.deliver_at_lab_date >= CAST(:startDate AS DATE) AND s.deliver_at_lab_date < CAST(:endDate AS DATE) + 1 "
 				+ "    AND (CAST(:labId AS INT) IS NULL OR s.destination_lab_id = CAST(:labId AS INT)) "
 				+ "    AND (CAST(:siteId AS INT) IS NULL OR st.id = CAST(:siteId AS INT)) "
 				+ "    AND (CAST(:districtId AS INT) IS NULL OR st.district_id = CAST(:districtId AS INT)) "
 				+ "    AND (CAST(:regionId AS INT) IS NULL OR dis.region_id = CAST(:regionId AS INT)) "
 				+ "    AND (:accessibleSiteIdsActive = FALSE OR st.id IN (:accessibleSiteIds)) "
-				+ "  GROUP BY COALESCE(CAST(s.deliver_at_lab_date AS DATE), CAST(s.deliver_at_hub_date AS DATE)) "
+				+ "  GROUP BY CAST(s.deliver_at_lab_date AS DATE) "
 				+ ") c ON c.day = CAST(d AS DATE) "
 				+ "ORDER BY CAST(d AS DATE)";
 		return jdbc.queryForList(sql, params(startDate, endDate, regionId, districtId, siteId, labId, accessibleSiteIds));
