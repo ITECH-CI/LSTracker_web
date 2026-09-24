@@ -1,5 +1,13 @@
 # Changelog — LabSampleTracker (web + backend)
 
+## 2026-09-24 — Qualité des dates, connexions et journal d'activité (v2.2.3)
+
+### Dates aberrantes
+
+- Base de production (restaurée en démonstration) : 423 échantillons sur 46 392 portent une année mal tapée, saisie avant la validation des dates — surtout « 0025 » pour 2025 (août-octobre 2025), aussi 0204, 2028, 2055, 20244. Ces échantillons sortaient de toutes les périodes du tableau de bord ; les médianes affichées n'en étaient presque pas affectées.
+- Saisie : toute date antérieure au 01/01/2024 (mise en service) est refusée, comme les dates futures (`SampleDateValidator`, web et synchronisation mobile ; bornes des champs du formulaire web). Le mobile était déjà protégé par ses sélecteurs de date.
+- Script `scripts/sql/dates_aberrantes.sql` : audit (lecture seule), puis correction avec `-v corriger=1`. L'année corrigée est la plus proche de la date d'enregistrement (`created_at`) ; un échantillon n'est corrigé que si ses dates corrigées respectent les règles de saisie, sinon il est listé « à vérifier à la main ». Valeurs d'origine gardées dans `sample_dates_avant_correction` ; annulation automatique si le contrôle final échoue. À appliquer en démonstration, puis en production lors de la migration.
+
 ## 2026-09-23 — Accès des convoyeurs par district, dates, tableau de bord (v2.2.3)
 
 Règle métier : un convoyeur a accès aux laboratoires situés dans les districts où il intervient (circuit → site → district → labo), sur l'ensemble de ses circuits.

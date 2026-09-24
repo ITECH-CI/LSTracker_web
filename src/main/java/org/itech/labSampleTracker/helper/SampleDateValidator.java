@@ -23,6 +23,13 @@ public final class SampleDateValidator {
 	/** Tolérance sur l'horloge avant de considérer une date « dans le futur ». */
 	private static final long FUTURE_TOLERANCE_MS = 5 * 60 * 1000L;
 
+	/**
+	 * Mise en service : toute date antérieure est une faute de frappe sur
+	 * l'année (0024, 2021 pour 2024…). Même plancher que
+	 * scripts/sql/dates_aberrantes.sql.
+	 */
+	private static final Date SERVICE_START = java.sql.Timestamp.valueOf("2024-01-01 00:00:00");
+
 	private SampleDateValidator() {
 	}
 
@@ -59,6 +66,10 @@ public final class SampleDateValidator {
 	private static void notFuture(String label, Date d, Date limit) {
 		if (d != null && d.after(limit)) {
 			throw new IllegalArgumentException("date de " + label + " dans le futur (" + fmt(d) + ")");
+		}
+		if (d != null && d.before(SERVICE_START)) {
+			throw new IllegalArgumentException("date de " + label + " antérieure à la mise en service ("
+					+ fmt(d) + ") : vérifier l'année");
 		}
 	}
 

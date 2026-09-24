@@ -557,14 +557,17 @@
 		});
 	}
 
-	// Pas de date future dans les sélecteurs (contrôle complet côté serveur,
-	// cf. SampleDateValidator).
+	// Pas de date future ni antérieure à la mise en service dans les
+	// sélecteurs (contrôle complet côté serveur, cf. SampleDateValidator).
 	(function () {
 		const d = new Date(Date.now() + 5 * 60 * 1000); // même tolérance que le serveur
 		const pad = n => String(n).padStart(2, '0');
 		const max = d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate())
 			+ 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
-		document.querySelectorAll('input[type="datetime-local"]').forEach(i => i.max = max);
+		document.querySelectorAll('input[type="datetime-local"]').forEach(i => {
+			i.min = '2024-01-01T00:00';
+			i.max = max;
+		});
 	})();
 
 	// Native HTML5 validation feedback

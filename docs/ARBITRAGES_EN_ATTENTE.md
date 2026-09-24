@@ -109,16 +109,25 @@ migration (base, configuration, bascule du proxy), pas une simple mise à jour.
 **À décider** : la fenêtre de bascule, la période d'observation en
 démonstration préalable, et le plan de retour arrière.
 
+Répétition faite le 24/09 : la base de production restaurée sur la
+démonstration passe en 2.2.3 sans intervention (changesets Liquibase
+appliqués). **Décidé** : la correction des dates aberrantes (point 7) sera
+appliquée à la production au moment de la migration.
+
 ### 7. Qualité de saisie — action terrain
 
 Les corrections ont mis en évidence des défauts de saisie qu'aucun
 développement ne corrige a posteriori :
 
 - **24 732 relevés kilométriques inexploitables** en démonstration (départ à 0, arrivée avant le départ, plus de 1 000 km) ;
-- **77 dossiers** aux dates incohérentes sur la base de test (étape antérieure à la collecte, date future) — la saisie est désormais contrôlée, mais l'existant reste à corriger.
+- **77 dossiers** aux dates incohérentes sur la base de test (étape antérieure à la collecte, date future) — la saisie est désormais contrôlée, mais l'existant reste à corriger ;
+- **423 échantillons sur 46 392** (données de production, 24/09) avec une année mal tapée : surtout « 0025 » pour 2025 (août-octobre 2025), aussi 0204, 2028, 2055, 20244. Ces échantillons sortent de toutes les périodes du tableau de bord. La saisie refuse désormais toute date antérieure au 01/01/2024 ou future. Le script `scripts/sql/dates_aberrantes.sql` corrige l'année d'après la date d'enregistrement ; les cas où la correction contredirait les autres dates sont laissés à vérifier à la main.
 
-**À décider** : une campagne de rappel auprès des convoyeurs, et la
-correction des dossiers existants (liste fournie sur demande).
+**Décidé** : correction des dates appliquée en démonstration, puis en
+production lors de la migration.
+
+**À décider** : une campagne de rappel auprès des convoyeurs, et le
+traitement des dossiers « à vérifier ».
 
 ### 8. Ancienne API mobile (`/api/tracker`) — sécurité
 
