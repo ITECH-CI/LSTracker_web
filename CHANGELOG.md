@@ -53,6 +53,10 @@
 - Défaut corrigé : mémoire partagée de 64 Mo par défaut du conteneur PostgreSQL, épuisée par les requêtes parallèles ; `shm_size` fixé (1 Go en production, 256 Mo en démonstration).
 - Reste à améliorer : comptage total de la liste des échantillons (4,5 s à 50 utilisateurs sur 600 000 échantillons).
 
+### Documentation d'architecture (livrable n° 4, cahier XII.1)
+
+- `docs/ARCHITECTURE.md` : composants, cycle de vie de l'échantillon, modules, données, sécurité et périmètre, traçabilité, indicateurs, mobile, intégration OpenELIS, déploiement.
+
 ## 2026-09-23 — Accès des convoyeurs par district, dates, tableau de bord (v2.2.3)
 
 Règle métier : un convoyeur a accès aux laboratoires situés dans les districts où il intervient (circuit → site → district → labo), sur l'ensemble de ses circuits.
