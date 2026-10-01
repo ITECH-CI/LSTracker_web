@@ -107,6 +107,12 @@ public class SecurityConfig {
 						.maximumSessions(-1)
 						.sessionRegistry(sessionRegistry())
 						.expiredUrl("/login?expired"));
+		// Après connexion, retour à la page demandée — mais seulement une vraie
+		// navigation (GET, HTML). Sans ce filtre, une ressource demandée sur la
+		// page de connexion (favicon versionné « favicon-<empreinte>.ico »,
+		// police, image, appel AJAX) devenait la destination : l'utilisateur
+		// arrivait sur l'icône au lieu de l'accueil.
+		http.requestCache(cache -> cache.requestCache(navigationRequestCache()));
 		http.httpBasic(Customizer.withDefaults());
 		// CSRF protection for the web (session-based) chain. The token is
 		// exposed via a cookie (XSRF-TOKEN) so jQuery $.ajax can read it, and
@@ -134,11 +140,28 @@ public class SecurityConfig {
 		return http.build();
 	}
 
+	/** Mémorise uniquement les navigations de page (GET acceptant du HTML). */
+	static org.springframework.security.web.savedrequest.RequestCache navigationRequestCache() {
+		org.springframework.security.web.util.matcher.MediaTypeRequestMatcher html =
+				new org.springframework.security.web.util.matcher.MediaTypeRequestMatcher(
+						org.springframework.http.MediaType.TEXT_HTML);
+		// « */* » (image, police, fetch) ne compte pas comme une demande de page.
+		html.setIgnoredMediaTypes(java.util.Set.of(org.springframework.http.MediaType.ALL));
+		org.springframework.security.web.savedrequest.HttpSessionRequestCache cache =
+				new org.springframework.security.web.savedrequest.HttpSessionRequestCache();
+		cache.setRequestMatcher(new org.springframework.security.web.util.matcher.AndRequestMatcher(
+				new org.springframework.security.web.util.matcher.AntPathRequestMatcher("/**", "GET"), html));
+		return cache;
+	}
+
 	@Bean
 	public WebSecurityCustomizer webSecurityCustomizer() {
 		return (web) -> web.ignoring()
 				.requestMatchers("/webjars/**", "/content/**", "/csrf", "/css/**", "/js/**", "/img/**",
-						"/DataTables/**", "/legal/**")
+						"/DataTables/**", "/legal/**", "/fonts/**")
+				// Favicon, y compris sous son nom versionné (favicon-<empreinte>.ico) :
+				// public, et affiché dès la page de connexion.
+				.requestMatchers("/favicon.ico", "/favicon-*.ico")
 				.requestMatchers("/error/**").requestMatchers("/error").requestMatchers("/resources/**")
 				// Actuator : servi uniquement sur le port de gestion interne
 				// (management.server.port), jamais publié ; le port public

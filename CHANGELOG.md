@@ -2,6 +2,10 @@
 
 ## 2026-09-24 — Qualité des dates, connexions et journal d'activité (v2.2.3)
 
+### Correctif : retour après connexion
+
+- Après connexion, l'utilisateur pouvait arriver sur l'icône du site (`/favicon-<empreinte>.ico?continue`) au lieu de l'accueil : le favicon, renommé avec une empreinte pour le cache navigateur, n'était plus reconnu comme ressource publique, et Spring Security le mémorisait comme page à rouvrir. Le favicon est désormais public (il s'affiche aussi sur la page de connexion), et seule une vraie page (GET, HTML) peut servir de destination après connexion — jamais une image, une police ou un appel en arrière-plan.
+
 ### Dates aberrantes
 
 - Base de production (restaurée en démonstration) : 423 échantillons sur 46 392 portent une année mal tapée, saisie avant la validation des dates — surtout « 0025 » pour 2025 (août-octobre 2025), aussi 0204, 2028, 2055, 20244. Ces échantillons sortaient de toutes les périodes du tableau de bord ; les médianes affichées n'en étaient presque pas affectées.
