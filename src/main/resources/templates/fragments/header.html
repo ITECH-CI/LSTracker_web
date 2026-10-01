@@ -280,6 +280,10 @@
 
 <body>
 <div th:fragment="header">
+<!-- Droit d'écriture dans l'administration : le MANAGER consulte seulement.
+     Les pages s'en servent pour masquer les boutons ; le serveur refuse de toute façon. -->
+<script>window.LST_CAN_WRITE = false;</script>
+<script sec:authorize="hasAnyRole('ADMIN','SUPER_ADMIN')">window.LST_CAN_WRITE = true;</script>
 
 <nav class="ls-navbar" role="navigation" aria-label="Menu principal">
 	<div class="container-fluid">
@@ -322,7 +326,7 @@
 			</li>
 
 			<!-- Administration : dropdown ADMIN -->
-			<li class="nav-item dropdown" sec:authorize="hasAnyRole('ADMIN','SUPER_ADMIN')">
+			<li class="nav-item dropdown" sec:authorize="hasAnyRole('ADMIN','SUPER_ADMIN','MANAGER')">
 				<a class="ls-link dropdown-toggle"
 					th:classappend="${module}=='setting' or ${module}=='user' or ${module}=='org'
 						or ${module}=='lab' or ${module}=='circuit' or ${module}=='site'
@@ -453,7 +457,7 @@
 				<i class="fas fa-clipboard-list"></i> Manuel de procédure
 			</a>
 
-			<div sec:authorize="hasAnyRole('ADMIN','SUPER_ADMIN')">
+			<div sec:authorize="hasAnyRole('ADMIN','SUPER_ADMIN','MANAGER')">
 				<div class="nav-section">Utilisateurs &amp; rôles</div>
 				<a th:href="@{/appuser}" class="nav-link"><i class="fas fa-users"></i> Utilisateurs</a>
 				<a th:href="@{/connexions}" class="nav-link"><i class="fas fa-signal"></i> Connexions</a>

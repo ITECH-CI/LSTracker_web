@@ -3,6 +3,8 @@
  */
 package org.itech.labSampleTracker.controller;
 
+import org.itech.labSampleTracker.security.AdminRead;
+import org.itech.labSampleTracker.security.AdminWrite;
 import java.util.List;
 import java.util.Map;
 
@@ -47,7 +49,7 @@ public class SiteController extends BaseController {
 
 
 
-	@PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
+	@AdminWrite
 	@PostMapping(value = "/new")
 	public String createSite(Model model, @Valid Site site) {
 		try {
@@ -64,7 +66,7 @@ public class SiteController extends BaseController {
 		return "site/new";
 	}
 
-	@PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
+	@AdminWrite
 	@GetMapping(value = "/new")
 	public String newAppUser(Model model) {
 		model.addAttribute("districts", districtService.getDistrictIdAndNames());
@@ -72,7 +74,7 @@ public class SiteController extends BaseController {
 		return "site/new";
 	}
 
-	@PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
+	@AdminRead
 	@GetMapping(value = "")
 	public String getAllSite(Model model) {
 		// La liste réelle est chargée via /site/data (DataTables server-side).
@@ -85,7 +87,7 @@ public class SiteController extends BaseController {
 	/**
 	 * JSON endpoint feeding the DataTables-driven site admin list.
 	 */
-	@PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
+	@AdminRead
 	@GetMapping(value = "/data", produces = "application/json")
 	@org.springframework.web.bind.annotation.ResponseBody
 	public Map<String, Object> getSitesData(
@@ -128,7 +130,7 @@ public class SiteController extends BaseController {
 		return out;
 	}
 
-	@PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
+	@AdminWrite
 	@GetMapping(value = "/update/{id}")
 	public String getOneSite(@PathVariable("id") Integer id, Model model) {
 		Site site = new Site();
@@ -145,7 +147,7 @@ public class SiteController extends BaseController {
 		return "site/edit";
 	}
 
-	@PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
+	@AdminWrite
 	@PostMapping(value = "/update/{id}")
 	public String updateSite(@PathVariable("id") Integer id, @Valid Site site, Model model) {
 		Site siteToUpdate;

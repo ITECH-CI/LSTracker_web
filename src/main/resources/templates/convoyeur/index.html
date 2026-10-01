@@ -18,7 +18,7 @@
 						<div class="card mb-4">
 							<div class="card-header">
 								<i class="fas fa-table me-1"></i> Liste des Utilisateurs <a
-									th:href="@{/appuser/new}"
+									sec:authorize="hasAnyRole('ADMIN','SUPER_ADMIN')" th:href="@{/appuser/new}"
 									class="btn  btn-sm btn-primary float-end "> Ajouter un
 									Utilisateur <i class="fas fa-plus me-1"></i>
 								</a>

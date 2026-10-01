@@ -1,5 +1,7 @@
 package org.itech.labSampleTracker.controller;
 
+import org.itech.labSampleTracker.security.AdminRead;
+import org.itech.labSampleTracker.security.AdminWrite;
 import java.util.Map;
 
 import org.itech.labSampleTracker.dao.CircuitRepository;
@@ -29,7 +31,7 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
  * </ul>
  */
 @Controller
-@PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
+@AdminWrite
 public class MeshStateController {
 
 	private static final String TYPES = "{type:region|district|site|lab|circuit}";

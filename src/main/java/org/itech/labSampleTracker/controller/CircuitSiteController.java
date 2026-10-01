@@ -3,6 +3,8 @@
  */
 package org.itech.labSampleTracker.controller;
 
+import org.itech.labSampleTracker.security.AdminRead;
+import org.itech.labSampleTracker.security.AdminWrite;
 import org.itech.labSampleTracker.entities.CircuitSite;
 import org.itech.labSampleTracker.service.CircuitSiteService;
 
@@ -25,6 +27,8 @@ import java.util.List;
 */
 @Controller
 @RequestMapping("/circuitsite")
+// Ancien contrôleur généré, sans écran : réservé aux administrateurs.
+@AdminWrite
 public class CircuitSiteController {
 
 

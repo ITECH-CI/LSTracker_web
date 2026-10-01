@@ -3,6 +3,8 @@
  */
 package org.itech.labSampleTracker.controller;
 
+import org.itech.labSampleTracker.security.AdminRead;
+import org.itech.labSampleTracker.security.AdminWrite;
 import org.itech.labSampleTracker.entities.TrackingEvent;
 import org.itech.labSampleTracker.service.TrackingEventService;
 
@@ -25,6 +27,8 @@ import java.util.List;
 */
 @Controller
 @RequestMapping("/trackingevent")
+// Ancien contrôleur généré, sans écran : réservé aux administrateurs.
+@AdminWrite
 public class TrackingEventController {
 
 

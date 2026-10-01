@@ -1,5 +1,7 @@
 package org.itech.labSampleTracker.controller;
 
+import org.itech.labSampleTracker.security.AdminRead;
+import org.itech.labSampleTracker.security.AdminWrite;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -18,7 +20,7 @@ import org.springframework.web.bind.annotation.RequestParam;
  * les niveaux s'additionnent (cahier VI.4, V.5, XII.3). Outil de recette.
  */
 @Controller
-@PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
+@AdminRead
 public class ConsistencyController {
 
 	private final ConsistencyCheckService checks;

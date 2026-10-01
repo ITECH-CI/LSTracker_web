@@ -3,6 +3,8 @@
  */
 package org.itech.labSampleTracker.controller;
 
+import org.itech.labSampleTracker.security.AdminRead;
+import org.itech.labSampleTracker.security.AdminWrite;
 import org.itech.labSampleTracker.entities.SampleAtLab;
 import org.itech.labSampleTracker.service.SampleAtLabService;
 
@@ -25,6 +27,8 @@ import java.util.List;
 */
 @Controller
 @RequestMapping("/sampleatlab")
+// Ancien contrôleur généré, sans écran : réservé aux administrateurs.
+@AdminWrite
 public class SampleAtLabController {
 
 

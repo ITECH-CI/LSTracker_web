@@ -3,6 +3,8 @@
  */
 package org.itech.labSampleTracker.controller;
 
+import org.itech.labSampleTracker.security.AdminRead;
+import org.itech.labSampleTracker.security.AdminWrite;
 import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -44,13 +46,13 @@ public class SampleRejectionTypeController extends BaseController {
 	private SampleRejectionTypeService samplerejectiontypeService;
 
 	@GetMapping(value = "")
-	@PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
+	@AdminRead
 	public String getAllSampleRejectionType() {
 		return "samplerejectiontype/index";
 	}
 
 	@GetMapping(value = "/data", produces = "application/json")
-	@PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
+	@AdminRead
 	@ResponseBody
 	public Map<String, Object> getRejectionTypesData(
 			@RequestParam(name = "draw", defaultValue = "1") int draw,
@@ -72,7 +74,7 @@ public class SampleRejectionTypeController extends BaseController {
 	}
 
 	@GetMapping(value = "/new")
-	@PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
+	@AdminWrite
 	public String newRejectionType(Model model) {
 		// Un POST en erreur redirige ici avec la saisie en flash attribute :
 		// on ne la remplace pas par un formulaire vierge.
@@ -90,7 +92,7 @@ public class SampleRejectionTypeController extends BaseController {
 	 * messages et la saisie en cours transitent par des flash attributes.
 	 */
 	@PostMapping(value = "/new")
-	@PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
+	@AdminWrite
 	public String createRejectionType(@Valid SampleRejectionType rejectiontype,
 			RedirectAttributes redirectAttributes) {
 		try {
@@ -125,7 +127,7 @@ public class SampleRejectionTypeController extends BaseController {
 	}
 
 	@GetMapping(value = "/update/{id}")
-	@PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
+	@AdminWrite
 	public String getOneRejectionType(@PathVariable("id") Integer id, Model model) {
 		// Si un POST en erreur vient de rediriger ici, le flash attribute
 		// porte deja la saisie de l'utilisateur : on ne l'ecrase pas.
@@ -147,7 +149,7 @@ public class SampleRejectionTypeController extends BaseController {
 
 	/** Post/Redirect/Get, cf. {@link #createRejectionType}. */
 	@PostMapping(value = "/update/{id}")
-	@PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
+	@AdminWrite
 	public String updateRejectionType(@PathVariable("id") Integer id,
 			@Valid SampleRejectionType rejectiontype, RedirectAttributes redirectAttributes) {
 		SampleRejectionType toUpdate;
@@ -184,8 +186,8 @@ public class SampleRejectionTypeController extends BaseController {
 	 * Suppression gardee : un motif deja utilise par des rejets enregistres
 	 * ne peut pas etre supprime.
 	 */
-	@GetMapping(value = "/delete/{id}")
-	@PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
+	@PostMapping(value = "/delete/{id}")
+	@AdminWrite
 	public String deleteRejectionType(@PathVariable("id") Integer id, RedirectAttributes redirectAttributes) {
 		long used = samplerejectiontypeService.countRejections(id);
 		if (used > 0) {

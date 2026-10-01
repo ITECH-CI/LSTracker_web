@@ -3,6 +3,8 @@
  */
 package org.itech.labSampleTracker.controller;
 
+import org.itech.labSampleTracker.security.AdminRead;
+import org.itech.labSampleTracker.security.AdminWrite;
 import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.itech.labSampleTracker.dto.ProfileDTO;
@@ -50,7 +52,7 @@ import java.util.stream.Collectors;
  */
 @Controller
 @RequestMapping("/appuser")
-@PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
+@AdminWrite
 @lombok.extern.slf4j.Slf4j
 public class AppUserController extends BaseController {
 
@@ -145,6 +147,7 @@ public class AppUserController extends BaseController {
 		return "user/new";
 	}
 
+	@AdminRead
 	@GetMapping(value = "")
 	public String getAllAppUser(Model model) {
 		// Filter options for the redesigned admin index. The actual user list
@@ -160,6 +163,7 @@ public class AppUserController extends BaseController {
 	/**
 	 * JSON endpoint feeding the DataTables-driven admin user list.
 	 */
+	@AdminRead
 	@GetMapping(value = "/data", produces = "application/json")
 	@org.springframework.web.bind.annotation.ResponseBody
 	public java.util.Map<String, Object> getUsersData(

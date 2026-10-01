@@ -3,6 +3,8 @@
  */
 package org.itech.labSampleTracker.controller;
 
+import org.itech.labSampleTracker.security.AdminRead;
+import org.itech.labSampleTracker.security.AdminWrite;
 import java.util.List;
 import java.util.Map;
 
@@ -44,7 +46,7 @@ public class SampleStatusController extends BaseController {
 	private SampleStatusService samplestatusService;
 
 	@GetMapping(value = "")
-	@PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
+	@AdminRead
 	public String getAllSampleStatus(Model model) {
 		model.addAttribute("statuses", samplestatusService.findAllForAdmin());
 		return "samplestatus/index";
@@ -54,14 +56,14 @@ public class SampleStatusController extends BaseController {
 	 * JSON, pour les usages annexes (la page rend la liste cote serveur).
 	 */
 	@GetMapping(value = "/data", produces = "application/json")
-	@PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
+	@AdminRead
 	@ResponseBody
 	public List<Map<String, Object>> getStatusesData() {
 		return samplestatusService.findAllForAdmin();
 	}
 
 	@GetMapping(value = "/update/{id}")
-	@PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
+	@AdminWrite
 	public String getOneSampleStatus(@PathVariable("id") Integer id, Model model) {
 		// Si un POST en erreur vient de rediriger ici, le flash attribute
 		// porte deja la saisie de l'utilisateur : on ne l'ecrase pas.
@@ -90,7 +92,7 @@ public class SampleStatusController extends BaseController {
 	 * attributes.</p>
 	 */
 	@PostMapping(value = "/update/{id}")
-	@PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
+	@AdminWrite
 	public String updateSampleStatus(@PathVariable("id") Integer id,
 			@RequestParam(name = "description", required = false) String description,
 			RedirectAttributes redirectAttributes) {

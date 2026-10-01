@@ -101,7 +101,7 @@
 									<td><span class="count-pill" th:text="${st['sample_count']}">0</span></td>
 									<td>
 										<div class="row-actions">
-											<a class="btn-action btn-warning-soft" title="Modifier le libellé"
+											<a class="btn-action btn-warning-soft" title="Modifier le libellé" sec:authorize="hasAnyRole('ADMIN','SUPER_ADMIN')"
 												th:href="@{'/samplestatus/update/' + ${st['id']}}">
 												<i class="fas fa-pencil-alt"></i>
 											</a>

@@ -62,7 +62,7 @@ table#tab_eligible tbody td, table#tab_runs tbody td { vertical-align: middle; f
 						<button class="btn btn-sm btn-outline-secondary" id="btnRefreshState" type="button" title="Rafraîchir l'état">
 							<i class="fas fa-sync"></i>
 						</button>
-						<button class="btn btn-sm btn-primary" id="btnRunNow" type="button">
+						<button class="btn btn-sm btn-primary" id="btnRunNow" type="button" sec:authorize="hasAnyRole('ADMIN','SUPER_ADMIN')">
 							<i class="fas fa-play me-1"></i> Lancer maintenant
 						</button>
 					</div>
@@ -275,6 +275,7 @@ table#tab_eligible tbody td, table#tab_runs tbody td { vertical-align: middle; f
 		$('#btnReloadEligible').on('click', function() { eligibleTable.ajax.reload(); });
 
 		function renderEligibleActions(data, type, row) {
+			if (!window.LST_CAN_WRITE) return ''; // consultation seule (MANAGER)
 			const id = row.id;
 			let html = '<div class="row-actions">'
 				+ '<button class="btn-action btn-info-soft act-preview" data-id="' + id + '" title="Prévisualiser"><i class="fas fa-eye"></i></button>'

@@ -1,5 +1,7 @@
 package org.itech.labSampleTracker.controller;
 
+import org.itech.labSampleTracker.security.AdminRead;
+import org.itech.labSampleTracker.security.AdminWrite;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
@@ -30,7 +32,7 @@ import jakarta.servlet.http.HttpServletResponse;
  * (cahier V, journalisation ; consultation réservée aux administrateurs).
  */
 @Controller
-@PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
+@AdminRead
 public class ConnectionAdminController {
 
 	/** Périodes proposées, en jours (aujourd'hui compris). */

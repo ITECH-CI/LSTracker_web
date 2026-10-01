@@ -124,8 +124,11 @@ utilisateurs de niveau central et les rôles nationaux (ADMIN, SUPPORT,
 MANAGER) ont un accès national, sans restriction de zone, sur le web comme
 sur le mobile (`UserScopeService.isNational`).
 
-Les écrans d'administration (maillage, référentiels, utilisateurs, journaux,
-page de contrôle de cohérence) sont réservés aux administrateurs.
+Administration (maillage, référentiels, utilisateurs, journaux, manuels,
+synchronisation OpenELIS, contrôle de cohérence) : **consultation** pour les
+rôles ADMIN et MANAGER (`@AdminRead`), **création, modification,
+désactivation et suppression** pour ADMIN seulement (`@AdminWrite`), contrôlées
+côté serveur route par route ; les boutons d'écriture sont masqués au MANAGER.
 
 ---
 

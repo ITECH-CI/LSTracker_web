@@ -3,6 +3,8 @@
  */
 package org.itech.labSampleTracker.controller;
 
+import org.itech.labSampleTracker.security.AdminRead;
+import org.itech.labSampleTracker.security.AdminWrite;
 import java.util.List;
 import java.util.Map;
 
@@ -38,7 +40,7 @@ public class RegionController extends BaseController {
 
 
 	@PostMapping(value = "/new")
-	@PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
+	@AdminWrite
 	public String createRegion(Model model, @Valid Region region) {
 		try {
 			Region data = regionService.create(region);
@@ -55,14 +57,14 @@ public class RegionController extends BaseController {
 	}
 
 	@GetMapping(value = "/new")
-	@PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
+	@AdminWrite
 	public String newRegion(Model model) {
 		model.addAttribute("region", new Region());
 		return "region/new";
 	}
 
 	@GetMapping(value = "")
-	@PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
+	@AdminRead
 	public String getAllRegion(Model model) {
 		// La liste réelle est chargée via /region/data (DataTables server-side).
 		return "region/index";
@@ -72,7 +74,7 @@ public class RegionController extends BaseController {
 	 * JSON endpoint feeding the DataTables-driven region admin list.
 	 */
 	@GetMapping(value = "/data", produces = "application/json")
-	@PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
+	@AdminRead
 	@org.springframework.web.bind.annotation.ResponseBody
 	public Map<String, Object> getRegionsData(
 			@RequestParam(name = "draw", defaultValue = "1") int draw,
@@ -97,7 +99,7 @@ public class RegionController extends BaseController {
 	}
 
 	@GetMapping(value = "/update/{id}")
-	@PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
+	@AdminWrite
 	public String getOneRegion(@PathVariable("id") Integer id, Model model) {
 		Region region = new Region();
 		try {
@@ -113,7 +115,7 @@ public class RegionController extends BaseController {
 	}
 
 	@PostMapping(value = "/update/{id}")
-	@PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
+	@AdminWrite
 	public String updateRegion(@PathVariable("id") Integer id, @Valid Region region, Model model) {
 		Region regionToUpdate;
 		try {

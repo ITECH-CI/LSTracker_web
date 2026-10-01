@@ -1,5 +1,7 @@
 package org.itech.labSampleTracker.controller;
 
+import org.itech.labSampleTracker.security.AdminRead;
+import org.itech.labSampleTracker.security.AdminWrite;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
@@ -35,7 +37,7 @@ import jakarta.servlet.http.HttpServletResponse;
  * antérieure (cahier V, « historique consultable » ; administrateurs).
  */
 @Controller
-@PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
+@AdminRead
 public class ActivityLogController {
 
 	static final List<Integer> PERIODS = List.of(1, 7, 30, 90, 365);
