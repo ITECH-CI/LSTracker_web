@@ -3,7 +3,10 @@ package org.itech.labSampleTracker.enums;
 import org.apache.commons.lang3.StringUtils;
 
 public enum UserRole {
-	CONVOYEUR("CONVOYEUR"), BIOLOGISTE("BIOLOGISTE"), USER("USER"), ADMIN("ADMIN"), APP_USER("APP_USER");
+	// MANAGER : pilotage national — accès aux données de tout le pays, sans les
+	// écrans d'administration (cf. UserScopeService.isNational).
+	CONVOYEUR("CONVOYEUR"), BIOLOGISTE("BIOLOGISTE"), USER("USER"), MANAGER("MANAGER"), ADMIN("ADMIN"),
+	APP_USER("APP_USER");
 
 	private String role;
 

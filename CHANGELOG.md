@@ -5,6 +5,7 @@
 ### Correctif : utilisateurs de niveau central sans données
 
 - L'accès national n'était accordé que selon le rôle (ADMIN, SUPPORT, MANAGER). Un utilisateur de niveau central avec le rôle « USER » — sans rattachement, puisqu'il couvre tout le pays — avait un périmètre vide : tableau de bord, listes, rapports et exports vides. Règle unique désormais : rôle national **ou** niveau central = accès à tout le pays, sur le web, dans les métadonnées mobiles et à la synchronisation.
+- Le rôle **MANAGER** (pilotage national) était reconnu par l'application mais absent des listes de création et de modification des utilisateurs : il est désormais proposé. Accès aux données de tout le pays, sans les écrans d'administration.
 
 ### Correctif : retour après connexion
 

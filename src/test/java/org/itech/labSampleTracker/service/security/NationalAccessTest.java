@@ -37,4 +37,11 @@ class NationalAccessTest {
 		assertFalse(UserScopeService.isNational(user("USER", null)));
 		assertFalse(UserScopeService.isNational(null));
 	}
+
+	@Test
+	void managerCanBeAssignedFromTheUserFormAndIsNational() {
+		org.itech.labSampleTracker.enums.UserRole manager = org.itech.labSampleTracker.enums.UserRole.get("MANAGER");
+		org.junit.jupiter.api.Assertions.assertNotNull(manager);
+		assertTrue(UserScopeService.isNational(user(manager.getRole(), "REGION")));
+	}
 }
