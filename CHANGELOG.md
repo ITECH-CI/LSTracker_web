@@ -2,6 +2,10 @@
 
 ## 2026-09-24 — Qualité des dates, connexions et journal d'activité (v2.2.3)
 
+### Correctif : utilisateurs de niveau central sans données
+
+- L'accès national n'était accordé que selon le rôle (ADMIN, SUPPORT, MANAGER). Un utilisateur de niveau central avec le rôle « USER » — sans rattachement, puisqu'il couvre tout le pays — avait un périmètre vide : tableau de bord, listes, rapports et exports vides. Règle unique désormais : rôle national **ou** niveau central = accès à tout le pays, sur le web, dans les métadonnées mobiles et à la synchronisation.
+
 ### Correctif : retour après connexion
 
 - Après connexion, l'utilisateur pouvait arriver sur l'icône du site (`/favicon-<empreinte>.ico?continue`) au lieu de l'accueil : le favicon, renommé avec une empreinte pour le cache navigateur, n'était plus reconnu comme ressource publique, et Spring Security le mémorisait comme page à rouvrir. Le favicon est désormais public (il s'affiche aussi sur la page de connexion), et seule une vraie page (GET, HTML) peut servir de destination après connexion — jamais une image, une police ou un appel en arrière-plan.

@@ -85,7 +85,7 @@ public class UserScopeService {
 					.regionIds(List.of()).districtIds(List.of()).siteIds(List.of())
 					.labIds(List.of()).circuitIds(List.of()).build();
 		}
-		boolean global = isGlobal(user.getRole(), auth);
+		boolean global = isGlobal(user, auth);
 		if (global) {
 			return Scope.builder().global(true).build();
 		}
@@ -213,8 +213,23 @@ public class UserScopeService {
 		return intersect(resolveCurrent(), region, district, site, lab);
 	}
 
-	private boolean isGlobal(String role, Authentication auth) {
-		if (role != null && GLOBAL_ROLES.contains(role.toUpperCase())) {
+	/**
+	 * Accès national, sans restriction de zone : rôle global (ADMIN, SUPPORT,
+	 * MANAGER) ou utilisateur de niveau central. Règle unique, utilisée aussi
+	 * par l'API mobile (métadonnées, synchronisation).
+	 */
+	public static boolean isNational(org.itech.labSampleTracker.entities.AppUser user) {
+		if (user == null) {
+			return false;
+		}
+		if (user.getRole() != null && GLOBAL_ROLES.contains(user.getRole().toUpperCase())) {
+			return true;
+		}
+		return org.itech.labSampleTracker.enums.UserLevel.CENTRAL_LEVEL.getLevel().equalsIgnoreCase(user.getUserLevel());
+	}
+
+	private boolean isGlobal(org.itech.labSampleTracker.entities.AppUser user, Authentication auth) {
+		if (isNational(user)) {
 			return true;
 		}
 		return auth.getAuthorities().stream()

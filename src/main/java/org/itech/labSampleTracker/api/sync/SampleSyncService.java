@@ -246,7 +246,8 @@ public class SampleSyncService {
 			log.warn("sync.pull denied : authenticated user not resolved");
 			return List.of();
 		}
-		if ("ADMIN".equals(user.getRole())) {
+		if (UserScopeService.isNational(user)) {
+			// Accès national (administrateur ou niveau central) : tout le pays.
 			list = since == null ? sampleRepo.findAll()
 					: sampleRepo.findAllForAdminSinceNative(since);
 		} else {

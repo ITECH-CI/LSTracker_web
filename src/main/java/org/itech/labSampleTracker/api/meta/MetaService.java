@@ -51,7 +51,10 @@ public class MetaService {
 
 	public MetaFullResponse loadAll(AppUser user) {
 
-		boolean isAdmin = isType(user, UserType.ADMIN);
+		// Accès national (administrateur, rôle global ou niveau central) : tous
+		// les sites et circuits, comme sur le web.
+		boolean isAdmin = isType(user, UserType.ADMIN)
+				|| org.itech.labSampleTracker.service.security.UserScopeService.isNational(user);
 
 		List<Map<String, Object>> circuitList = new ArrayList<Map<String, Object>>();
 		if (isAdmin) {
