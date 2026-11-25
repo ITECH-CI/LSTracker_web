@@ -1,10 +1,9 @@
 package org.itech.labSampleTracker.dao;
 
-import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 
-import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.itech.labSampleTracker.dto.DashboardFilter;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
@@ -34,8 +33,7 @@ public class DashboardNativeRepository {
 		this.jdbc = jdbc;
 	}
 
-	public Map<String, Object> summary(LocalDate startDate, LocalDate endDate, Integer regionId, Integer districtId,
-			Integer siteId, Integer labId, List<Integer> accessibleSiteIds) {
+	public Map<String, Object> summary(DashboardFilter f) {
 		// Chaque métrique est filtrée sur SON axe-date d'étape (activité
 		// fenêtre, déf. "C") :
 		//   - all_count  : collection_date BETWEEN
@@ -64,13 +62,13 @@ public class DashboardNativeRepository {
 				+ "  AND (CAST(:siteId AS INT) IS NULL OR st.id = CAST(:siteId AS INT)) "
 				+ "  AND (CAST(:districtId AS INT) IS NULL OR st.district_id = CAST(:districtId AS INT)) "
 				+ "  AND (CAST(:regionId AS INT) IS NULL OR d.region_id = CAST(:regionId AS INT))"
-				+ SCOPE_FILTER;
+				+ SCOPE_FILTER
+				+ DashboardFilter.SAMPLE_FILTER_SQL;
 
-		return jdbc.queryForMap(sql, params(startDate, endDate, regionId, districtId, siteId, labId, accessibleSiteIds));
+		return jdbc.queryForMap(sql, f.params());
 	}
 
-	public List<Map<String, Object>> tsCollected(LocalDate startDate, LocalDate endDate, Integer regionId,
-			Integer districtId, Integer siteId, Integer labId, List<Integer> accessibleSiteIds) {
+	public List<Map<String, Object>> tsCollected(DashboardFilter f) {
 		// generate_series garantit une ligne par jour de la période (y compris
 		// les jours sans donnée). On agrège dans une sous-requête séparée pour
 		// éviter de coller les filtres géo à un ON de LEFT JOIN, ce qui les
@@ -92,14 +90,14 @@ public class DashboardNativeRepository {
 				+ "    AND (CAST(:districtId AS INT) IS NULL OR st.district_id = CAST(:districtId AS INT)) "
 				+ "    AND (CAST(:regionId AS INT) IS NULL OR dis.region_id = CAST(:regionId AS INT)) "
 				+ "    AND (:accessibleSiteIdsActive = FALSE OR st.id IN (:accessibleSiteIds)) "
+				+ DashboardFilter.SAMPLE_FILTER_SQL
 				+ "  GROUP BY CAST(s.collection_date AS DATE) "
 				+ ") c ON c.day = CAST(d AS DATE) "
 				+ "ORDER BY CAST(d AS DATE)";
-		return jdbc.queryForList(sql, params(startDate, endDate, regionId, districtId, siteId, labId, accessibleSiteIds));
+		return jdbc.queryForList(sql, f.params());
 	}
 
-	public List<Map<String, Object>> tsDeposited(LocalDate startDate, LocalDate endDate, Integer regionId,
-			Integer districtId, Integer siteId, Integer labId, List<Integer> accessibleSiteIds) {
+	public List<Map<String, Object>> tsDeposited(DashboardFilter f) {
 		final String sql = "SELECT CAST(d AS DATE) AS day, COALESCE(c.cnt, 0) AS cnt "
 				+ "FROM generate_series(CAST(:startDate AS DATE), CAST(:endDate AS DATE), interval '1 day') d "
 				+ "LEFT JOIN ( "
@@ -116,14 +114,14 @@ public class DashboardNativeRepository {
 				+ "    AND (CAST(:districtId AS INT) IS NULL OR st.district_id = CAST(:districtId AS INT)) "
 				+ "    AND (CAST(:regionId AS INT) IS NULL OR dis.region_id = CAST(:regionId AS INT)) "
 				+ "    AND (:accessibleSiteIdsActive = FALSE OR st.id IN (:accessibleSiteIds)) "
+				+ DashboardFilter.SAMPLE_FILTER_SQL
 				+ "  GROUP BY CAST(s.deliver_at_lab_date AS DATE) "
 				+ ") c ON c.day = CAST(d AS DATE) "
 				+ "ORDER BY CAST(d AS DATE)";
-		return jdbc.queryForList(sql, params(startDate, endDate, regionId, districtId, siteId, labId, accessibleSiteIds));
+		return jdbc.queryForList(sql, f.params());
 	}
 
-	public List<Map<String, Object>> tsAnalysed(LocalDate startDate, LocalDate endDate, Integer regionId,
-			Integer districtId, Integer siteId, Integer labId, List<Integer> accessibleSiteIds) {
+	public List<Map<String, Object>> tsAnalysed(DashboardFilter f) {
 		final String sql = "SELECT CAST(d AS DATE) AS day, COALESCE(c.cnt, 0) AS cnt "
 				+ "FROM generate_series(CAST(:startDate AS DATE), CAST(:endDate AS DATE), interval '1 day') d "
 				+ "LEFT JOIN ( "
@@ -138,14 +136,14 @@ public class DashboardNativeRepository {
 				+ "    AND (CAST(:districtId AS INT) IS NULL OR st.district_id = CAST(:districtId AS INT)) "
 				+ "    AND (CAST(:regionId AS INT) IS NULL OR dis.region_id = CAST(:regionId AS INT)) "
 				+ "    AND (:accessibleSiteIdsActive = FALSE OR st.id IN (:accessibleSiteIds)) "
+				+ DashboardFilter.SAMPLE_FILTER_SQL
 				+ "  GROUP BY CAST(s.analysis_released_date AS DATE) "
 				+ ") c ON c.day = CAST(d AS DATE) "
 				+ "ORDER BY CAST(d AS DATE)";
-		return jdbc.queryForList(sql, params(startDate, endDate, regionId, districtId, siteId, labId, accessibleSiteIds));
+		return jdbc.queryForList(sql, f.params());
 	}
 
-	public List<Map<String, Object>> tsDelivered(LocalDate startDate, LocalDate endDate, Integer regionId,
-			Integer districtId, Integer siteId, Integer labId, List<Integer> accessibleSiteIds) {
+	public List<Map<String, Object>> tsDelivered(DashboardFilter f) {
 		final String sql = "SELECT CAST(d AS DATE) AS day, COALESCE(c.cnt, 0) AS cnt "
 				+ "FROM generate_series(CAST(:startDate AS DATE), CAST(:endDate AS DATE), interval '1 day') d "
 				+ "LEFT JOIN ( "
@@ -160,14 +158,14 @@ public class DashboardNativeRepository {
 				+ "    AND (CAST(:districtId AS INT) IS NULL OR st.district_id = CAST(:districtId AS INT)) "
 				+ "    AND (CAST(:regionId AS INT) IS NULL OR dis.region_id = CAST(:regionId AS INT)) "
 				+ "    AND (:accessibleSiteIdsActive = FALSE OR st.id IN (:accessibleSiteIds)) "
+				+ DashboardFilter.SAMPLE_FILTER_SQL
 				+ "  GROUP BY CAST(s.result_delivery_date AS DATE) "
 				+ ") c ON c.day = CAST(d AS DATE) "
 				+ "ORDER BY CAST(d AS DATE)";
-		return jdbc.queryForList(sql, params(startDate, endDate, regionId, districtId, siteId, labId, accessibleSiteIds));
+		return jdbc.queryForList(sql, f.params());
 	}
 
-	public List<Map<String, Object>> stepDurationsDays(LocalDate startDate, LocalDate endDate, Integer regionId,
-			Integer districtId, Integer siteId, Integer labId, List<Integer> accessibleSiteIds) {
+	public List<Map<String, Object>> stepDurationsDays(DashboardFilter f) {
 
 		final String sql = "WITH base AS (SELECT s.*, "
 				+ "         COALESCE(s.deliver_at_lab_date, s.deliver_at_hub_date)  AS deposit_dt, "
@@ -181,6 +179,7 @@ public class DashboardNativeRepository {
 				+ "    AND (CAST(:districtId AS INT) IS NULL OR st.district_id = CAST(:districtId AS INT)) "
 				+ "    AND (CAST(:regionId AS INT) IS NULL OR dis.region_id = CAST(:regionId AS INT)) "
 				+ "    AND (:accessibleSiteIdsActive = FALSE OR st.id IN (:accessibleSiteIds)) "
+				+ DashboardFilter.SAMPLE_FILTER_SQL
 				+ "), durations AS ( "
 				+ "  SELECT 'collecte→dépôt' AS step, sample_type_id, "
 				+ "         EXTRACT(EPOCH FROM (b.deposit_dt - COALESCE(b.pickup_date, b.created_at))) / 86400.0 AS days "
@@ -207,26 +206,7 @@ public class DashboardNativeRepository {
 				+ "FROM durations du JOIN sample_type st ON st.id = du.sample_type_id GROUP BY st.name, step "
 				+ "ORDER BY st.name, step";
 
-		return jdbc.queryForList(sql, params(startDate, endDate, regionId, districtId, siteId, labId, accessibleSiteIds));
+		return jdbc.queryForList(sql, f.params());
 	}
 
-	/**
-	 * Build named parameters. Scope is encoded with a boolean toggle rather
-	 * than a nullable array, to side-step PostgreSQL's type-inference issues
-	 * around NULL array params.
-	 */
-	private MapSqlParameterSource params(LocalDate startDate, LocalDate endDate, Integer regionId, Integer districtId,
-			Integer siteId, Integer labId, List<Integer> accessibleSiteIds) {
-		MapSqlParameterSource p = new MapSqlParameterSource().addValue("startDate", startDate)
-				.addValue("endDate", endDate).addValue("regionId", regionId).addValue("districtId", districtId)
-				.addValue("siteId", siteId).addValue("labId", labId);
-
-		boolean active = accessibleSiteIds != null && !accessibleSiteIds.isEmpty();
-		p.addValue("accessibleSiteIdsActive", active);
-		// IN (:list) cannot accept an empty list, so always provide at least one
-		// value. When inactive, the boolean short-circuits the predicate and
-		// the placeholder is never evaluated against any row.
-		p.addValue("accessibleSiteIds", active ? accessibleSiteIds : List.of(-1));
-		return p;
-	}
 }

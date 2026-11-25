@@ -3,12 +3,16 @@ package org.itech.labSampleTracker.controller;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
-import org.apache.commons.lang3.ObjectUtils;
+import org.itech.labSampleTracker.dao.DashboardAdvancedRepository;
+import org.itech.labSampleTracker.dto.DashboardFilter;
 import org.itech.labSampleTracker.dto.StepDurationDTO;
+import org.itech.labSampleTracker.enums.LabType;
 import org.itech.labSampleTracker.service.DashboardService;
 import org.itech.labSampleTracker.service.DistrictService;
 import org.itech.labSampleTracker.service.LabService;
@@ -18,7 +22,6 @@ import org.itech.labSampleTracker.service.SampleTypeService;
 import org.itech.labSampleTracker.service.SiteService;
 import org.itech.labSampleTracker.service.security.UserScopeService;
 import org.itech.labSampleTracker.service.security.UserScopeService.ScopedFilter;
-import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
@@ -30,6 +33,11 @@ import org.springframework.web.bind.annotation.ResponseBody;
 
 import lombok.RequiredArgsConstructor;
 
+/**
+ * Tableau de bord. Chaque point d'accès reçoit les mêmes filtres
+ * ({@link DashboardQuery}), intersectés avec le périmètre de l'utilisateur :
+ * hors périmètre, la réponse est vide.
+ */
 @Controller
 @RequiredArgsConstructor
 @RequestMapping("/dashboard")
@@ -51,60 +59,30 @@ public class DashboardController {
 
 	private final UserScopeService userScopeService;
 
-	private final org.itech.labSampleTracker.dao.DashboardAdvancedRepository advancedRepo;
+	private final DashboardAdvancedRepository advancedRepo;
+
+	/**
+	 * Filtres de l'écran intersectés avec le périmètre de l'utilisateur ; vide
+	 * si la sélection sort de son périmètre.
+	 */
+	private Optional<DashboardFilter> scoped(DashboardQuery q) {
+		ScopedFilter scope = userScopeService.intersectCurrent(q.regionId(), q.districtId(), q.siteId(), q.labId());
+		if (scope.isForceEmpty()) {
+			return Optional.empty();
+		}
+		return Optional.of(DashboardFilter.of(q.start(), q.end(), scope, q.labTypeCode(), q.sampleTypeId()));
+	}
 
 	@GetMapping(value = { "", "/data/summary" })
-	public String analysisIndex(Model model,
-			@RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate startDate,
-			@RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate endDate,
-			@RequestParam(required = false, defaultValue = "0") Integer region,
-			@RequestParam(required = false, defaultValue = "0") Integer district,
-			@RequestParam(required = false, defaultValue = "0") Integer site,
-			@RequestParam(required = false, defaultValue = "0") Integer lab,
-			@RequestParam(required = false, defaultValue = "0") Integer circuit,
-			@RequestParam(required = false, name = "sample_type", defaultValue = "0") Integer sampleType) {
+	public String analysisIndex(Model model, DashboardQuery q) {
+		Map<String, Object> summary = scoped(q).map(service::getSummary).orElseGet(Map::of);
 
-		if (startDate == null)
-			startDate = LocalDate.now().minusYears(2);
-		if (endDate == null)
-			endDate = LocalDate.now();
-
-		if (region == 0) {
-			region = null;
-		}
-		if (district == 0) {
-			district = null;
-		}
-		if (site == 0) {
-			site = null;
-		}
-		if (circuit == 0) {
-			circuit = null;
-		}
-		if (lab == 0) {
-			lab = null;
-		}
-
-		ScopedFilter scope = userScopeService.intersectCurrent(region, district, site, lab);
-		Map<String, Object> summary;
-		if (scope.isForceEmpty()) {
-			summary = service.getSummary(startDate, endDate, region, district, site, lab, java.util.List.of(-1));
-		} else {
-			summary = service.getSummary(startDate, endDate, scope.getRegionId(), scope.getDistrictId(),
-					scope.getSiteId(), scope.getLabId(), scope.getAccessibleSiteIds());
-		}
-
+		// Listes complètes : la page les garde pour revenir à « Tout », et
+		// applique elle-même la cascade région › district › site.
+		List<Map<String, Object>> labs = labService.getLabIdAndNames();
+		List<Map<String, Object>> districts = districtService.getDistrictIdAndNames();
 		List<Map<String, Object>> sites = siteService.getSiteIdAndNames();
 		List<Map<String, Object>> regions = regionService.getRegionIdAndName();
-		List<Map<String, Object>> districts = districtService.getDistrictIdAndNames();
-		List<Map<String, Object>> labs = labService.getLabIdAndNames();
-		List<Map<String, Object>> sampleTypes = sampleTypeService.getSampleTypeIdAndName();
-		if (ObjectUtils.isNotEmpty(region)) {
-			districts = districtService.getDistrictIdAndNamesByRegion(region);
-		}
-		if (ObjectUtils.isNotEmpty(district)) {
-			sites = siteService.getSiteIdAndNamesByDistrict(district);
-		}
 		// Listes des filtres limitées au périmètre (tout le référentiel pour un compte national).
 		UserScopeService.Scope zone = userScopeService.resolveCurrent();
 		regions = UserScopeService.visible(zone, UserScopeService.ZoneList.REGIONS, regions);
@@ -114,59 +92,44 @@ public class DashboardController {
 
 		model.addAttribute("sampleCount", summary);
 		model.addAttribute("labs", labs);
+		model.addAttribute("labTypes", labTypeOptions(labs));
 		model.addAttribute("regions", regions);
 		model.addAttribute("districts", districts);
-		model.addAttribute("sampleTypes", sampleTypes);
+		model.addAttribute("sampleTypes", sampleTypeService.getSampleTypeIdAndName());
 		model.addAttribute("sites", sites);
-		model.addAttribute("selectedSite", site);
-		model.addAttribute("selectedRegion", region);
-		model.addAttribute("selectedDistrict", district);
-		model.addAttribute("selectedStartDate", startDate);
-		model.addAttribute("selectedEndDate", endDate);
+		model.addAttribute("selectedSite", q.siteId());
+		model.addAttribute("selectedRegion", q.regionId());
+		model.addAttribute("selectedDistrict", q.districtId());
+		model.addAttribute("selectedLab", q.labId());
+		model.addAttribute("selectedLabType", q.labTypeCode());
+		model.addAttribute("selectedSampleType", q.sampleTypeId());
+		model.addAttribute("selectedStartDate", q.start());
+		model.addAttribute("selectedEndDate", q.end());
 		return "home/index";
 	}
 
+	/**
+	 * Types de laboratoire présents dans le référentiel ({@code lab.lab_type}),
+	 * avec leur libellé, dans l'ordre des libellés.
+	 */
+	static List<Map<String, String>> labTypeOptions(List<Map<String, Object>> labs) {
+		Map<String, String> byCode = new LinkedHashMap<>();
+		for (Map<String, Object> l : labs) {
+			Object code = l.get("labType");
+			if (code != null && !code.toString().isBlank()) {
+				byCode.putIfAbsent(code.toString().trim(), LabType.label(code.toString()));
+			}
+		}
+		List<Map<String, String>> out = new ArrayList<>();
+		byCode.entrySet().stream().sorted(Map.Entry.comparingByValue(String.CASE_INSENSITIVE_ORDER))
+				.forEach(e -> out.add(Map.of("code", e.getKey(), "label", e.getValue())));
+		return out;
+	}
+
 	@GetMapping(value = "/sample_status_by_sample_type", produces = "application/json")
-	public ResponseEntity<Map<String, Object>> getSampleStatusBySampleType(
-			@RequestParam(required = false, defaultValue = "0") Integer region,
-			@RequestParam(required = false, defaultValue = "0") Integer district,
-			@RequestParam(required = false, defaultValue = "0") Integer site,
-			@RequestParam(required = false, defaultValue = "0") Integer lab,
-			@RequestParam(required = false, defaultValue = "0") Integer circuit,
-			@RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate startDate,
-			@RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate endDate) {
-		Map<String, Object> response = new HashMap<String, Object>();
-
-		if (startDate == null)
-			startDate = LocalDate.now().minusYears(2);
-		if (endDate == null)
-			endDate = LocalDate.now();
-
-		if (region == 0) {
-			region = null;
-		}
-		if (district == 0) {
-			district = null;
-		}
-		if (site == 0) {
-			site = null;
-		}
-		if (lab == 0) {
-			lab = null;
-		}
-		if (circuit == 0) {
-			circuit = null;
-		}
-
-		ScopedFilter scopeByType = userScopeService.intersectCurrent(region, district, site, lab);
-		Map<String, Map<String, Integer>> sampleCount;
-		if (scopeByType.isForceEmpty()) {
-			sampleCount = java.util.Collections.emptyMap();
-		} else {
-			sampleCount = sampleService.getSampleStatusBySampleType(scopeByType.getRegionId(),
-					scopeByType.getDistrictId(), scopeByType.getSiteId(), scopeByType.getLabId(),
-					startDate, endDate, scopeByType.getAccessibleSiteIds());
-		}
+	public ResponseEntity<Map<String, Object>> getSampleStatusBySampleType(DashboardQuery q) {
+		Map<String, Map<String, Integer>> sampleCount = scoped(q).map(sampleService::getSampleStatusBySampleType)
+				.orElseGet(Map::of);
 		Set<String> categories = sampleCount.keySet();
 		List<Integer> collected = new ArrayList<Integer>();
 		List<Integer> delivered = new ArrayList<Integer>();
@@ -177,19 +140,16 @@ public class DashboardController {
 		List<Integer> resultOnSite = new ArrayList<Integer>();
 
 		categories.forEach(el -> {
-			sampleCount.forEach((k, v) -> {
-				if (el.equalsIgnoreCase(k)) {
-					collected.add(v.get("SAMPLE_COLLECTED"));
-					delivered.add(v.get("SAMPLE_RECEIVED"));
-					nonConform.add(v.get("NON_CONFORM"));
-					failed.add(v.get("FAILED"));
-					// accepted.add(v.get("SAMPLE_ACCEPTED"));
-					analysisDone.add(v.get("ANALYSIS_DONE"));
-					resultCollected.add(v.get("RESULT_COLLECTED"));
-					resultOnSite.add(v.get("RESULT_ON_SITE"));
-				}
-			});
+			Map<String, Integer> v = sampleCount.get(el);
+			collected.add(v.get("SAMPLE_COLLECTED"));
+			delivered.add(v.get("SAMPLE_RECEIVED"));
+			nonConform.add(v.get("NON_CONFORM"));
+			failed.add(v.get("FAILED"));
+			analysisDone.add(v.get("ANALYSIS_DONE"));
+			resultCollected.add(v.get("RESULT_COLLECTED"));
+			resultOnSite.add(v.get("RESULT_ON_SITE"));
 		});
+		Map<String, Object> response = new HashMap<String, Object>();
 		response.put("categories", categories);
 		response.put("collected", collected);
 		response.put("delivered", delivered);
@@ -204,60 +164,20 @@ public class DashboardController {
 
 	@GetMapping("/data/series")
 	@ResponseBody
-	public Map<String, Object> series(
-			@RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate startDate,
-			@RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate endDate,
-			@RequestParam(name = "region", required = false) Integer regionId,
-			@RequestParam(name = "district", required = false) Integer districtId,
-			@RequestParam(name = "site", required = false) Integer siteId,
-			@RequestParam(name = "lab", required = false) Integer labId) {
-
-		if (startDate == null)
-			startDate = LocalDate.now().minusYears(2);
-		if (endDate == null)
-			endDate = LocalDate.now();
-
-		ScopedFilter scope = userScopeService.intersectCurrent(regionId, districtId, siteId, labId);
+	public Map<String, Object> series(DashboardQuery q) {
 		Map<String, Object> out = new HashMap<>();
-		if (scope.isForceEmpty()) {
-			out.put("collected", java.util.List.of());
-			out.put("deposited", java.util.List.of());
-			out.put("analysed", java.util.List.of());
-			out.put("delivered", java.util.List.of());
-			return out;
-		}
-		Integer r = scope.getRegionId();
-		Integer d = scope.getDistrictId();
-		Integer si = scope.getSiteId();
-		Integer la = scope.getLabId();
-		java.util.List<Integer> accessible = scope.getAccessibleSiteIds();
-		out.put("collected", service.seriesCollected(startDate, endDate, r, d, si, la, accessible));
-		out.put("deposited", service.seriesDeposited(startDate, endDate, r, d, si, la, accessible));
-		out.put("analysed", service.seriesAnalysed(startDate, endDate, r, d, si, la, accessible));
-		out.put("delivered", service.seriesDelivered(startDate, endDate, r, d, si, la, accessible));
+		Optional<DashboardFilter> f = scoped(q);
+		out.put("collected", f.map(service::seriesCollected).orElseGet(List::of));
+		out.put("deposited", f.map(service::seriesDeposited).orElseGet(List::of));
+		out.put("analysed", f.map(service::seriesAnalysed).orElseGet(List::of));
+		out.put("delivered", f.map(service::seriesDelivered).orElseGet(List::of));
 		return out;
 	}
 
 	@GetMapping("/data/step-durations")
 	@ResponseBody
-	public List<StepDurationDTO> stepDurations(
-			@RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate startDate,
-			@RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate endDate,
-			@RequestParam(name = "region", required = false) Integer regionId,
-			@RequestParam(name = "district", required = false) Integer districtId,
-			@RequestParam(name = "site", required = false) Integer siteId,
-			@RequestParam(name = "lab", required = false) Integer labId) {
-		if (startDate == null)
-			startDate = LocalDate.now().minusYears(2);
-		if (endDate == null)
-			endDate = LocalDate.now();
-
-		ScopedFilter scope = userScopeService.intersectCurrent(regionId, districtId, siteId, labId);
-		if (scope.isForceEmpty()) {
-			return java.util.List.of();
-		}
-		return service.stepDurations(startDate, endDate, scope.getRegionId(), scope.getDistrictId(),
-				scope.getSiteId(), scope.getLabId(), scope.getAccessibleSiteIds());
+	public List<StepDurationDTO> stepDurations(DashboardQuery q) {
+		return scoped(q).map(service::stepDurations).orElseGet(List::of);
 	}
 
 	/**
@@ -267,22 +187,14 @@ public class DashboardController {
 	 */
 	@GetMapping(value = "/data/funnel", produces = "application/json")
 	@ResponseBody
-	public Map<String, Object> funnel(
-			@RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate startDate,
-			@RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate endDate,
-			@RequestParam(required = false) Integer region, @RequestParam(required = false) Integer district,
-			@RequestParam(required = false) Integer site, @RequestParam(required = false) Integer lab) {
-		if (startDate == null) startDate = LocalDate.now().minusYears(2);
-		if (endDate == null) endDate = LocalDate.now();
+	public Map<String, Object> funnel(DashboardQuery q) {
+		return scoped(q).map(advancedRepo::funnel).orElseGet(DashboardController::emptyFunnel);
+	}
 
-		ScopedFilter scope = userScopeService.intersectCurrent(region, district, site, lab);
-		if (scope.isForceEmpty()) {
-			return java.util.Map.of("total", 0, "in_transit", 0, "at_hub", 0, "at_lab", 0,
-					"analysed", 0, "result_collected", 0, "delivered", 0,
-					"non_conform", 0, "failed", 0, "tat_avg_days", 0);
-		}
-		return advancedRepo.funnel(startDate, endDate, scope.getRegionId(), scope.getDistrictId(),
-				scope.getSiteId(), scope.getLabId(), scope.getAccessibleSiteIds());
+	private static Map<String, Object> emptyFunnel() {
+		return Map.of("total", 0, "in_transit", 0, "at_hub", 0, "at_lab", 0,
+				"analysed", 0, "result_collected", 0, "delivered", 0,
+				"non_conform", 0, "failed", 0, "tat_avg_days", 0);
 	}
 
 	/**
@@ -300,28 +212,13 @@ public class DashboardController {
 	 */
 	@GetMapping(value = "/data/funnel-previous", produces = "application/json")
 	@ResponseBody
-	public Map<String, Object> funnelPrevious(
-			@RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate startDate,
-			@RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate endDate,
-			@RequestParam(required = false) Integer region, @RequestParam(required = false) Integer district,
-			@RequestParam(required = false) Integer site, @RequestParam(required = false) Integer lab,
-			@RequestParam(required = false) String period) {
-		if (startDate == null) startDate = LocalDate.now().minusYears(2);
-		if (endDate == null) endDate = LocalDate.now();
-		LocalDate[] prev = previousPeriod(startDate, endDate, period);
-		LocalDate prevStart = prev[0];
-		LocalDate prevEnd = prev[1];
-
-		Map<String, Object> result = new java.util.HashMap<>();
-		ScopedFilter scope = userScopeService.intersectCurrent(region, district, site, lab);
-		if (scope.isForceEmpty()) {
-			result.put("total", 0);
-		} else {
-			result.putAll(advancedRepo.funnel(prevStart, prevEnd, scope.getRegionId(), scope.getDistrictId(),
-					scope.getSiteId(), scope.getLabId(), scope.getAccessibleSiteIds()));
-		}
-		result.put("prev_start", prevStart.toString());
-		result.put("prev_end", prevEnd.toString());
+	public Map<String, Object> funnelPrevious(DashboardQuery q, @RequestParam(required = false) String period) {
+		LocalDate[] prev = previousPeriod(q.start(), q.end(), period);
+		Map<String, Object> result = new HashMap<>();
+		scoped(q).ifPresentOrElse(f -> result.putAll(advancedRepo.funnel(f.withPeriod(prev[0], prev[1]))),
+				() -> result.put("total", 0));
+		result.put("prev_start", prev[0].toString());
+		result.put("prev_end", prev[1].toString());
 		return result;
 	}
 
@@ -356,73 +253,33 @@ public class DashboardController {
 	 */
 	@GetMapping(value = "/data/stuck", produces = "application/json")
 	@ResponseBody
-	public List<Map<String, Object>> stuckSamples(
-			@RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate startDate,
-			@RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate endDate,
-			@RequestParam(required = false) Integer region, @RequestParam(required = false) Integer district,
-			@RequestParam(required = false) Integer site, @RequestParam(required = false) Integer lab,
+	public List<Map<String, Object>> stuckSamples(DashboardQuery q,
 			@RequestParam(name = "stuck_days", defaultValue = "7") int stuckDays,
 			@RequestParam(defaultValue = "50") int limit) {
-		if (startDate == null) startDate = LocalDate.now().minusYears(2);
-		if (endDate == null) endDate = LocalDate.now();
-
-		ScopedFilter scope = userScopeService.intersectCurrent(region, district, site, lab);
-		if (scope.isForceEmpty()) return java.util.List.of();
-		return advancedRepo.stuckSamples(startDate, endDate, scope.getRegionId(), scope.getDistrictId(),
-				scope.getSiteId(), scope.getLabId(), scope.getAccessibleSiteIds(),
-				Math.max(stuckDays, 1), Math.min(Math.max(limit, 10), 500));
+		return scoped(q).map(f -> advancedRepo.stuckSamples(f, Math.max(stuckDays, 1),
+				Math.min(Math.max(limit, 10), 500))).orElseGet(List::of);
 	}
 
-	/**
-	 * Aggregated stats by region — top level of the hierarchical drill-down.
-	 */
-	// Répartition par région / district / site. Les quatre filtres de l'écran
-	// s'appliquent aux trois niveaux (cahier VI.3). Le dépliage d'une région
+	// Répartition par région / district / site. Tous les filtres de l'écran
+	// s'appliquent aux trois niveaux. Le dépliage d'une région
 	// (by-district?region=X) ou d'un district (by-site?district=Y) utilise le
 	// même paramètre : déplier revient à filtrer sur le parent.
 	@GetMapping(value = "/data/by-region", produces = "application/json")
 	@ResponseBody
-	public List<Map<String, Object>> statsByRegion(
-			@RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate startDate,
-			@RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate endDate,
-			@RequestParam(required = false) Integer region, @RequestParam(required = false) Integer district,
-			@RequestParam(required = false) Integer site, @RequestParam(required = false) Integer lab) {
-		if (startDate == null) startDate = LocalDate.now().minusYears(2);
-		if (endDate == null) endDate = LocalDate.now();
-		ScopedFilter scope = userScopeService.intersectCurrent(region, district, site, lab);
-		if (scope.isForceEmpty()) return java.util.List.of();
-		return advancedRepo.statsByRegion(startDate, endDate, scope.getRegionId(), scope.getDistrictId(),
-				scope.getSiteId(), scope.getLabId(), scope.getAccessibleSiteIds());
+	public List<Map<String, Object>> statsByRegion(DashboardQuery q) {
+		return scoped(q).map(advancedRepo::statsByRegion).orElseGet(List::of);
 	}
 
 	@GetMapping(value = "/data/by-district", produces = "application/json")
 	@ResponseBody
-	public List<Map<String, Object>> statsByDistrict(
-			@RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate startDate,
-			@RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate endDate,
-			@RequestParam(required = false) Integer region, @RequestParam(required = false) Integer district,
-			@RequestParam(required = false) Integer site, @RequestParam(required = false) Integer lab) {
-		if (startDate == null) startDate = LocalDate.now().minusYears(2);
-		if (endDate == null) endDate = LocalDate.now();
-		ScopedFilter scope = userScopeService.intersectCurrent(region, district, site, lab);
-		if (scope.isForceEmpty()) return java.util.List.of();
-		return advancedRepo.statsByDistrict(startDate, endDate, scope.getRegionId(), scope.getDistrictId(),
-				scope.getSiteId(), scope.getLabId(), scope.getAccessibleSiteIds());
+	public List<Map<String, Object>> statsByDistrict(DashboardQuery q) {
+		return scoped(q).map(advancedRepo::statsByDistrict).orElseGet(List::of);
 	}
 
 	@GetMapping(value = "/data/by-site", produces = "application/json")
 	@ResponseBody
-	public List<Map<String, Object>> statsBySite(
-			@RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate startDate,
-			@RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate endDate,
-			@RequestParam(required = false) Integer region, @RequestParam(required = false) Integer district,
-			@RequestParam(required = false) Integer site, @RequestParam(required = false) Integer lab) {
-		if (startDate == null) startDate = LocalDate.now().minusYears(2);
-		if (endDate == null) endDate = LocalDate.now();
-		ScopedFilter scope = userScopeService.intersectCurrent(region, district, site, lab);
-		if (scope.isForceEmpty()) return java.util.List.of();
-		return advancedRepo.statsBySite(startDate, endDate, scope.getRegionId(), scope.getDistrictId(),
-				scope.getSiteId(), scope.getLabId(), scope.getAccessibleSiteIds());
+	public List<Map<String, Object>> statsBySite(DashboardQuery q) {
+		return scoped(q).map(advancedRepo::statsBySite).orElseGet(List::of);
 	}
 
 	/**
@@ -431,20 +288,8 @@ public class DashboardController {
 	 */
 	@GetMapping(value = "/data/coverage", produces = "application/json")
 	@ResponseBody
-	public Map<String, Object> coverage(
-			@RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate startDate,
-			@RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate endDate,
-			@RequestParam(required = false) Integer region, @RequestParam(required = false) Integer district,
-			@RequestParam(required = false) Integer site, @RequestParam(required = false) Integer lab) {
-		if (startDate == null) startDate = LocalDate.now().minusYears(2);
-		if (endDate == null) endDate = LocalDate.now();
-
-		ScopedFilter scope = userScopeService.intersectCurrent(region, district, site, lab);
-		if (scope.isForceEmpty()) {
-			return java.util.Map.of();
-		}
-		return advancedRepo.coverage(startDate, endDate, scope.getRegionId(), scope.getDistrictId(),
-				scope.getSiteId(), scope.getLabId(), scope.getAccessibleSiteIds());
+	public Map<String, Object> coverage(DashboardQuery q) {
+		return scoped(q).map(advancedRepo::coverage).orElseGet(Map::of);
 	}
 
 	/**
@@ -453,20 +298,8 @@ public class DashboardController {
 	 */
 	@GetMapping(value = "/data/type-breakdown", produces = "application/json")
 	@ResponseBody
-	public List<Map<String, Object>> typeBreakdown(
-			@RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate startDate,
-			@RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate endDate,
-			@RequestParam(required = false) Integer region, @RequestParam(required = false) Integer district,
-			@RequestParam(required = false) Integer site, @RequestParam(required = false) Integer lab) {
-		if (startDate == null) startDate = LocalDate.now().minusYears(2);
-		if (endDate == null) endDate = LocalDate.now();
-
-		ScopedFilter scope = userScopeService.intersectCurrent(region, district, site, lab);
-		if (scope.isForceEmpty()) {
-			return java.util.List.of();
-		}
-		return advancedRepo.typeBreakdown(startDate, endDate, scope.getRegionId(), scope.getDistrictId(),
-				scope.getSiteId(), scope.getLabId(), scope.getAccessibleSiteIds());
+	public List<Map<String, Object>> typeBreakdown(DashboardQuery q) {
+		return scoped(q).map(advancedRepo::typeBreakdown).orElseGet(List::of);
 	}
 
 	/**
@@ -476,35 +309,18 @@ public class DashboardController {
 	 */
 	@GetMapping(value = "/data/top-performers", produces = "application/json")
 	@ResponseBody
-	public Map<String, Object> topPerformers(
-			@RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate startDate,
-			@RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate endDate,
-			@RequestParam(required = false) Integer region, @RequestParam(required = false) Integer district,
-			@RequestParam(required = false) Integer site, @RequestParam(required = false) Integer lab,
+	public Map<String, Object> topPerformers(DashboardQuery q,
 			@RequestParam(name = "limit", defaultValue = "5") int limit,
 			@RequestParam(name = "min_samples", defaultValue = "5") int minSamples) {
-		if (startDate == null) startDate = LocalDate.now().minusYears(2);
-		if (endDate == null) endDate = LocalDate.now();
-
-		// Même filtre que le reste du tableau de bord (sélection écran ∩ périmètre).
-		ScopedFilter scope = userScopeService.intersectCurrent(region, district, site, lab);
-		if (scope.isForceEmpty()) {
-			return java.util.Map.of("rejection_sites", java.util.List.of(),
-					"slowest_labs", java.util.List.of(),
-					"top_conveyors", java.util.List.of());
+		Optional<DashboardFilter> scoped = scoped(q);
+		if (scoped.isEmpty()) {
+			return Map.of("rejection_sites", List.of(), "slowest_labs", List.of(), "top_conveyors", List.of());
 		}
-
-		Map<String, Object> out = new java.util.LinkedHashMap<>();
-		out.put("rejection_sites", advancedRepo.topRejectionSites(startDate, endDate,
-				scope.getRegionId(), scope.getDistrictId(), scope.getSiteId(), scope.getLabId(),
-				scope.getAccessibleSiteIds(), limit, minSamples));
-		out.put("slowest_labs", advancedRepo.slowestLabs(startDate, endDate,
-				scope.getRegionId(), scope.getDistrictId(), scope.getSiteId(), scope.getLabId(),
-				scope.getAccessibleSiteIds(), limit, minSamples));
-		out.put("top_conveyors", advancedRepo.topConveyors(startDate, endDate,
-				scope.getRegionId(), scope.getDistrictId(), scope.getSiteId(), scope.getLabId(),
-				scope.getAccessibleSiteIds(), limit));
+		DashboardFilter f = scoped.get();
+		Map<String, Object> out = new LinkedHashMap<>();
+		out.put("rejection_sites", advancedRepo.topRejectionSites(f, limit, minSamples));
+		out.put("slowest_labs", advancedRepo.slowestLabs(f, limit, minSamples));
+		out.put("top_conveyors", advancedRepo.topConveyors(f, limit));
 		return out;
 	}
-
 }

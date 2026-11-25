@@ -76,13 +76,15 @@
 
 .sample-sidebar .filter-group { margin-bottom: 0; }
 /* Ligne 1 : Période + presets + Laboratoire */
-.sample-sidebar .filter-period  { grid-column: 1 / span 5; }
-.sample-sidebar .filter-presets { grid-column: 6 / span 4; }
-.sample-sidebar .filter-lab     { grid-column: 10 / span 3; }
+.sample-sidebar .filter-period  { grid-column: 1 / span 6; }
+.sample-sidebar .filter-presets { grid-column: 7 / span 6; }
 /* Ligne 2 : Région + District + Site */
 .sample-sidebar .filter-region  { grid-column: 1 / span 4; }
 .sample-sidebar .filter-district{ grid-column: 5 / span 4; }
 .sample-sidebar .filter-site    { grid-column: 9 / span 4; }
+.sample-sidebar .filter-lab-type    { grid-column: 1 / span 4; }
+.sample-sidebar .filter-lab         { grid-column: 5 / span 4; }
+.sample-sidebar .filter-sample-type { grid-column: 9 / span 4; }
 .sample-sidebar .filter-actions { grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: .5rem; }
 @media (max-width: 991.98px) {
 	.sample-sidebar .filter-group { grid-column: 1 / -1; }

@@ -749,8 +749,17 @@ public class SampleServiceImpl implements SampleService {
 	}
 
 	@Override
-	public Map<String, Map<String, Integer>> getSampleStatusBySampleType(Integer regionId, Integer districtId,
-			Integer siteId, Integer labId, LocalDate startDate, LocalDate endDate, List<Integer> accessibleSiteIds) {
+	public Map<String, Map<String, Integer>> getSampleStatusBySampleType(
+			org.itech.labSampleTracker.dto.DashboardFilter filter) {
+		Integer regionId = filter.regionId();
+		Integer districtId = filter.districtId();
+		Integer siteId = filter.siteId();
+		Integer labId = filter.labId();
+		String labType = filter.labType();
+		Integer sampleTypeId = filter.sampleTypeId();
+		LocalDate startDate = filter.startDate();
+		LocalDate endDate = filter.endDate();
+		List<Integer> accessibleSiteIds = filter.accessibleSiteIds();
 		// REFONTE complète (audit rapports) : on n'agrège plus par ss.status
 		// (qui est ÉCRASÉ à chaque transition) mais directement par dates
 		// persistantes via SUM(CASE WHEN date IS NOT NULL). Garantit que
@@ -782,6 +791,10 @@ public class SampleServiceImpl implements SampleService {
 			sql.append(" AND site.id = :siteId ");
 		if (ObjectUtils.isNotEmpty(labId))
 			sql.append(" AND s.destination_lab_id = :labId ");
+		if (labType != null)
+			sql.append(" AND EXISTS (SELECT 1 FROM lab flt WHERE flt.id = s.destination_lab_id AND flt.lab_type = :labType) ");
+		if (sampleTypeId != null)
+			sql.append(" AND s.sample_type_id = :sampleTypeId ");
 		// Scope user (non-admin) : restreint aux sites accessibles. Liste non
 		// vide ⇒ on applique le IN ; admin / global ⇒ accessibleSiteIds null
 		// ou vide, pas de filtre.
@@ -820,6 +833,10 @@ public class SampleServiceImpl implements SampleService {
 				query.setParameter("siteId", siteId);
 			if (ObjectUtils.isNotEmpty(labId))
 				query.setParameter("labId", labId);
+			if (labType != null)
+				query.setParameter("labType", labType);
+			if (sampleTypeId != null)
+				query.setParameter("sampleTypeId", sampleTypeId);
 			if (scopeActive)
 				query.setParameter("accessibleSiteIds", accessibleSiteIds);
 			query.setParameter("startDate", startDate);
@@ -845,8 +862,7 @@ public class SampleServiceImpl implements SampleService {
 				map.put("FAILED", toIntSafe(o[8]));
 			}
 		} catch (Exception ex) {
-			log.error("getSampleStatusBySampleType failed (regionId={}, districtId={}, siteId={}, labId={}, startDate={}, endDate={}): {}",
-					regionId, districtId, siteId, labId, startDate, endDate, ex.getMessage(), ex);
+			log.error("getSampleStatusBySampleType failed ({}): {}", filter, ex.getMessage(), ex);
 		}
 		return response;
 	}

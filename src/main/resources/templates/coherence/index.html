@@ -59,6 +59,22 @@
 									th:text="${r.name}">Région</option>
 							</select>
 						</div>
+						<div>
+							<label class="form-label small mb-1" for="lab_type">Type de labo</label>
+							<select class="form-select form-select-sm" id="lab_type" name="lab_type">
+								<option value="0">Tout</option>
+								<option th:each="t : ${labTypes}" th:value="${t.code}" th:selected="${t.code == labType}"
+									th:text="${t.label}">Type</option>
+							</select>
+						</div>
+						<div>
+							<label class="form-label small mb-1" for="sample_type">Type d'échantillon</label>
+							<select class="form-select form-select-sm" id="sample_type" name="sample_type">
+								<option value="0">Tout</option>
+								<option th:each="t : ${sampleTypes}" th:value="${t.id}" th:selected="${sampleType != null and t.id == sampleType}"
+									th:text="${t.name}">Type</option>
+							</select>
+						</div>
 						<button class="btn btn-sm btn-primary" type="submit"><i class="fas fa-play me-1"></i>Contrôler</button>
 					</form>
 				</div>

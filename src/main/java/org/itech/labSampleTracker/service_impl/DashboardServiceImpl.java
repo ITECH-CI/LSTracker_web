@@ -10,6 +10,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.itech.labSampleTracker.dao.DashboardNativeRepository;
+import org.itech.labSampleTracker.dto.DashboardFilter;
 import org.itech.labSampleTracker.dto.DayCountDTO;
 import org.itech.labSampleTracker.dto.StepDurationDTO;
 import org.itech.labSampleTracker.service.DashboardService;
@@ -31,15 +32,8 @@ public class DashboardServiceImpl implements DashboardService {
 	private final DashboardNativeRepository repo;
 
 	@Override
-	public Map<String, Object> getSummary(LocalDate start, LocalDate end, Integer regionId, Integer districtId,
-			Integer siteId, Integer labId) {
-		return getSummary(start, end, regionId, districtId, siteId, labId, null);
-	}
-
-	@Override
-	public Map<String, Object> getSummary(LocalDate start, LocalDate end, Integer regionId, Integer districtId,
-			Integer siteId, Integer labId, List<Integer> accessibleSiteIds) {
-		Map<String, Object> m = repo.summary(start, end, regionId, districtId, siteId, labId, accessibleSiteIds);
+	public Map<String, Object> getSummary(DashboardFilter filter) {
+		Map<String, Object> m = repo.summary(filter);
 		Map<String, Object> out = new LinkedHashMap<>();
 		for (String k : Arrays.asList("all_count", "in_transit", "received", "accepted", "result_ready",
 				"result_collected", "result_on_site", "rejected", "failed")) {
@@ -79,58 +73,28 @@ public class DashboardServiceImpl implements DashboardService {
 	}
 
 	@Override
-	public List<DayCountDTO> seriesCollected(LocalDate s, LocalDate e, Integer r, Integer d, Integer site, Integer lab) {
-		return seriesCollected(s, e, r, d, site, lab, null);
+	public List<DayCountDTO> seriesCollected(DashboardFilter filter) {
+		return mapDayCount(repo.tsCollected(filter));
 	}
 
 	@Override
-	public List<DayCountDTO> seriesCollected(LocalDate s, LocalDate e, Integer r, Integer d, Integer site, Integer lab,
-			List<Integer> accessibleSiteIds) {
-		return mapDayCount(repo.tsCollected(s, e, r, d, site, lab, accessibleSiteIds));
+	public List<DayCountDTO> seriesDeposited(DashboardFilter filter) {
+		return mapDayCount(repo.tsDeposited(filter));
 	}
 
 	@Override
-	public List<DayCountDTO> seriesDeposited(LocalDate s, LocalDate e, Integer r, Integer d, Integer site, Integer lab) {
-		return seriesDeposited(s, e, r, d, site, lab, null);
+	public List<DayCountDTO> seriesAnalysed(DashboardFilter filter) {
+		return mapDayCount(repo.tsAnalysed(filter));
 	}
 
 	@Override
-	public List<DayCountDTO> seriesDeposited(LocalDate s, LocalDate e, Integer r, Integer d, Integer site, Integer lab,
-			List<Integer> accessibleSiteIds) {
-		return mapDayCount(repo.tsDeposited(s, e, r, d, site, lab, accessibleSiteIds));
+	public List<DayCountDTO> seriesDelivered(DashboardFilter filter) {
+		return mapDayCount(repo.tsDelivered(filter));
 	}
 
 	@Override
-	public List<DayCountDTO> seriesAnalysed(LocalDate s, LocalDate e, Integer r, Integer d, Integer site, Integer lab) {
-		return seriesAnalysed(s, e, r, d, site, lab, null);
-	}
-
-	@Override
-	public List<DayCountDTO> seriesAnalysed(LocalDate s, LocalDate e, Integer r, Integer d, Integer site, Integer lab,
-			List<Integer> accessibleSiteIds) {
-		return mapDayCount(repo.tsAnalysed(s, e, r, d, site, lab, accessibleSiteIds));
-	}
-
-	@Override
-	public List<DayCountDTO> seriesDelivered(LocalDate s, LocalDate e, Integer r, Integer d, Integer site, Integer lab) {
-		return seriesDelivered(s, e, r, d, site, lab, null);
-	}
-
-	@Override
-	public List<DayCountDTO> seriesDelivered(LocalDate s, LocalDate e, Integer r, Integer d, Integer site, Integer lab,
-			List<Integer> accessibleSiteIds) {
-		return mapDayCount(repo.tsDelivered(s, e, r, d, site, lab, accessibleSiteIds));
-	}
-
-	@Override
-	public List<StepDurationDTO> stepDurations(LocalDate s, LocalDate e, Integer r, Integer d, Integer site, Integer lab) {
-		return stepDurations(s, e, r, d, site, lab, null);
-	}
-
-	@Override
-	public List<StepDurationDTO> stepDurations(LocalDate s, LocalDate e, Integer r, Integer d, Integer site, Integer lab,
-			List<Integer> accessibleSiteIds) {
-		List<Map<String, Object>> rows = repo.stepDurationsDays(s, e, r, d, site, lab, accessibleSiteIds);
+	public List<StepDurationDTO> stepDurations(DashboardFilter filter) {
+		List<Map<String, Object>> rows = repo.stepDurationsDays(filter);
 
 		return rows.stream().map(m -> {
 			StepDurationDTO dto = new StepDurationDTO();

@@ -55,29 +55,42 @@
 			changeMonth: true, changeYear: true, dateFormat: 'dd/mm/yy', showAnim: '', firstDay: 1
 		});
 
-		// Select2
-		$('.select2').select2({ width: '100%', allowClear: true, placeholder: '— Tous —' });
+		// Listes complètes rendues par le serveur, reprises quand on revient à « Tout ».
+		ALL_OPTIONS.district = $('#select_district option').slice(1).clone();
+		ALL_OPTIONS.site = $('#select_site option').slice(1).clone();
+		ALL_OPTIONS.lab = $('#select_lab option').slice(1).clone();
+
+		// Select2 : chaque liste commence par l'option « Tout » (valeur 0).
+		$('.select2').select2({ width: '100%' });
 
 		// Region → District → Site cascades
 		$('#select_region').on('change', function() {
-			const r = $(this).val();
-			if (!r) return;
+			const r = filterValue('#select_region');
+			if (!r) {
+				fillOptions('#select_district', ALL_OPTIONS.district);
+				$('#select_district').val('0').trigger('change');
+				return;
+			}
 			$.get('district/names_by_regions?regions=' + r, function(districts) {
-				const $d = $('#select_district');
-				$d.empty().append('<option value=""></option>');
-				$.each(districts, (i, d) => $d.append('<option value="' + d.id + '">' + d.name + '</option>'));
-				$d.val(null).trigger('change');
+				fillOptions('#select_district', districts);
+				$('#select_district').val('0').trigger('change');
 			});
 		});
 		$('#select_district').on('change', function() {
-			const d = $(this).val();
-			if (!d) return;
+			const d = filterValue('#select_district');
+			if (!d) {
+				fillOptions('#select_site', ALL_OPTIONS.site);
+				$('#select_site').val('0').trigger('change.select2');
+				return;
+			}
 			$.get('site/names_by_districts?districts=' + d, function(sites) {
-				const $s = $('#select_site');
-				$s.empty().append('<option value=""></option>');
-				$.each(sites, (i, s) => $s.append('<option value="' + s.id + '">' + s.name + '</option>'));
-				$s.val(null).trigger('change');
+				fillOptions('#select_site', sites);
+				$('#select_site').val('0').trigger('change.select2');
 			});
+		});
+		// Type de labo → la liste « Laboratoire » ne garde que les labos de ce type.
+		$('#select_lab_type').on('change', function() {
+			restrictLabs(filterValue('#select_lab_type'));
 		});
 
 		// Date presets — remplissent les champs PUIS rechargent l'URL pour
@@ -136,6 +149,37 @@
 		initFiltersFromUrlThenLoad();
 	});
 
+	// --- Listes de filtres ---
+
+	const ALL_OPTIONS = {};
+
+	// Valeur d'un filtre ; null pour « Tout » (0) ou une liste vide.
+	function filterValue(sel) {
+		const v = $(sel).val();
+		return v && v !== '0' ? v : null;
+	}
+
+	// Remplace les options d'une liste (après « Tout ») : options clonées ou
+	// lignes { id, name } renvoyées par le serveur.
+	function fillOptions(sel, items) {
+		const $s = $(sel);
+		$s.find('option').slice(1).remove();
+		if (items && items.jquery) {
+			$s.append(items.clone());
+		} else {
+			$.each(items || [], (i, it) => $s.append($('<option>').val(it.id).text(it.name)));
+		}
+	}
+
+	// Liste « Laboratoire » restreinte au type choisi ; le labo sélectionné
+	// revient à « Tout » s'il n'est pas de ce type.
+	function restrictLabs(type) {
+		const $lab = $('#select_lab');
+		const current = $lab.val();
+		fillOptions('#select_lab', type ? ALL_OPTIONS.lab.filter((i, o) => $(o).attr('data-lab-type') === type) : ALL_OPTIONS.lab);
+		$lab.val($lab.find('option[value="' + current + '"]').length ? current : '0').trigger('change.select2');
+	}
+
 	// --- Persistance des filtres dans l'URL ---
 
 	// Construit l'URL avec les filtres actifs et recharge la page.
@@ -146,14 +190,10 @@
 		if (sd) p.set('startDate', sd);
 		if (ed) p.set('endDate', ed);
 		if (window._period) p.set('period', window._period);
-		const region = $('#select_region').val();
-		const district = $('#select_district').val();
-		const site = $('#select_site').val();
-		const lab = $('#select_lab').val();
-		if (region) p.set('region', region);
-		if (district) p.set('district', district);
-		if (site) p.set('site', site);
-		if (lab) p.set('lab', lab);
+		const f = currentFilters();
+		['region', 'district', 'site', 'lab', 'lab_type', 'sample_type'].forEach(function(k) {
+			if (f[k]) p.set(k, f[k]);
+		});
 		const qs = p.toString();
 		window.location = '/dashboard' + (qs ? '?' + qs : '');
 	}
@@ -228,6 +268,8 @@
 		const district = u.get('district');
 		const site = u.get('site');
 		const lab = u.get('lab');
+		const labType = u.get('lab_type');
+		const sampleType = u.get('sample_type');
 
 		// Dates (converties ISO→FR pour le datepicker). Sans dates dans l'URL,
 		// les champs affichent la période par défaut appliquée par le serveur
@@ -251,8 +293,16 @@
 			$('.date-presets .btn').removeClass('active');
 		});
 
-		// Lab : indépendant de la cascade
-		if (lab) $('#select_lab').val(lab).trigger('change.select2');
+		// Type de labo, labo et type d'échantillon : indépendants de la cascade
+		// géographique. Une valeur absente des listes revient à « Tout ».
+		const pick = (sel, v) => {
+			const $s = $(sel);
+			$s.val(v && $s.find('option[value="' + v + '"]').length ? v : '0').trigger('change.select2');
+		};
+		pick('#select_lab_type', labType);
+		restrictLabs(filterValue('#select_lab_type'));
+		pick('#select_lab', lab);
+		pick('#select_sample_type', sampleType);
 
 		// Cascade géographique : il faut charger les options enfant avant de
 		// pouvoir sélectionner district puis site. On chaîne les $.get.
@@ -271,10 +321,8 @@
 
 		// Charger les districts de la région, sélectionner, puis (si besoin) sites
 		$.get('district/names_by_regions?regions=' + region, function(districts) {
-			const $d = $('#select_district');
-			$d.empty().append('<option value=""></option>');
-			$.each(districts, (i, d) => $d.append('<option value="' + d.id + '">' + d.name + '</option>'));
-			$d.val(district).trigger('change.select2');
+			fillOptions('#select_district', districts);
+			$('#select_district').val(district).trigger('change.select2');
 
 			if (!site) {
 				loadAll();
@@ -282,10 +330,8 @@
 			}
 
 			$.get('site/names_by_districts?districts=' + district, function(sites) {
-				const $s = $('#select_site');
-				$s.empty().append('<option value=""></option>');
-				$.each(sites, (i, s) => $s.append('<option value="' + s.id + '">' + s.name + '</option>'));
-				$s.val(site).trigger('change.select2');
+				fillOptions('#select_site', sites);
+				$('#select_site').val(site).trigger('change.select2');
 				loadAll();
 			});
 		});
@@ -295,10 +341,12 @@
 		return {
 			startDate: isoFromFr($('#input_start_date').val()),
 			endDate: isoFromFr($('#input_end_date').val()),
-			region: $('#select_region').val() || null,
-			district: $('#select_district').val() || null,
-			site: $('#select_site').val() || null,
-			lab: $('#select_lab').val() || null
+			region: filterValue('#select_region'),
+			district: filterValue('#select_district'),
+			site: filterValue('#select_site'),
+			lab: filterValue('#select_lab'),
+			lab_type: filterValue('#select_lab_type'),
+			sample_type: filterValue('#select_sample_type')
 		};
 	}
 
@@ -759,16 +807,18 @@
 		// En-tête (cahier V.5) : export horodaté, avec le périmètre et la période,
 		// pour qu'un fichier renommé ou transmis reste interprétable.
 		const f0 = currentFilters();
-		const selText = sel => { const t = $(sel + ' option:selected').text().trim(); return $(sel).val() ? t : ''; };
+		const selText = sel => filterValue(sel) ? $(sel + ' option:selected').text().trim() : '';
 		const perimetre = [selText('#select_region'), selText('#select_district'), selText('#select_site')]
 			.filter(Boolean).join(' › ') || 'Tout le périmètre de l\'utilisateur';
-		const labo = selText('#select_lab');
+		const labo = [selText('#select_lab_type'), selText('#select_lab')].filter(Boolean).join(' › ');
+		const typeEch = selText('#select_sample_type');
 		const now = new Date();
 		const pad = n => String(n).padStart(2, '0');
 		const header = [
 			cell('LSTracker — Répartition par ' + { region: 'région sanitaire', district: 'district sanitaire', site: 'site' }[lvl]),
 			cell('Période : ' + (f0.startDate ? frFromIso(f0.startDate) : 'début') + ' au ' + (f0.endDate ? frFromIso(f0.endDate) : "aujourd'hui")),
-			cell('Périmètre : ' + perimetre + (labo ? ' · Laboratoire : ' + labo : '')),
+			cell('Périmètre : ' + perimetre + (labo ? ' · Laboratoire : ' + labo : '')
+				+ (typeEch ? " · Type d'échantillon : " + typeEch : '')),
 			cell('Exporté le ' + pad(now.getDate()) + '/' + pad(now.getMonth() + 1) + '/' + now.getFullYear()
 				+ ' à ' + pad(now.getHours()) + ':' + pad(now.getMinutes())),
 			''

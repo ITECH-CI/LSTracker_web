@@ -1,6 +1,5 @@
 package org.itech.labSampleTracker.service_impl;
 
-import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -9,6 +8,7 @@ import java.util.Objects;
 
 import org.itech.labSampleTracker.dao.DashboardAdvancedRepository;
 import org.itech.labSampleTracker.dao.ReportJdbcRepository;
+import org.itech.labSampleTracker.dto.DashboardFilter;
 import org.itech.labSampleTracker.dto.DayCountDTO;
 import org.itech.labSampleTracker.service.DashboardService;
 import org.itech.labSampleTracker.service.SampleService;
@@ -57,55 +57,55 @@ public class ConsistencyCheckService {
 		this.reports = reports;
 	}
 
-	public List<Check> indicators(LocalDate start, LocalDate end, Integer regionId) {
-		Map<String, Object> ref = dashboard.funnel(start, end, regionId, null, null, null, null);
+	public List<Check> indicators(DashboardFilter f) {
+		Map<String, Object> ref = dashboard.funnel(f);
 		long collected = num(ref.get("total"));
 		List<Check> out = new ArrayList<>();
 
 		out.add(new Check("Collectés", collected, "Répartition par région (somme)",
-				sum(dashboard.statsByRegion(start, end, regionId, null, null, null, null), "total")));
+				sum(dashboard.statsByRegion(f), "total")));
 		out.add(new Check("Collectés", collected, "Répartition par district (somme)",
-				sum(dashboard.statsByDistrict(start, end, regionId, null, null, null, null), "total")));
+				sum(dashboard.statsByDistrict(f), "total")));
 		out.add(new Check("Collectés", collected, "Répartition par site (somme)",
-				sum(dashboard.statsBySite(start, end, regionId, null, null, null, null), "total")));
+				sum(dashboard.statsBySite(f), "total")));
 		out.add(new Check("Collectés", collected, "Répartition par type (somme)",
-				sum(dashboard.typeBreakdown(start, end, regionId, null, null, null, null), "total")));
+				sum(dashboard.typeBreakdown(f), "total")));
 		out.add(new Check("Collectés", collected, "Évolution dans le temps (somme)",
-				days(series.seriesCollected(start, end, regionId, null, null, null, null))));
+				days(series.seriesCollected(f))));
 		out.add(new Check("Collectés", collected, "Parcours par type (somme)",
-				samples.getSampleStatusBySampleType(regionId, null, null, null, start, end, null).values().stream()
+				samples.getSampleStatusBySampleType(f).values().stream()
 						.mapToLong(m -> m.getOrDefault("SAMPLE_COLLECTED", 0)).sum()));
 		out.add(new Check("Collectés", collected, "Rapport PDF (somme par type)",
-				sum(reports.collectedByType(start, end, regionId, null, null, null, null, null), "cnt")));
+				sum(reports.collectedByType(f, null), "cnt")));
 
 		long atLab = num(ref.get("at_lab"));
 		out.add(new Check("Reçus au laboratoire", atLab, "Évolution dans le temps (somme)",
-				days(series.seriesDeposited(start, end, regionId, null, null, null, null))));
+				days(series.seriesDeposited(f))));
 
 		long analysed = num(ref.get("analysed"));
 		out.add(new Check("Analysés", analysed, "Évolution dans le temps (somme)",
-				days(series.seriesAnalysed(start, end, regionId, null, null, null, null))));
+				days(series.seriesAnalysed(f))));
 		out.add(new Check("Analysés", analysed, "Rapport PDF (résultats prêts)",
-				sum(reports.resultReadyByType(start, end, regionId, null, null, null, null, null), "cnt")));
+				sum(reports.resultReadyByType(f, null), "cnt")));
 
 		long delivered = num(ref.get("delivered"));
 		out.add(new Check("Résultats livrés", delivered, "Évolution dans le temps (somme)",
-				days(series.seriesDelivered(start, end, regionId, null, null, null, null))));
+				days(series.seriesDelivered(f))));
 		out.add(new Check("Résultats livrés", delivered, "Rapport PDF (résultats remis)",
-				sum(reports.resultDeliveredByType(start, end, regionId, null, null, null, null, null), "cnt")));
+				sum(reports.resultDeliveredByType(f, null), "cnt")));
 
 		out.add(new Check("Non-conformités", num(ref.get("non_conform")), "Rapport PDF (rejetés)",
-				sum(reports.rejectedByType(start, end, regionId, null, null, null, null, null), "cnt")));
+				sum(reports.rejectedByType(f, null), "cnt")));
 		out.add(new Check("Échecs d'analyse", num(ref.get("failed")), "Rapport PDF (échecs)",
-				sum(reports.failedByType(start, end, regionId, null, null, null, null, null), "cnt")));
+				sum(reports.failedByType(f, null), "cnt")));
 		return out;
 	}
 
 	/** Somme des sites = district, somme des districts = région (V.5). */
-	public List<HierarchyGap> hierarchy(LocalDate start, LocalDate end, Integer regionId) {
-		List<Map<String, Object>> regions = dashboard.statsByRegion(start, end, regionId, null, null, null, null);
-		List<Map<String, Object>> districts = dashboard.statsByDistrict(start, end, regionId, null, null, null, null);
-		List<Map<String, Object>> sites = dashboard.statsBySite(start, end, regionId, null, null, null, null);
+	public List<HierarchyGap> hierarchy(DashboardFilter f) {
+		List<Map<String, Object>> regions = dashboard.statsByRegion(f);
+		List<Map<String, Object>> districts = dashboard.statsByDistrict(f);
+		List<Map<String, Object>> sites = dashboard.statsBySite(f);
 		List<HierarchyGap> gaps = new ArrayList<>();
 		for (String ind : HIERARCHY_INDICATORS) {
 			Map<String, Long> byRegion = group(districts, ind, "region");

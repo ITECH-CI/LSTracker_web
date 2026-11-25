@@ -60,24 +60,12 @@
 							</div>
 						</div>
 
-						<!-- Laboratoire (sur la même ligne que la période) -->
-						<div class="filter-group filter-lab">
-							<div class="input-group input-group-sm">
-								<label class="input-group-text" for="select_lab">Laboratoire<span class="help-tip" data-tip="Laboratoire de destination des échantillons. Le filtre s'applique à tout le tableau de bord.">i</span></label>
-								<select class="form-select form-select-sm select2" id="select_lab">
-									<option value=""></option>
-									<option th:each="l : ${labs}" th:value="${l.id}" th:text="${l.name}"
-										th:selected="${l.id == selectedLab}"></option>
-								</select>
-							</div>
-						</div>
-
 						<!-- Région -->
 						<div class="filter-group filter-region">
 							<div class="input-group input-group-sm">
 								<label class="input-group-text" for="select_region">Région</label>
 								<select class="form-select form-select-sm select2" id="select_region">
-									<option value=""></option>
+									<option value="0">Tout</option>
 									<option th:each="r : ${regions}" th:value="${r.id}" th:text="${r.name}"
 										th:selected="${r.id == selectedRegion}"></option>
 								</select>
@@ -89,7 +77,7 @@
 							<div class="input-group input-group-sm">
 								<label class="input-group-text" for="select_district">District</label>
 								<select class="form-select form-select-sm select2" id="select_district">
-									<option value=""></option>
+									<option value="0">Tout</option>
 									<option th:each="d : ${districts}" th:value="${d.id}" th:text="${d.name}"
 										th:selected="${d.id == selectedDistrict}"></option>
 								</select>
@@ -101,9 +89,46 @@
 							<div class="input-group input-group-sm">
 								<label class="input-group-text" for="select_site">Site</label>
 								<select class="form-select form-select-sm select2" id="select_site">
-									<option value=""></option>
+									<option value="0">Tout</option>
 									<option th:each="s : ${sites}" th:value="${s.id}" th:text="${s.name}"
 										th:selected="${s.id == selectedSite}"></option>
+								</select>
+							</div>
+						</div>
+
+						<!-- Type de labo : restreint la liste des laboratoires -->
+						<div class="filter-group filter-lab-type">
+							<div class="input-group input-group-sm">
+								<label class="input-group-text" for="select_lab_type">Type de labo<span class="help-tip" data-tip="Type du laboratoire de destination des échantillons. Restreint aussi la liste des laboratoires.">i</span></label>
+								<select class="form-select form-select-sm select2" id="select_lab_type">
+									<option value="0">Tout</option>
+									<option th:each="t : ${labTypes}" th:value="${t.code}" th:text="${t.label}"
+										th:selected="${t.code == selectedLabType}"></option>
+								</select>
+							</div>
+						</div>
+
+						<!-- Laboratoire -->
+						<div class="filter-group filter-lab">
+							<div class="input-group input-group-sm">
+								<label class="input-group-text" for="select_lab">Laboratoire<span class="help-tip" data-tip="Laboratoire de destination des échantillons. Le filtre s'applique à tout le tableau de bord.">i</span></label>
+								<select class="form-select form-select-sm select2" id="select_lab">
+									<option value="0">Tout</option>
+									<option th:each="l : ${labs}" th:value="${l.id}" th:text="${l.name}"
+										th:attr="data-lab-type=${l.labType}"
+										th:selected="${l.id == selectedLab}"></option>
+								</select>
+							</div>
+						</div>
+
+						<!-- Type d'échantillon -->
+						<div class="filter-group filter-sample-type">
+							<div class="input-group input-group-sm">
+								<label class="input-group-text" for="select_sample_type">Type d'échantillon</label>
+								<select class="form-select form-select-sm select2" id="select_sample_type">
+									<option value="0">Tout</option>
+									<option th:each="t : ${sampleTypes}" th:value="${t.id}" th:text="${t.name}"
+										th:selected="${t.id == selectedSampleType}"></option>
 								</select>
 							</div>
 						</div>

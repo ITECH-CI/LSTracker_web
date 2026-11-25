@@ -1,9 +1,9 @@
 package org.itech.labSampleTracker.dao;
 
-import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 
+import org.itech.labSampleTracker.dto.DashboardFilter;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -18,8 +18,10 @@ import org.springframework.stereotype.Repository;
 @Repository
 public class DashboardAdvancedRepository {
 
+	/** Périmètre de l'utilisateur, type de labo et type d'échantillon. Alias requis : s, st. */
 	private static final String SCOPE_FILTER =
-			" AND (:accessibleSiteIdsActive = FALSE OR st.id IN (:accessibleSiteIds)) ";
+			" AND (:accessibleSiteIdsActive = FALSE OR st.id IN (:accessibleSiteIds)) "
+			+ DashboardFilter.SAMPLE_FILTER_SQL;
 
 	private final NamedParameterJdbcTemplate jdbc;
 
@@ -32,8 +34,7 @@ public class DashboardAdvancedRepository {
 	 * funnel. {@code tat_avg_days} is the average days between
 	 * {@code collection_date} and the latest known status date for each sample.
 	 */
-	public Map<String, Object> funnel(LocalDate startDate, LocalDate endDate, Integer regionId, Integer districtId,
-			Integer siteId, Integer labId, List<Integer> accessibleSiteIds) {
+	public Map<String, Object> funnel(DashboardFilter f) {
 		// Chaque étape filtre sur SON axe-date persistante (déf. "activité
 		// fenêtre", alignée sur summary + rapports) :
 		//   - total : cohorte collectée dans la période
@@ -79,16 +80,14 @@ public class DashboardAdvancedRepository {
 				+ "AND (CAST(:regionId AS INT) IS NULL OR d.region_id = CAST(:regionId AS INT))"
 				+ SCOPE_FILTER;
 
-		return jdbc.queryForMap(sql, params(startDate, endDate, regionId, districtId, siteId, labId, accessibleSiteIds));
+		return jdbc.queryForMap(sql, f.params());
 	}
 
 	/**
 	 * List samples that have not moved for at least {@code stuckDays} days and
 	 * are not in a terminal state (RESULT_ON_SITE / NON_CONFORM / ANALYSIS_FAILED).
 	 */
-	public List<Map<String, Object>> stuckSamples(LocalDate startDate, LocalDate endDate,
-			Integer regionId, Integer districtId, Integer siteId, Integer labId,
-			List<Integer> accessibleSiteIds, int stuckDays, int limit) {
+	public List<Map<String, Object>> stuckSamples(DashboardFilter f, int stuckDays, int limit) {
 		final String sql = "SELECT s.id, s.sample_identifier, s.patient_identifier, "
 				+ "  st_type.name AS sample_type, st.name AS site, d.name AS district, reg.name AS region, "
 				+ "  ss.status AS status_code, ss.description AS status, "
@@ -136,7 +135,7 @@ public class DashboardAdvancedRepository {
 				+ "    COALESCE(s.result_delivery_date, s.collection_date)"
 				+ "))) / 86400) >= :stuckDays "
 				+ "ORDER BY days_idle DESC LIMIT :rowLimit";
-		MapSqlParameterSource p = params(startDate, endDate, regionId, districtId, siteId, labId, accessibleSiteIds);
+		MapSqlParameterSource p = f.params();
 		p.addValue("stuckDays", stuckDays);
 		p.addValue("rowLimit", limit);
 		return jdbc.queryForList(sql, p);
@@ -174,6 +173,7 @@ public class DashboardAdvancedRepository {
 				+ "  AND (CAST(:regionId AS INT) IS NULL OR d.region_id = CAST(:regionId AS INT)) "
 				+ "  AND (CAST(:districtId AS INT) IS NULL OR d.id = CAST(:districtId AS INT)) "
 				+ "  AND (CAST(:siteId AS INT) IS NULL OR st.id = CAST(:siteId AS INT)) "
+				+ DashboardFilter.SAMPLE_FILTER_SQL
 				+ "  GROUP BY " + groupExpr + " ) ";
 	}
 
@@ -188,8 +188,7 @@ public class DashboardAdvancedRepository {
 	 * y compris sans activité (total = 0). Pour un utilisateur restreint : les
 	 * régions où il a au moins un site.
 	 */
-	public List<Map<String, Object>> statsByRegion(LocalDate startDate, LocalDate endDate,
-			Integer regionId, Integer districtId, Integer siteId, Integer labId, List<Integer> accessibleSiteIds) {
+	public List<Map<String, Object>> statsByRegion(DashboardFilter f) {
 		final String sql = distributionAgg("d.region_id")
 				+ "SELECT reg.id AS region_id, reg.name AS region, " + DISTRIBUTION_COLUMNS
 				+ "FROM region reg LEFT JOIN agg a ON a.gid = reg.id "
@@ -201,7 +200,7 @@ public class DashboardAdvancedRepository {
 				+ "AND (:accessibleSiteIdsActive = FALSE OR EXISTS (SELECT 1 FROM site fs JOIN district fd ON fd.id = fs.district_id "
 				+ "     WHERE fd.region_id = reg.id AND fs.id IN (:accessibleSiteIds))) "
 				+ "ORDER BY reg.name";
-		return jdbc.queryForList(sql, params(startDate, endDate, regionId, districtId, siteId, labId, accessibleSiteIds));
+		return jdbc.queryForList(sql, f.params());
 	}
 
 	/**
@@ -211,8 +210,7 @@ public class DashboardAdvancedRepository {
 	 * (vue à plat du sélecteur de niveau) ; renseigné = districts de cette
 	 * région seulement (cascade du tableau).</p>
 	 */
-	public List<Map<String, Object>> statsByDistrict(LocalDate startDate, LocalDate endDate,
-			Integer regionId, Integer districtId, Integer siteId, Integer labId, List<Integer> accessibleSiteIds) {
+	public List<Map<String, Object>> statsByDistrict(DashboardFilter f) {
 		final String sql = distributionAgg("d.id")
 				+ "SELECT d.id AS district_id, d.name AS district, r.name AS region, " + DISTRIBUTION_COLUMNS
 				+ "FROM district d JOIN region r ON r.id = d.region_id LEFT JOIN agg a ON a.gid = d.id "
@@ -223,7 +221,7 @@ public class DashboardAdvancedRepository {
 				+ "AND (:accessibleSiteIdsActive = FALSE OR EXISTS (SELECT 1 FROM site fs "
 				+ "     WHERE fs.district_id = d.id AND fs.id IN (:accessibleSiteIds))) "
 				+ "ORDER BY r.name, d.name";
-		return jdbc.queryForList(sql, params(startDate, endDate, regionId, districtId, siteId, labId, accessibleSiteIds));
+		return jdbc.queryForList(sql, f.params());
 	}
 
 	/**
@@ -233,8 +231,7 @@ public class DashboardAdvancedRepository {
 	 * (vue à plat du sélecteur de niveau) ; renseigné = sites de ce district
 	 * seulement (cascade du tableau).</p>
 	 */
-	public List<Map<String, Object>> statsBySite(LocalDate startDate, LocalDate endDate,
-			Integer regionId, Integer districtId, Integer siteId, Integer labId, List<Integer> accessibleSiteIds) {
+	public List<Map<String, Object>> statsBySite(DashboardFilter f) {
 		final String sql = distributionAgg("st.id")
 				+ "SELECT st.id AS site_id, st.name AS site, d.name AS district, r.name AS region, " + DISTRIBUTION_COLUMNS
 				+ "FROM site st JOIN district d ON d.id = st.district_id JOIN region r ON r.id = d.region_id "
@@ -244,7 +241,7 @@ public class DashboardAdvancedRepository {
 				+ "AND (CAST(:siteId AS INT) IS NULL OR st.id = CAST(:siteId AS INT)) "
 				+ "AND (:accessibleSiteIdsActive = FALSE OR st.id IN (:accessibleSiteIds)) "
 				+ "ORDER BY r.name, d.name, st.name";
-		return jdbc.queryForList(sql, params(startDate, endDate, regionId, districtId, siteId, labId, accessibleSiteIds));
+		return jdbc.queryForList(sql, f.params());
 	}
 
 	/**
@@ -258,7 +255,8 @@ public class DashboardAdvancedRepository {
 			+ "AND (CAST(:districtId AS INT) IS NULL OR st.district_id = CAST(:districtId AS INT)) "
 			+ "AND (CAST(:regionId AS INT) IS NULL OR EXISTS (SELECT 1 FROM district fd "
 			+ "     WHERE fd.id = st.district_id AND fd.region_id = CAST(:regionId AS INT))) "
-			+ "AND (CAST(:labId AS INT) IS NULL OR s.destination_lab_id = CAST(:labId AS INT)) ";
+			+ "AND (CAST(:labId AS INT) IS NULL OR s.destination_lab_id = CAST(:labId AS INT)) "
+			+ DashboardFilter.SAMPLE_FILTER_SQL;
 
 	/**
 	 * Taux de non-conformité par site (cahier VI.2) : échantillons NON_CONFORM ÷
@@ -267,9 +265,7 @@ public class DashboardAdvancedRepository {
 	 * non-conformités par type d'échantillon (« CV 8, EID 2 »). Seuil
 	 * {@code minSamples} collectés pour écarter les sites trop peu actifs.
 	 */
-	public List<Map<String, Object>> topRejectionSites(LocalDate startDate, LocalDate endDate,
-			Integer regionId, Integer districtId, Integer siteId, Integer labId,
-			List<Integer> accessibleSiteIds, int limit, int minSamples) {
+	public List<Map<String, Object>> topRejectionSites(DashboardFilter f, int limit, int minSamples) {
 		final String sql = "WITH base AS ( "
 				+ "  SELECT st.id AS site_id, st.name AS site, d.name AS district, reg.name AS region, "
 				+ "         COALESCE(typ.name, '?') AS sample_type, ss.status "
@@ -299,7 +295,7 @@ public class DashboardAdvancedRepository {
 				+ "GROUP BY b.site_id, b.site, b.district, b.region "
 				+ "HAVING COUNT(*) >= :minSamples AND SUM(CASE WHEN b.status = 'NON_CONFORM' THEN 1 ELSE 0 END) > 0 "
 				+ "ORDER BY non_conform_rate DESC, non_conform DESC, b.site LIMIT :rowLimit";
-		MapSqlParameterSource p = params(startDate, endDate, regionId, districtId, siteId, labId, accessibleSiteIds)
+		MapSqlParameterSource p = f.params()
 				.addValue("rowLimit", limit).addValue("minSamples", minSamples);
 		return jdbc.queryForList(sql, p);
 	}
@@ -307,9 +303,7 @@ public class DashboardAdvancedRepository {
 	/**
 	 * Slowest labs by average TAT (collection → analysis_released) over the period.
 	 */
-	public List<Map<String, Object>> slowestLabs(LocalDate startDate, LocalDate endDate,
-			Integer regionId, Integer districtId, Integer siteId, Integer labId,
-			List<Integer> accessibleSiteIds, int limit, int minSamples) {
+	public List<Map<String, Object>> slowestLabs(DashboardFilter f, int limit, int minSamples) {
 		// NB : indicateur SPÉCIFIQUE au segment labo (analysis_released - deliver_at_lab).
 		// Diffère volontairement du TAT canonique (result_delivery - collection)
 		// utilisé ailleurs, car ce widget benchmarke la performance pure du labo
@@ -333,7 +327,7 @@ public class DashboardAdvancedRepository {
 				+ "GROUP BY lab.id, lab.lab_name "
 				+ "HAVING COUNT(s.id) >= :minSamples "
 				+ "ORDER BY avg_tat_days DESC, lab.lab_name LIMIT :rowLimit";
-		MapSqlParameterSource p = params(startDate, endDate, regionId, districtId, siteId, labId, accessibleSiteIds)
+		MapSqlParameterSource p = f.params()
 				.addValue("rowLimit", limit).addValue("minSamples", minSamples);
 		return jdbc.queryForList(sql, p);
 	}
@@ -344,9 +338,7 @@ public class DashboardAdvancedRepository {
 	 * au labo), en jours. Taux de non-conformité à titre indicatif. Trié par
 	 * nombre de collectes.
 	 */
-	public List<Map<String, Object>> topConveyors(LocalDate startDate, LocalDate endDate,
-			Integer regionId, Integer districtId, Integer siteId, Integer labId,
-			List<Integer> accessibleSiteIds, int limit) {
+	public List<Map<String, Object>> topConveyors(DashboardFilter f, int limit) {
 		final String sql = "SELECT u.id AS user_id, u.first_name, u.last_name, u.login, "
 				+ "  COUNT(s.id) AS samples_handled, "
 				+ "  COUNT(COALESCE(s.deliver_at_hub_date, s.deliver_at_lab_date)) AS deposits, "
@@ -368,7 +360,7 @@ public class DashboardAdvancedRepository {
 				+ RANKING_FILTER
 				+ "GROUP BY u.id, u.first_name, u.last_name, u.login "
 				+ "ORDER BY samples_handled DESC, u.login LIMIT :rowLimit";
-		MapSqlParameterSource p = params(startDate, endDate, regionId, districtId, siteId, labId, accessibleSiteIds)
+		MapSqlParameterSource p = f.params()
 				.addValue("rowLimit", limit);
 		return jdbc.queryForList(sql, p);
 	}
@@ -386,8 +378,7 @@ public class DashboardAdvancedRepository {
 		return "(" + start + " > 0 AND " + end + " > " + start + " AND " + end + " - " + start + " <= " + MAX_TRIP_KM + ")";
 	}
 
-	public Map<String, Object> coverage(LocalDate startDate, LocalDate endDate, Integer regionId, Integer districtId,
-			Integer siteId, Integer labId, List<Integer> accessibleSiteIds) {
+	public Map<String, Object> coverage(DashboardFilter f) {
 		final String sql = "WITH scope_samples AS ("
 				+ "  SELECT s.id, s.collection_start_mileage, s.collection_end_mileage, "
 				+ "         s.result_start_mileage, s.result_end_mileage, "
@@ -405,6 +396,7 @@ public class DashboardAdvancedRepository {
 				+ "  AND (CAST(:districtId AS INT) IS NULL OR st.district_id = CAST(:districtId AS INT)) "
 				+ "  AND (CAST(:regionId AS INT) IS NULL OR d.region_id = CAST(:regionId AS INT)) "
 				+ "  AND (:accessibleSiteIdsActive = FALSE OR st.id IN (:accessibleSiteIds)) "
+				+ DashboardFilter.SAMPLE_FILTER_SQL
 				+ "), "
 				// Trajets (« legs ») : relevés de compteur départ / arrivée, pour la
 				// collecte et pour la restitution des résultats. Voir validLeg().
@@ -451,7 +443,7 @@ public class DashboardAdvancedRepository {
 				+ "       AND NOT COALESCE(" + validLeg("result_start_mileage", "result_end_mileage") + ", FALSE)"
 				+ "  ) AS samples_without_mileage";
 		Map<String, Object> base = jdbc.queryForMap(sql,
-				params(startDate, endDate, regionId, districtId, siteId, labId, accessibleSiteIds));
+				f.params());
 
 		// Derived: km moyen par échantillon.
 		// Le dénominateur reste le TOTAL des échantillons du périmètre (et non
@@ -472,9 +464,7 @@ public class DashboardAdvancedRepository {
 	 * Sample type breakdown for the period — used for the type repartition
 	 * mini-chart on the dashboard coverage section.
 	 */
-	public List<Map<String, Object>> typeBreakdown(LocalDate startDate, LocalDate endDate,
-			Integer regionId, Integer districtId, Integer siteId, Integer labId,
-			List<Integer> accessibleSiteIds) {
+	public List<Map<String, Object>> typeBreakdown(DashboardFilter f) {
 		final String sql = "SELECT st_type.name AS sample_type, COUNT(s.id) AS total "
 				+ "FROM sample s "
 				+ "JOIN sample_type st_type ON st_type.id = s.sample_type_id "
@@ -489,24 +479,12 @@ public class DashboardAdvancedRepository {
 				+ "AND (CAST(:regionId AS INT) IS NULL OR d.region_id = CAST(:regionId AS INT)) "
 				+ SCOPE_FILTER
 				+ "GROUP BY st_type.name ORDER BY total DESC";
-		return jdbc.queryForList(sql, params(startDate, endDate, regionId, districtId, siteId, labId, accessibleSiteIds));
+		return jdbc.queryForList(sql, f.params());
 	}
 
 	private static long toLong(Object v) {
 		if (v == null) return 0L;
 		if (v instanceof Number n) return n.longValue();
 		try { return Long.parseLong(v.toString()); } catch (Exception e) { return 0L; }
-	}
-
-	private MapSqlParameterSource params(LocalDate startDate, LocalDate endDate, Integer regionId, Integer districtId,
-			Integer siteId, Integer labId, List<Integer> accessibleSiteIds) {
-		MapSqlParameterSource p = new MapSqlParameterSource()
-				.addValue("startDate", startDate).addValue("endDate", endDate)
-				.addValue("regionId", regionId).addValue("districtId", districtId)
-				.addValue("siteId", siteId).addValue("labId", labId);
-		boolean active = accessibleSiteIds != null && !accessibleSiteIds.isEmpty();
-		p.addValue("accessibleSiteIdsActive", active);
-		p.addValue("accessibleSiteIds", active ? accessibleSiteIds : List.of(-1));
-		return p;
 	}
 }
