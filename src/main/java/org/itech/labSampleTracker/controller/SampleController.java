@@ -303,17 +303,6 @@ public class SampleController {
 		return userScopeService.canAccessSample(siteId, s.getDestinationLabId(), s.getLabId(), s.getHubId());
 	}
 
-	@GetMapping(value = "/{id}")
-	public String getOneSample(@PathVariable("id") Integer id, Model model) {
-
-		Sample e = sampleService.getOne(id);
-		if (e == null || !canAccess(e)) {
-			return "";
-		}
-		model.addAttribute("sample", e);
-		return "";
-	}
-
 	@GetMapping(value = "/update/{id}")
 	public String updateSample(@PathVariable("id") Integer id, Model model) {
 		SampleUpdateDTO sampleToUpdate = new SampleUpdateDTO();
