@@ -135,6 +135,23 @@ class ZoneSupervisorScopeTest {
 	}
 
 	@Test
+	void uneZoneAffecteeSansSiteNeDonneRien() {
+		// Région affectée dont aucun district n'a de site : une liste de sites
+		// vide valait « aucune restriction » dans les requêtes.
+		connect("SUPERVISEUR_REGION", "REGION", 80);
+		when(repo.findAccessibleRegionIds(80)).thenReturn(List.of(REGION_A));
+		when(repo.findAccessibleDistrictIds(80)).thenReturn(List.of(DISTRICT_A));
+		when(repo.findAccessibleSiteIds(80)).thenReturn(List.of());
+		when(repo.findAccessibleLabIds(80)).thenReturn(List.of());
+		when(repo.findAccessibleCircuitIds(80)).thenReturn(List.of());
+
+		assertTrue(service.intersectCurrent(null, null, null, null).isForceEmpty(), "sans filtre");
+		assertTrue(service.intersectCurrent(REGION_A, null, null, null).isForceEmpty(), "filtre sur sa région");
+		assertTrue(service.intersectCurrent(null, DISTRICT_A, null, null).isForceEmpty(), "filtre sur son district");
+		assertFalse(service.canAccessSample(SITE_B));
+	}
+
+	@Test
 	void sansAffectationIlNeVoitRien() {
 		connect("SUPERVISEUR_REGION", "REGION", 70);
 		assertTrue(service.intersectCurrent(null, null, null, null).isForceEmpty());

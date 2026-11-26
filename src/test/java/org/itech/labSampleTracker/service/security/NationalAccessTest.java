@@ -25,6 +25,7 @@ class NationalAccessTest {
 	@Test
 	void globalRolesSeeTheWholeCountry() {
 		assertTrue(UserScopeService.isNational(user("ADMIN", null)));
+		assertTrue(UserScopeService.isNational(user("SUPER_ADMIN", "DISTRICT")));
 		assertTrue(UserScopeService.isNational(user("MANAGER", "REGION")));
 		assertTrue(UserScopeService.isNational(user("SUPPORT", "DISTRICT")));
 	}

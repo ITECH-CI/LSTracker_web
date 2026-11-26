@@ -33,8 +33,11 @@ import lombok.RequiredArgsConstructor;
  *       short-circuit and return an empty page.</li>
  * </ul>
  *
- * Roles {@code ADMIN}, {@code SUPPORT}, {@code MANAGER} bypass scope checks
- * (they see everything; only their explicit filters apply).
+ * Roles {@code ADMIN}, {@code SUPER_ADMIN}, {@code SUPPORT}, {@code MANAGER}
+ * bypass scope checks (they see everything; only their explicit filters
+ * apply), as do central-level accounts other than zone supervisors (see
+ * {@link #isNational}). Every other user is denied by default: without a
+ * usable assignment (at least one collection site) she sees nothing.
  */
 @Service
 @RequiredArgsConstructor
@@ -42,7 +45,7 @@ public class UserScopeService {
 
 	private static final Logger log = LoggerFactory.getLogger(UserScopeService.class);
 
-	private static final Set<String> GLOBAL_ROLES = Set.of("ADMIN", "SUPPORT", "MANAGER");
+	private static final Set<String> GLOBAL_ROLES = Set.of("ADMIN", "SUPER_ADMIN", "SUPPORT", "MANAGER");
 
 	private final UserScopeRepository repo;
 	private final AppUserService appUserService;
@@ -191,6 +194,16 @@ public class UserScopeService {
 		List<Integer> accessibleSiteIds = labOnly ? null : scope.getSiteIds();
 		List<Integer> accessibleLabIds = noNarrowFilter ? scope.getLabIds() : null;
 
+		// Refus par défaut : pour les requêtes, une liste de sites vide signifie
+		// « aucune restriction ». Un utilisateur non national dont le périmètre
+		// ne contient aucun site (région ou district affecté sans site, par
+		// exemple) ne voit donc rien, au lieu de tout voir.
+		if (accessibleSiteIds != null && accessibleSiteIds.isEmpty()) {
+			log.warn("User scope has no collection site, forcing empty result (regions={}, districts={})",
+					scope.getRegionIds(), scope.getDistrictIds());
+			return ScopedFilter.builder().forceEmpty(true).build();
+		}
+
 		return ScopedFilter.builder()
 				.forceEmpty(false)
 				.regionId(requestedRegion)
@@ -231,8 +244,8 @@ public class UserScopeService {
 	}
 
 	/**
-	 * Accès national, sans restriction de zone : rôle global (ADMIN, SUPPORT,
-	 * MANAGER) ou utilisateur de niveau central. Règle unique, utilisée aussi
+	 * Accès national, sans restriction de zone : rôle global (ADMIN,
+	 * SUPER_ADMIN, SUPPORT, MANAGER) ou utilisateur de niveau central. Règle unique, utilisée aussi
 	 * par l'API mobile (métadonnées, synchronisation).
 	 *
 	 * Un superviseur régional ou de district n'est jamais national, même sur
