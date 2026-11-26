@@ -35,6 +35,15 @@ public class UserSessionManagementService {
 	 * Returns the number of sessions revoked.
 	 */
 	public int revokeSessionsFor(String username) {
+		return revokeSessionsFor(username, null);
+	}
+
+	/**
+	 * Comme {@link #revokeSessionsFor(String)}, sauf la session {@code keepSessionId}
+	 * (changement de son propre mot de passe : les autres appareils sont
+	 * déconnectés, pas la session en cours).
+	 */
+	public int revokeSessionsFor(String username, String keepSessionId) {
 		if (username == null || username.isBlank()) {
 			return 0;
 		}
@@ -46,7 +55,7 @@ public class UserSessionManagementService {
 			}
 			List<SessionInformation> sessions = sessionRegistry.getAllSessions(principal, false);
 			for (SessionInformation s : sessions) {
-				if (!s.isExpired()) {
+				if (!s.isExpired() && !s.getSessionId().equals(keepSessionId)) {
 					s.expireNow();
 					revoked++;
 				}

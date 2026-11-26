@@ -327,8 +327,14 @@ public class AppUserController extends BaseController {
 		}
 		String temporary = generateTemporaryPassword();
 		u.setPassword(temporary);
-		// Mark expiration as today → user is forced to change at next login.
-		u.setPasswordExpireAt(new java.util.Date());
+		// Le mot de passe temporaire doit permettre de se connecter : le
+		// changement est imposé à la première connexion (password_reset, cf.
+		// PasswordChangeInterceptor), pas par une expiration immédiate qui
+		// rendait le compte inutilisable. Une expiration déjà atteinte est levée.
+		u.setPasswordReset(true);
+		if (u.getPasswordExpireAt() != null && !u.getPasswordExpireAt().after(new java.util.Date())) {
+			u.setPasswordExpireAt(null);
+		}
 		u.setLastUpdatedAt(new java.util.Date());
 		u.setLastUpdatedBy(this.getCurrentUserId());
 		appuserService.update(u, true); // crypt the new password
@@ -688,6 +694,7 @@ public class AppUserController extends BaseController {
 		AppUser current = accountService.findUserById(getCurrentUserId()).orElse(null);
 		if (current != null) {
 			model.addAttribute("currentLogin", current.getLogin());
+			model.addAttribute("passwordChangeRequired", Boolean.TRUE.equals(current.getPasswordReset()));
 		}
 		return "user/change_password";
 	}
@@ -696,7 +703,7 @@ public class AppUserController extends BaseController {
 	@PreAuthorize("isAuthenticated()")
 	public String changePassword(
 			@Valid @ModelAttribute("changePassword") ChangePasswordDTO dto,
-			BindingResult result, Model model) {
+			BindingResult result, Model model, jakarta.servlet.http.HttpSession session) {
 		final int currentUserId = this.getCurrentUserId();
 
 		// Toujours résoudre l'identité depuis la session — on ignore tout
@@ -707,6 +714,7 @@ public class AppUserController extends BaseController {
 			throw new AccessDeniedException("Session invalide");
 		}
 		model.addAttribute("currentLogin", user.getLogin());
+		model.addAttribute("passwordChangeRequired", Boolean.TRUE.equals(user.getPasswordReset()));
 
 		if (result.hasErrors()) {
 			return "user/change_password";
@@ -738,15 +746,20 @@ public class AppUserController extends BaseController {
 		// On force une nouvelle date d'expiration loin dans le futur (= reset
 		// du compteur d'expiration). Si on veut un jour activer la rotation
 		// périodique, on enrichira ici (passwordExpireAt = +N jours).
+		// Le mot de passe temporaire d'une réinitialisation est remplacé :
+		// l'accès aux autres pages est rendu (PasswordChangeInterceptor).
+		user.setPasswordReset(false);
+		session.setAttribute(org.itech.labSampleTracker.security.PasswordChangeInterceptor.SESSION_FLAG, false);
+		model.addAttribute("passwordChangeRequired", false);
 		user.setLastUpdatedAt(new java.util.Date());
 		user.setLastUpdatedBy(currentUserId);
 		appuserService.update(user, true); // true = bcrypt-hash le password
 
 		// 5. Sécurité : invalider toute autre session active du même user
-		// (autre device, autre navigateur). La session courante restera valide
-		// car Spring la régénère implicitement après update du SecurityContext.
+		// (autre device, autre navigateur). La session courante est exclue de
+		// la révocation : l'utilisateur reste connecté avec son nouveau mot de passe.
 		try {
-			userSessionManagementService.revokeSessionsFor(user.getLogin());
+			userSessionManagementService.revokeSessionsFor(user.getLogin(), session.getId());
 		} catch (Exception ex) {
 			log.warn("changePassword: échec de la révocation des sessions pour user '{}'", user.getLogin(), ex);
 		}

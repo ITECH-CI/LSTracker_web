@@ -44,9 +44,19 @@ public class WebConfig implements WebMvcConfigurer {
 		return localeInterceptor;
 	}
 
+	// Résolu à l'enregistrement des intercepteurs : le service des comptes
+	// dépend de l'encodeur de mots de passe déclaré ici.
+	@org.springframework.beans.factory.annotation.Autowired
+	private org.springframework.beans.factory.ObjectProvider<org.itech.labSampleTracker.security.PasswordChangeInterceptor> passwordChangeInterceptor;
+
 	@Override
 	public void addInterceptors(InterceptorRegistry registry) {
 		registry.addInterceptor(localeInterceptor());
+		// Mot de passe réinitialisé : changement imposé avant toute autre page
+		// (ressources statiques et API mobile exclues).
+		registry.addInterceptor(passwordChangeInterceptor.getObject()).addPathPatterns("/**").excludePathPatterns(
+				"/api_v2/**", "/api/**", "/css/**", "/js/**", "/img/**", "/webjars/**", "/DataTables/**",
+				"/content/**", "/resources/**", "/fonts/**", "/favicon*", "/actuator/**");
 		// registry.addInterceptor(new
 		// AuthorizationInterceptor()).addPathPatterns("/api/**");
 	}
