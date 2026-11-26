@@ -2,6 +2,16 @@
 
 ## 2026-09-24 — Qualité des dates, connexions et journal d'activité (v2.2.3)
 
+### Correctif : utilisateurs de niveau central sans données
+
+- L'accès national n'était accordé que selon le rôle (ADMIN, SUPPORT, MANAGER). Un utilisateur de niveau central avec le rôle « USER » — sans rattachement, puisqu'il couvre tout le pays — avait un périmètre vide : tableau de bord, listes, rapports et exports vides. Règle unique désormais : rôle national **ou** niveau central = accès à tout le pays, sur le web, dans les métadonnées mobiles et à la synchronisation.
+- Le rôle **MANAGER** (pilotage national) était reconnu par l'application mais absent des listes de création et de modification des utilisateurs : il est désormais proposé. Il voit les données de tout le pays et **consulte** l'administration (maillage, référentiels, utilisateurs, journaux, manuels, synchronisation OpenELIS) sans rien pouvoir créer, modifier, désactiver ou supprimer — y compris les profils des autres utilisateurs. Contrôle côté serveur, route par route ; boutons d'écriture masqués.
+- Sécurité : neuf anciens contrôleurs générés, sans écran (`/approle`, `/appuserhasrole`, `/sampleretrieving`, `/trackingevent`, `/ride`…), acceptaient des créations de tout utilisateur connecté ; ils sont réservés aux administrateurs. Les suppressions de types d'échantillon et de motifs de rejet passent d'un lien (GET) à un POST protégé.
+
+### Correctif : retour après connexion
+
+- Après connexion, l'utilisateur pouvait arriver sur l'icône du site (`/favicon-<empreinte>.ico?continue`) au lieu de l'accueil : le favicon, renommé avec une empreinte pour le cache navigateur, n'était plus reconnu comme ressource publique, et Spring Security le mémorisait comme page à rouvrir. Le favicon est désormais public (il s'affiche aussi sur la page de connexion), et seule une vraie page (GET, HTML) peut servir de destination après connexion — jamais une image, une police ou un appel en arrière-plan.
+
 ### Dates aberrantes
 
 - Base de production (restaurée en démonstration) : 423 échantillons sur 46 392 portent une année mal tapée, saisie avant la validation des dates — surtout « 0025 » pour 2025 (août-octobre 2025), aussi 0204, 2028, 2055, 20244. Ces échantillons sortaient de toutes les périodes du tableau de bord ; les médianes affichées n'en étaient presque pas affectées.

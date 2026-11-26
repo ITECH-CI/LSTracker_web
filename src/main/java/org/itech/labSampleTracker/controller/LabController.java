@@ -3,6 +3,8 @@
  */
 package org.itech.labSampleTracker.controller;
 
+import org.itech.labSampleTracker.security.AdminRead;
+import org.itech.labSampleTracker.security.AdminWrite;
 import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.time.DateUtils;
 import org.itech.labSampleTracker.entities.AppUser;
@@ -53,7 +55,7 @@ public class LabController extends BaseController {
 	private org.itech.labSampleTracker.dao.LabRepository labRepository;
 
 
-	@PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
+	@AdminWrite
 	@PostMapping(value = "/new")
 	public String createLab(Model model, @Valid Lab lab) {
 		model.addAttribute("labTypes", LabType.values());
@@ -75,7 +77,7 @@ public class LabController extends BaseController {
 		return "lab/new";
 	}
 
-	@PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
+	@AdminWrite
 	@GetMapping(value = "/new")
 	public String newAppUser(Model model) {
 		model.addAttribute("labTypes", LabType.values());
@@ -84,7 +86,7 @@ public class LabController extends BaseController {
 		return "lab/new";
 	}
 
-	@PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
+	@AdminRead
 	@GetMapping(value = "")
 	public String getAllLab(Model model) {
 		// La liste est chargée via /lab/data (DataTables server-side).
@@ -97,7 +99,7 @@ public class LabController extends BaseController {
 	/**
 	 * JSON endpoint feeding the DataTables-driven lab admin list.
 	 */
-	@PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
+	@AdminRead
 	@GetMapping(value = "/data", produces = "application/json")
 	@org.springframework.web.bind.annotation.ResponseBody
 	public Map<String, Object> getLabsData(
@@ -130,7 +132,7 @@ public class LabController extends BaseController {
 		return out;
 	}
 
-	@PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
+	@AdminWrite
 	@GetMapping(value = "/update/{id}")
 	public String getOneLab(@PathVariable("id") Integer id, Model model) {
 		model.addAttribute("labTypes", LabType.values());
@@ -148,7 +150,7 @@ public class LabController extends BaseController {
 		return "lab/edit";
 	}
 
-	@PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
+	@AdminWrite
 	@PostMapping(value = "/update/{id}")
 	public String updateLab(@PathVariable("id") Integer id, @Valid Lab lab, Model model) {
 		model.addAttribute("labTypes", LabType.values());

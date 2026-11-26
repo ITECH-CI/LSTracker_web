@@ -3,6 +3,8 @@
  */
 package org.itech.labSampleTracker.controller;
 
+import org.itech.labSampleTracker.security.AdminRead;
+import org.itech.labSampleTracker.security.AdminWrite;
 import org.itech.labSampleTracker.entities.Ride;
 import org.itech.labSampleTracker.service.RideService;
 
@@ -25,6 +27,8 @@ import java.util.List;
 */
 @Controller
 @RequestMapping("/ride")
+// Ancien contrôleur généré, sans écran : réservé aux administrateurs.
+@AdminWrite
 public class RideController {
 
 

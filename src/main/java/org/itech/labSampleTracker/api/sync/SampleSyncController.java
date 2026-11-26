@@ -9,6 +9,7 @@ import org.itech.labSampleTracker.api.sync.dto.SamplePullResponse;
 import org.itech.labSampleTracker.api.sync.dto.SamplePushRequest;
 import org.itech.labSampleTracker.api.sync.dto.SamplePushResponse;
 import org.itech.labSampleTracker.entities.AppUser;
+import org.itech.labSampleTracker.security.SampleWrite;
 import org.itech.labSampleTracker.service.AppUserService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,6 +39,7 @@ public class SampleSyncController {
 	private final AppUserService appUserService;
 
 	@PostMapping(value = "/push", consumes = MediaType.APPLICATION_JSON_VALUE)
+	@SampleWrite
 	public SamplePushResponse push(@Valid @RequestBody SamplePushRequest req, Principal principal) {
 		int incoming = (req != null && req.getSamples() != null) ? req.getSamples().size() : 0;
 		log.info("POST /api_v2/sync/samples/push by user={} with {} item(s)",

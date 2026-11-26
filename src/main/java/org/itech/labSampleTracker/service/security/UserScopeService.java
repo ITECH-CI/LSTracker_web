@@ -2,11 +2,14 @@ package org.itech.labSampleTracker.service.security;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
 
 import org.itech.labSampleTracker.dao.UserScopeRepository;
 import org.itech.labSampleTracker.entities.AppUser;
+import org.itech.labSampleTracker.enums.UserRole;
 import org.itech.labSampleTracker.service.AppUserService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,8 +35,11 @@ import lombok.RequiredArgsConstructor;
  *       short-circuit and return an empty page.</li>
  * </ul>
  *
- * Roles {@code ADMIN}, {@code SUPPORT}, {@code MANAGER} bypass scope checks
- * (they see everything; only their explicit filters apply).
+ * Roles {@code ADMIN}, {@code SUPER_ADMIN}, {@code SUPPORT}, {@code MANAGER}
+ * bypass scope checks (they see everything; only their explicit filters
+ * apply), as do central-level accounts other than zone supervisors (see
+ * {@link #isNational}). Every other user is denied by default: without a
+ * usable assignment (at least one collection site) she sees nothing.
  */
 @Service
 @RequiredArgsConstructor
@@ -41,15 +47,21 @@ public class UserScopeService {
 
 	private static final Logger log = LoggerFactory.getLogger(UserScopeService.class);
 
-	private static final Set<String> GLOBAL_ROLES = Set.of("ADMIN", "SUPPORT", "MANAGER");
+	private static final Set<String> GLOBAL_ROLES = Set.of("ADMIN", "SUPER_ADMIN", "SUPPORT", "MANAGER");
 
 	private final UserScopeRepository repo;
 	private final AppUserService appUserService;
 
 	@Getter
-	@Builder
+	@Builder(toBuilder = true)
 	public static class Scope {
 		private final boolean global;
+		/**
+		 * Superviseur régional ou de district : il ne voit que les échantillons
+		 * collectés dans ses zones. Un labo de sa zone ne lui ouvre pas les
+		 * échantillons venus d'ailleurs (pas d'accès par le labo destinataire).
+		 */
+		private final boolean collectionSitesOnly;
 		private final List<Integer> regionIds;
 		private final List<Integer> districtIds;
 		private final List<Integer> siteIds;
@@ -85,11 +97,15 @@ public class UserScopeService {
 					.regionIds(List.of()).districtIds(List.of()).siteIds(List.of())
 					.labIds(List.of()).circuitIds(List.of()).build();
 		}
-		boolean global = isGlobal(user.getRole(), auth);
+		boolean global = isGlobal(user, auth);
 		if (global) {
 			return Scope.builder().global(true).build();
 		}
-		return resolve(user.getId());
+		Scope scope = resolve(user.getId());
+		if (UserRole.isZoneSupervisor(user.getRole())) {
+			return scope.toBuilder().collectionSitesOnly(true).build();
+		}
+		return scope;
 	}
 
 	public Scope resolve(Integer userId) {
@@ -170,12 +186,25 @@ public class UserScopeService {
 		// les données hors périmètre ne doivent pas apparaître dans ses totaux).
 		// Seul un filtre labo, sans filtre géographique, la lève : un labo
 		// autorisé voit ce qui lui est destiné, quel que soit le site d'origine.
-		boolean labOnly = requestedLab != null && requestedRegion == null
+		// Un superviseur de zone garde toujours la restriction aux sites de ses
+		// zones, même avec un filtre labo seul.
+		boolean labOnly = !scope.isCollectionSitesOnly()
+				&& requestedLab != null && requestedRegion == null
 				&& requestedDistrict == null && requestedSite == null;
 		boolean noNarrowFilter = requestedRegion == null && requestedDistrict == null
 				&& requestedSite == null && requestedLab == null;
 		List<Integer> accessibleSiteIds = labOnly ? null : scope.getSiteIds();
 		List<Integer> accessibleLabIds = noNarrowFilter ? scope.getLabIds() : null;
+
+		// Refus par défaut : pour les requêtes, une liste de sites vide signifie
+		// « aucune restriction ». Un utilisateur non national dont le périmètre
+		// ne contient aucun site (région ou district affecté sans site, par
+		// exemple) ne voit donc rien, au lieu de tout voir.
+		if (accessibleSiteIds != null && accessibleSiteIds.isEmpty()) {
+			log.warn("User scope has no collection site, forcing empty result (regions={}, districts={})",
+					scope.getRegionIds(), scope.getDistrictIds());
+			return ScopedFilter.builder().forceEmpty(true).build();
+		}
 
 		return ScopedFilter.builder()
 				.forceEmpty(false)
@@ -201,6 +230,9 @@ public class UserScopeService {
 		if (collectionSiteId != null && scope.getSiteIds().contains(collectionSiteId)) {
 			return true;
 		}
+		if (scope.isCollectionSitesOnly()) {
+			return false;
+		}
 		for (Integer lab : labIds) {
 			if (lab != null && scope.getLabIds().contains(lab)) {
 				return true;
@@ -213,8 +245,62 @@ public class UserScopeService {
 		return intersect(resolveCurrent(), region, district, site, lab);
 	}
 
-	private boolean isGlobal(String role, Authentication auth) {
-		if (role != null && GLOBAL_ROLES.contains(role.toUpperCase())) {
+	/** Zones d'une liste de filtre (lignes id, name). */
+	public enum ZoneList {
+		REGIONS(Scope::getRegionIds), DISTRICTS(Scope::getDistrictIds), SITES(Scope::getSiteIds),
+		LABS(Scope::getLabIds);
+
+		private final Function<Scope, List<Integer>> ids;
+
+		ZoneList(Function<Scope, List<Integer>> ids) {
+			this.ids = ids;
+		}
+	}
+
+	/**
+	 * Liste de filtre (régions, districts, sites, laboratoires, cascade
+	 * comprise) restreinte au périmètre du compte connecté : un compte
+	 * national voit tout le référentiel, les autres seulement ce que leur
+	 * périmètre contient.
+	 */
+	public List<Map<String, Object>> visibleCurrent(ZoneList list, List<Map<String, Object>> rows) {
+		return visible(resolveCurrent(), list, rows);
+	}
+
+	public static List<Map<String, Object>> visible(Scope scope, ZoneList list, List<Map<String, Object>> rows) {
+		if (rows == null || (scope != null && scope.isGlobal())) {
+			return rows;
+		}
+		List<Integer> ids = scope == null ? null : list.ids.apply(scope);
+		Set<Integer> allowed = ids == null ? Set.of() : Set.copyOf(ids);
+		return rows.stream()
+				.filter(r -> r.get("id") instanceof Number n && allowed.contains(n.intValue()))
+				.toList();
+	}
+
+	/**
+	 * Accès national, sans restriction de zone : rôle global (ADMIN,
+	 * SUPER_ADMIN, SUPPORT, MANAGER) ou utilisateur de niveau central. Règle unique, utilisée aussi
+	 * par l'API mobile (métadonnées, synchronisation).
+	 *
+	 * Un superviseur régional ou de district n'est jamais national, même sur
+	 * un compte de niveau central : son périmètre vient de ses affectations.
+	 */
+	public static boolean isNational(org.itech.labSampleTracker.entities.AppUser user) {
+		if (user == null) {
+			return false;
+		}
+		if (UserRole.isZoneSupervisor(user.getRole())) {
+			return false;
+		}
+		if (user.getRole() != null && GLOBAL_ROLES.contains(user.getRole().toUpperCase())) {
+			return true;
+		}
+		return org.itech.labSampleTracker.enums.UserLevel.CENTRAL_LEVEL.getLevel().equalsIgnoreCase(user.getUserLevel());
+	}
+
+	private boolean isGlobal(org.itech.labSampleTracker.entities.AppUser user, Authentication auth) {
+		if (isNational(user)) {
 			return true;
 		}
 		return auth.getAuthorities().stream()

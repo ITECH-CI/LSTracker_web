@@ -15,9 +15,11 @@ import org.itech.labSampleTracker.entities.SampleRejection;
 import org.itech.labSampleTracker.entities.SampleStatus;
 import org.itech.labSampleTracker.enums.ESampleStatus;
 import org.itech.labSampleTracker.exception.ResourceNotFoundException;
+import org.springframework.security.access.AccessDeniedException;
 import org.itech.labSampleTracker.helper.ExportUtils;
 import org.itech.labSampleTracker.helper.SampleDateValidator;
 import org.itech.labSampleTracker.security.ActivityLogService;
+import org.itech.labSampleTracker.security.AdminWrite;
 import org.itech.labSampleTracker.service.DistrictService;
 import org.itech.labSampleTracker.service.LabService;
 import org.itech.labSampleTracker.service.RegionService;
@@ -115,7 +117,11 @@ public class SampleController {
 		binder.registerCustomEditor(Date.class, new CustomDateEditor(dateFormat, true));
 	}
 
+	// Saisie web des échantillons : administrateurs seulement, comme le bouton
+	// « Modifier » de la liste (canEditSamples). La saisie de terrain passe par
+	// le mobile (SampleWrite).
 	@PostMapping(value = "")
+	@AdminWrite
 	public String createSample(@Valid Sample model) {
 
 		SampleDateValidator.validate(model);
@@ -228,6 +234,11 @@ public class SampleController {
 		if (ObjectUtils.isNotEmpty(district)) {
 			sites = siteService.getSiteIdAndNamesByDistrict(district);
 		}
+		// Listes des filtres limitées au périmètre (tout le référentiel pour un compte national).
+		UserScopeService.Scope zone = userScopeService.resolveCurrent();
+		regions = UserScopeService.visible(zone, UserScopeService.ZoneList.REGIONS, regions);
+		districts = UserScopeService.visible(zone, UserScopeService.ZoneList.DISTRICTS, districts);
+		sites = UserScopeService.visible(zone, UserScopeService.ZoneList.SITES, sites);
 
 		List<Map<String, Object>> sampleList = sampleListPageable.getContent();
 		model.addAttribute("totalElements", sampleListPageable.getTotalElements());
@@ -251,7 +262,8 @@ public class SampleController {
 		model.addAttribute("natureList", sampleService.getDistinctSampleNatures());
 		model.addAttribute("patientIdentifier", patientIdentifier);
 
-		model.addAttribute("labs", labService.getLabIdAndNames());
+		model.addAttribute("labs", UserScopeService.visible(zone, UserScopeService.ZoneList.LABS,
+				labService.getLabIdAndNames()));
 		model.addAttribute("regions", regions);
 		model.addAttribute("districts", districts);
 		model.addAttribute("sites", sites);
@@ -267,6 +279,7 @@ public class SampleController {
 	}
 
 	@PostMapping(value = "/delete/{id}")
+	@AdminWrite
 	public String deleteSample(@PathVariable("id") Integer id, RedirectAttributes redirectAttributes) {
 		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 		UserDetails userDetails = (UserDetails) authentication.getPrincipal();
@@ -291,26 +304,17 @@ public class SampleController {
 		return userScopeService.canAccessSample(siteId, s.getDestinationLabId(), s.getLabId(), s.getHubId());
 	}
 
-	@GetMapping(value = "/{id}")
-	public String getOneSample(@PathVariable("id") Integer id, Model model) {
-
-		Sample e = sampleService.getOne(id);
-		if (e == null || !canAccess(e)) {
-			return "";
-		}
-		model.addAttribute("sample", e);
-		return "";
-	}
-
 	@GetMapping(value = "/update/{id}")
 	public String updateSample(@PathVariable("id") Integer id, Model model) {
+		// Hors périmètre ou inconnu : refus avant de construire le formulaire
+		// (même réponse dans les deux cas, pour ne rien révéler de l'échantillon).
+		Sample found = sampleService.getOne(id);
+		if (ObjectUtils.isEmpty(found) || !canAccess(found)) {
+			throw new AccessDeniedException("Échantillon hors de votre périmètre");
+		}
 		SampleUpdateDTO sampleToUpdate = new SampleUpdateDTO();
-		Sample sample = new Sample();
+		Sample sample = found;
 		try {
-			sample = sampleService.getOne(id);
-			if (ObjectUtils.isEmpty(sample) || !canAccess(sample)) {
-				throw new ResourceNotFoundException("Impossible de retrouver les données de cet échantillon ");
-			}
 
 			BeanUtils.copyProperties(sample, sampleToUpdate);
 			SampleRejection rejection = sampleRejectionService.getOneBySampleId(id);
@@ -336,6 +340,7 @@ public class SampleController {
 	}
 
 	@PostMapping(value = "/update/{id}")
+	@AdminWrite
 	public String updateSample(@PathVariable("id") Integer id, @ModelAttribute SampleUpdateDTO sampleToUpdate,
 			Model model) {
 		Sample updatedSample = new Sample();

@@ -1,5 +1,7 @@
 package org.itech.labSampleTracker.controller;
 
+import org.itech.labSampleTracker.security.AdminRead;
+import org.itech.labSampleTracker.security.AdminWrite;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
@@ -87,7 +89,7 @@ public class HelpDocumentController extends BaseController {
 	// --- Administration ------------------------------------------------------
 
 	@GetMapping("/manuels")
-	@PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
+	@AdminRead
 	public String index(Model model) {
 		Map<String, HelpDocumentRepository.Info> uploaded = repository.findAllInfo().stream()
 				.collect(Collectors.toMap(HelpDocumentRepository.Info::getCode, Function.identity()));
@@ -99,7 +101,7 @@ public class HelpDocumentController extends BaseController {
 	}
 
 	@PostMapping("/manuels/{slug}")
-	@PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
+	@AdminWrite
 	public String upload(@PathVariable String slug, @RequestParam("file") MultipartFile file,
 			RedirectAttributes redirect) {
 		HelpDocumentType type = HelpDocumentType.fromSlug(slug).orElse(null);
@@ -128,7 +130,7 @@ public class HelpDocumentController extends BaseController {
 
 	/** Retire la version téléversée (retour au fichier livré, s'il existe). */
 	@PostMapping("/manuels/{slug}/delete")
-	@PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
+	@AdminWrite
 	public String delete(@PathVariable String slug, RedirectAttributes redirect) {
 		HelpDocumentType.fromSlug(slug).ifPresent(type -> {
 			repository.deleteById(type.name());

@@ -151,7 +151,7 @@ table#tab_rejectiontypes tbody tr:hover { background: #fafcff; }
 							</div>
 
 							<div class="toolbar-item ms-auto gap-2">
-								<a class="btn btn-sm btn-primary me-2" th:href="@{/samplerejectiontype/new}">
+								<a class="btn btn-sm btn-primary me-2" sec:authorize="hasAnyRole('ADMIN','SUPER_ADMIN')" th:href="@{/samplerejectiontype/new}">
 									<i class="fas fa-plus me-1"></i> Nouveau motif de rejet
 								</a>
 								<button class="btn btn-sm btn-outline-secondary" id="btnReload" type="button" title="Rafraîchir">
@@ -255,6 +255,7 @@ table#tab_rejectiontypes tbody tr:hover { background: #fafcff; }
 	// Cf. sampletype/index.html : le message passe par un attribut data-* et
 	// non par un onclick inline, dont les guillemets casseraient l'attribut.
 	function renderActions(data, type, row) {
+		if (!window.LST_CAN_WRITE) return ''; // consultation seule
 		const id = row.id;
 		const blocked = (row.rejection_count != null && row.rejection_count > 0);
 		const deleteMsg = blocked
@@ -263,7 +264,8 @@ table#tab_rejectiontypes tbody tr:hover { background: #fafcff; }
 		return ''
 			+ '<div class="row-actions">'
 			+   '<a class="btn-action btn-warning-soft" title="Modifier" href="/samplerejectiontype/update/' + id + '"><i class="fas fa-pencil-alt"></i></a>'
-			+   '<a class="btn-action btn-danger-soft js-delete" title="Supprimer" href="/samplerejectiontype/delete/' + id + '"'
+			+   '<a class="btn-action btn-danger-soft ' + (blocked ? 'js-delete' : 'js-post') + '" title="Supprimer" href="#"'
+			+     ' data-url="/samplerejectiontype/delete/' + id + '"'
 			+     ' data-blocked="' + (blocked ? '1' : '0') + '"'
 			+     ' data-message="' + escapeHtml(deleteMsg) + '"><i class="fas fa-trash-alt"></i></a>'
 			+ '</div>';
@@ -299,5 +301,6 @@ table#tab_rejectiontypes tbody tr:hover { background: #fafcff; }
 	}
 	</script>
 
+	<script th:src="@{/js/mesh-actions.js}"></script>
 </body>
 </html>

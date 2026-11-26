@@ -209,13 +209,9 @@
 						<a th:if="${userDTO?.userLevel != null and userDTO.userLevel.name() != 'CENTRAL_LEVEL'}"
 							th:href="@{'/appuser/edit_org/' + ${userDTO?.id}}"
 							class="btn btn-sm btn-outline-info">
-							<i class="fas fa-hospital-user me-1"></i> Gérer les zones
+							<i class="fas fa-hospital-user me-1"></i> Affecter les zones
 						</a>
-						<a th:href="@{'/appuser/delete/' + ${userDTO?.id}}"
-							class="btn btn-sm btn-outline-danger"
-							onclick="return confirm('Supprimer définitivement cet utilisateur ?');">
-							<i class="fas fa-trash-alt me-1"></i> Supprimer
-						</a>
+						<!-- Pas de suppression de compte (traçabilité) : un compte se désactive. -->
 					</div>
 				</div>
 
@@ -294,10 +290,13 @@
 									<select id="inputRole" th:field="*{role}"
 										class="form-select form-select-sm select2" required>
 										<option value=""></option>
-										<option th:each="r : ${userRoles}" th:value="${r}" th:text="${r.role}"></option>
+										<option th:each="r : ${userRoles}" th:value="${r}" th:text="${r.label}"></option>
 									</select>
 								</div>
 							</div>
+
+							<!-- Superviseur de zone : affectation obligatoire, niveau et type imposés par le rôle -->
+							<th:block th:replace="~{fragments/supervisor-zones :: supervisorZoneFields}"></th:block>
 
 							<div class="row mt-2">
 								<div class="col-md-6 field">
@@ -507,6 +506,7 @@
 		}
 	});
 	</script>
+	<script th:replace="~{fragments/supervisor-zones :: supervisorZoneScript}"></script>
 
 </body>
 </html>

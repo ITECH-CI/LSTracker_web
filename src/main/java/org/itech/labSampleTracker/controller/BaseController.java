@@ -144,9 +144,13 @@ public class BaseController {
 		return userRoles.contains("ADMIN") || userRoles.contains("SUPPORT");
 	}
 
+	/**
+	 * Peut modifier le profil d'un autre utilisateur : administrateurs
+	 * seulement (le MANAGER consulte l'administration sans rien modifier).
+	 */
 	protected Boolean isGlobalRole() {
 		List<String> userRoles = this.getUserRoles();
-		return userRoles.contains("ROLE_ADMIN") || userRoles.contains("ROLE_MANAGER");
+		return userRoles.contains("ROLE_ADMIN") || userRoles.contains("ROLE_SUPER_ADMIN");
 	}
 
 	/**

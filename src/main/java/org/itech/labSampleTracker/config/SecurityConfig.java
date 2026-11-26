@@ -40,6 +40,9 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 @Configuration
 public class SecurityConfig {
 
+	/** Attribut de session : message du dernier échec de connexion web, lu par /login. */
+	public static final String LOGIN_ERROR_ATTRIBUTE = "LST_LOGIN_ERROR";
+
 	@Autowired
 	private UserDetailsService userDetailsService;
 
@@ -92,11 +95,23 @@ public class SecurityConfig {
 
 	@Bean
 	@Order(2)
-	public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+	public SecurityFilterChain filterChain(HttpSecurity http,
+			org.itech.labSampleTracker.security.LoginAttemptListener loginAttempts) throws Exception {
 		http.authorizeHttpRequests(
-				request -> request.requestMatchers("/admin/**").hasAnyAuthority("ADMIN").anyRequest().authenticated()
+				// GET /login quel que soit le paramètre (?error, ?logout, ?expired) :
+				// avec un gestionnaire d'échec propre, Spring n'autorise plus de
+				// lui-même l'adresse d'échec « /login?error ».
+				request -> request.requestMatchers(HttpMethod.GET, "/login").permitAll()
+						.requestMatchers("/admin/**").hasAnyAuthority("ADMIN").anyRequest().authenticated()
 
-		).formLogin(form -> form.loginPage("/login").successForwardUrl("/").permitAll().defaultSuccessUrl("/", false))
+		).formLogin(form -> form.loginPage("/login").successForwardUrl("/").permitAll().defaultSuccessUrl("/", false)
+				// Message de l'échec (tentatives restantes, blocage) pour la page de
+				// connexion ; l'échec est déjà compté par LoginAttemptListener.
+				.failureHandler((request, response, exception) -> {
+					request.getSession().setAttribute(LOGIN_ERROR_ATTRIBUTE,
+							loginAttempts.failureMessage(request.getParameter("username")));
+					response.sendRedirect(request.getContextPath() + "/login?error");
+				}))
 				.logout((logout) -> logout
 						.addLogoutHandler(new HeaderWriterLogoutHandler(new ClearSiteDataHeaderWriter(Directive.CACHE,
 								Directive.COOKIES, Directive.EXECUTION_CONTEXTS, Directive.STORAGE)))
@@ -107,6 +122,12 @@ public class SecurityConfig {
 						.maximumSessions(-1)
 						.sessionRegistry(sessionRegistry())
 						.expiredUrl("/login?expired"));
+		// Après connexion, retour à la page demandée — mais seulement une vraie
+		// navigation (GET, HTML). Sans ce filtre, une ressource demandée sur la
+		// page de connexion (favicon versionné « favicon-<empreinte>.ico »,
+		// police, image, appel AJAX) devenait la destination : l'utilisateur
+		// arrivait sur l'icône au lieu de l'accueil.
+		http.requestCache(cache -> cache.requestCache(navigationRequestCache()));
 		http.httpBasic(Customizer.withDefaults());
 		// CSRF protection for the web (session-based) chain. The token is
 		// exposed via a cookie (XSRF-TOKEN) so jQuery $.ajax can read it, and
@@ -134,11 +155,28 @@ public class SecurityConfig {
 		return http.build();
 	}
 
+	/** Mémorise uniquement les navigations de page (GET acceptant du HTML). */
+	static org.springframework.security.web.savedrequest.RequestCache navigationRequestCache() {
+		org.springframework.security.web.util.matcher.MediaTypeRequestMatcher html =
+				new org.springframework.security.web.util.matcher.MediaTypeRequestMatcher(
+						org.springframework.http.MediaType.TEXT_HTML);
+		// « */* » (image, police, fetch) ne compte pas comme une demande de page.
+		html.setIgnoredMediaTypes(java.util.Set.of(org.springframework.http.MediaType.ALL));
+		org.springframework.security.web.savedrequest.HttpSessionRequestCache cache =
+				new org.springframework.security.web.savedrequest.HttpSessionRequestCache();
+		cache.setRequestMatcher(new org.springframework.security.web.util.matcher.AndRequestMatcher(
+				new org.springframework.security.web.util.matcher.AntPathRequestMatcher("/**", "GET"), html));
+		return cache;
+	}
+
 	@Bean
 	public WebSecurityCustomizer webSecurityCustomizer() {
 		return (web) -> web.ignoring()
 				.requestMatchers("/webjars/**", "/content/**", "/csrf", "/css/**", "/js/**", "/img/**",
-						"/DataTables/**", "/legal/**")
+						"/DataTables/**", "/legal/**", "/fonts/**")
+				// Favicon, y compris sous son nom versionné (favicon-<empreinte>.ico) :
+				// public, et affiché dès la page de connexion.
+				.requestMatchers("/favicon.ico", "/favicon-*.ico")
 				.requestMatchers("/error/**").requestMatchers("/error").requestMatchers("/resources/**")
 				// Actuator : servi uniquement sur le port de gestion interne
 				// (management.server.port), jamais publié ; le port public

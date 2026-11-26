@@ -159,7 +159,7 @@ table#tab_districts tbody tr:hover { background: #fafcff; }
 							</div>
 
 							<div class="toolbar-item ms-auto gap-2">
-								<a class="btn btn-sm btn-primary me-2" th:href="@{/district/new}">
+								<a class="btn btn-sm btn-primary me-2" sec:authorize="hasAnyRole('ADMIN','SUPER_ADMIN')" th:href="@{/district/new}">
 									<i class="fas fa-plus me-1"></i> Nouveau district
 								</a>
 								<button class="btn btn-sm btn-outline-secondary" id="btnReload" type="button" title="Rafraîchir">

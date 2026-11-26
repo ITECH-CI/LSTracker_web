@@ -3,6 +3,8 @@
  */
 package org.itech.labSampleTracker.controller;
 
+import org.itech.labSampleTracker.security.AdminRead;
+import org.itech.labSampleTracker.security.AdminWrite;
 import java.util.List;
 import java.util.Map;
 
@@ -40,9 +42,12 @@ public class DistrictController extends BaseController {
 	@Autowired
 	private RegionService regionService;
 
+	@Autowired
+	private org.itech.labSampleTracker.service.security.UserScopeService userScopeService;
+
 
 	@PostMapping(value = "/new")
-	@PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
+	@AdminWrite
 	public String createDistrict(Model model, @Valid District district) {
 		model.addAttribute("regions", regionService.getRegionIdAndName());
 		try {
@@ -60,7 +65,7 @@ public class DistrictController extends BaseController {
 	}
 
 	@GetMapping(value = "/new")
-	@PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
+	@AdminWrite
 	public String newDistrict(Model model) {
 		model.addAttribute("regions", regionService.getRegionIdAndName());
 		model.addAttribute("district", new District());
@@ -68,7 +73,7 @@ public class DistrictController extends BaseController {
 	}
 
 	@GetMapping(value = "")
-	@PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
+	@AdminRead
 	public String getAllDistrict(Model model) {
 		// La liste réelle est chargée via /district/data (DataTables server-side).
 		model.addAttribute("regions", regionService.getRegionIdAndName());
@@ -79,7 +84,7 @@ public class DistrictController extends BaseController {
 	 * JSON endpoint feeding the DataTables-driven district admin list.
 	 */
 	@GetMapping(value = "/data", produces = "application/json")
-	@PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
+	@AdminRead
 	@org.springframework.web.bind.annotation.ResponseBody
 	public Map<String, Object> getDistrictsData(
 			@RequestParam(name = "draw", defaultValue = "1") int draw,
@@ -105,7 +110,7 @@ public class DistrictController extends BaseController {
 	}
 
 	@GetMapping(value = "/update/{id}")
-	@PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
+	@AdminWrite
 	public String getOneDistrict(@PathVariable("id") Integer id, Model model) {
 		District district = new District();
 		try {
@@ -122,7 +127,7 @@ public class DistrictController extends BaseController {
 	}
 
 	@PostMapping(value = "/update/{id}")
-	@PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
+	@AdminWrite
 	public String updateDistrict(@PathVariable("id") Integer id, @Valid District district, Model model) {
 		model.addAttribute("regions", regionService.getRegionIdAndName());
 		District districtToUpdate;
@@ -160,7 +165,10 @@ public class DistrictController extends BaseController {
 
 	@GetMapping(value = "/names_by_regions", produces = "application/json")
 	public ResponseEntity<List<Map<String, Object>>> getDistrictNamesAll(@RequestParam List<Integer> regions) {
-		List<Map<String, Object>> districtList = districtService.getDistrictIdAndNamesByRegions(regions);
+		// Cascade des filtres : seulement les districts du périmètre.
+		List<Map<String, Object>> districtList = userScopeService.visibleCurrent(
+				org.itech.labSampleTracker.service.security.UserScopeService.ZoneList.DISTRICTS,
+				districtService.getDistrictIdAndNamesByRegions(regions));
 		return new ResponseEntity<List<Map<String, Object>>>(districtList, HttpStatus.OK);
 	}
 

@@ -16,6 +16,9 @@
 	window.meshActions = function (type, row, noun) {
 		const id = row.id;
 		const active = row.is_active !== false;
+		if (!window.LST_CAN_WRITE) { // consultation seule (MANAGER)
+			return active ? '' : '<div class="row-actions"><span class="state-off" title="Désactivé">Inactif</span></div>';
+		}
 		return '<div class="row-actions">'
 			+ (active ? '' : '<span class="state-off" title="Désactivé : plus proposé à la saisie">Inactif</span>')
 			+ '<a class="btn-action btn-warning-soft" title="Modifier" href="/' + type + '/update/' + id + '"><i class="fas fa-pencil-alt"></i></a>'

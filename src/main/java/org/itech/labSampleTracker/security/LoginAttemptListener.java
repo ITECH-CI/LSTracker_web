@@ -18,17 +18,26 @@ import org.springframework.stereotype.Component;
 import lombok.RequiredArgsConstructor;
 
 /**
- * Locks an AppUser after {@value #MAX_ATTEMPTS} consecutive failed login
- * attempts and clears the counter on success.
+ * Échecs de connexion consécutifs, par identifiant saisi (web et API mobile).
  *
- * In-memory counter (no DB migration needed): a per-instance
- * {@link ConcurrentHashMap} indexed by lowercased username. The window
- * resets after {@value #COUNTER_TTL_MINUTES} minutes of inactivity to
- * avoid permanently locking accounts after sporadic typos.
+ * <ul>
+ * <li>À partir du {@value #WARN_FROM}ᵉ échec, le message indique le nombre de
+ * tentatives restantes ; au {@value #MAX_ATTEMPTS}ᵉ, le compte est annoncé
+ * bloqué ({@link #failureMessage(String)}).</li>
+ * <li>Pour ne pas révéler quels identifiants existent, le compteur et les
+ * messages valent pour tout identifiant saisi, qu'il existe ou non : un
+ * identifiant inexistant est annoncé bloqué après {@value #MAX_ATTEMPTS}
+ * essais, comme un vrai compte. Seul un compte réel est verrouillé en base
+ * (is_locked).</li>
+ * <li>Sous le seuil, le compteur s'efface après {@value #COUNTER_TTL_MINUTES}
+ * minutes sans échec. Un identifiant bloqué le reste jusqu'à une connexion
+ * réussie ou au déverrouillage du compte par un administrateur
+ * ({@link #reset(String)}).</li>
+ * </ul>
  *
- * Note: counters are per JVM. On a multi-instance deployment users could
- * exhaust attempts faster than {@code MAX_ATTEMPTS * instances}. Acceptable
- * trade-off for now; for cross-instance protection move the cache to Redis.
+ * Compteur en mémoire, par instance (pas de migration) ; au plus
+ * {@value #MAX_TRACKED} identifiants suivis, pour qu'un flot d'identifiants
+ * inventés ne remplisse pas la mémoire.
  */
 @Component
 @RequiredArgsConstructor
@@ -36,8 +45,14 @@ public class LoginAttemptListener {
 
 	private static final Logger log = LoggerFactory.getLogger(LoginAttemptListener.class);
 
-	private static final int MAX_ATTEMPTS = 5;
+	static final int MAX_ATTEMPTS = 5;
+	static final int WARN_FROM = 3;
 	private static final long COUNTER_TTL_MINUTES = 30;
+	static final int MAX_TRACKED = 10_000;
+
+	static final String INVALID = "Identifiant ou mot de passe incorrect.";
+	static final String BLOCKED = "Compte bloqué après " + MAX_ATTEMPTS
+			+ " tentatives. Contactez l'administration centrale.";
 
 	private final AppUserService appUserService;
 
@@ -47,6 +62,13 @@ public class LoginAttemptListener {
 	public void onFailure(AbstractAuthenticationFailureEvent event) {
 		String principal = principalName(event.getAuthentication().getName());
 		if (principal == null) return;
+		if (!attempts.containsKey(principal) && attempts.size() >= MAX_TRACKED) {
+			attempts.values().removeIf(Attempts::isExpired);
+			if (attempts.size() >= MAX_TRACKED) {
+				log.warn("Too many identifiers tracked ({}), failure for '{}' not counted", MAX_TRACKED, principal);
+				return;
+			}
+		}
 
 		Attempts a = attempts.compute(principal, (k, current) -> {
 			if (current == null || current.isExpired()) {
@@ -77,13 +99,38 @@ public class LoginAttemptListener {
 		}
 	}
 
+	/** Message à afficher après un échec de connexion de cet identifiant. */
+	public String failureMessage(String username) {
+		String principal = principalName(username);
+		Attempts a = principal == null ? null : attempts.get(principal);
+		return messageFor(a == null || a.isExpired() ? 0 : a.counter.get());
+	}
+
+	static String messageFor(int consecutiveFailures) {
+		if (consecutiveFailures >= MAX_ATTEMPTS) {
+			return BLOCKED;
+		}
+		if (consecutiveFailures >= WARN_FROM) {
+			return "Identifiant ou mot de passe incorrect. Il vous reste " + (MAX_ATTEMPTS - consecutiveFailures)
+					+ " tentative(s) avant le blocage du compte.";
+		}
+		return INVALID;
+	}
+
+	/** Compte déverrouillé par un administrateur : le compteur repart de zéro. */
+	public void reset(String username) {
+		String principal = principalName(username);
+		if (principal != null && attempts.remove(principal) != null) {
+			log.info("Failed-attempt counter cleared for '{}' (account unlocked)", principal);
+		}
+	}
+
 	private void lockUserIfPossible(String username) {
 		try {
 			AppUser user = appUserService.findUserByLogin(username);
 			if (user == null) {
-				// Username may be wrong → nothing to lock. Counter still
-				// expires after the TTL so the attacker cannot bombard
-				// indefinitely without consequences (log noise + IP scrutiny).
+				// Identifiant inexistant : rien à verrouiller en base. Il reste
+				// annoncé bloqué (compteur), comme un vrai compte.
 				log.warn("Cannot lock unknown user '{}' (reached {} attempts)", username, MAX_ATTEMPTS);
 				return;
 			}
@@ -100,7 +147,7 @@ public class LoginAttemptListener {
 	}
 
 	private static String principalName(String raw) {
-		return (raw == null || raw.isBlank()) ? null : raw.toLowerCase();
+		return (raw == null || raw.isBlank()) ? null : raw.trim().toLowerCase();
 	}
 
 	private static String extractUsername(AuthenticationSuccessEvent event) {
@@ -110,7 +157,7 @@ public class LoginAttemptListener {
 		return event.getAuthentication().getName();
 	}
 
-	/** Per-username failure record with sliding TTL. */
+	/** Per-username failure record with sliding TTL; never expires once blocked. */
 	private static class Attempts {
 		final AtomicInteger counter = new AtomicInteger(1);
 		volatile Instant lastTouched = Instant.now();
@@ -118,7 +165,7 @@ public class LoginAttemptListener {
 		void touch() { lastTouched = Instant.now(); }
 
 		boolean isExpired() {
-			return Duration.between(lastTouched, Instant.now())
+			return counter.get() < MAX_ATTEMPTS && Duration.between(lastTouched, Instant.now())
 					.compareTo(Duration.ofMinutes(COUNTER_TTL_MINUTES)) > 0;
 		}
 	}

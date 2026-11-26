@@ -3,6 +3,8 @@
  */
 package org.itech.labSampleTracker.controller;
 
+import org.itech.labSampleTracker.security.AdminRead;
+import org.itech.labSampleTracker.security.AdminWrite;
 import org.apache.commons.lang3.ObjectUtils;
 import org.itech.labSampleTracker.dto.CircuitDTO;
 import org.itech.labSampleTracker.entities.Circuit;
@@ -50,7 +52,7 @@ public class CircuitController extends BaseController{
 	private org.itech.labSampleTracker.dao.CircuitRepository circuitRepository;
 
 
-	@PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
+	@AdminWrite
 	@PostMapping(value = "/new")
 	public String createCircuit(Model model, @Valid CircuitDTO circuitDTO) {
 		model.addAttribute("sites", siteService.getSiteIdAndNames());
@@ -83,7 +85,7 @@ public class CircuitController extends BaseController{
 		return "circuit/new";
 	}
 
-	@PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
+	@AdminWrite
 	@GetMapping(value = "/new")
 	public String newAppUser(Model model) {
 		model.addAttribute("sites", siteService.getSiteIdAndNames());
@@ -91,7 +93,7 @@ public class CircuitController extends BaseController{
 		return "circuit/new";
 	}
 
-	@PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
+	@AdminRead
 	@GetMapping(value = "")
 	public String getAllCircuit(Model model) {
 		// La liste réelle est chargée via /circuit/data (DataTables server-side).
@@ -101,7 +103,7 @@ public class CircuitController extends BaseController{
 	/**
 	 * JSON endpoint feeding the DataTables-driven circuit admin list.
 	 */
-	@PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
+	@AdminRead
 	@GetMapping(value = "/data", produces = "application/json")
 	@org.springframework.web.bind.annotation.ResponseBody
 	public Map<String, Object> getCircuitsData(
@@ -127,7 +129,7 @@ public class CircuitController extends BaseController{
 		return out;
 	}
 
-	@PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
+	@AdminWrite
 	@GetMapping(value = "/update/{id}")
 	public String getOneCircuit(@PathVariable("id") Integer id, Model model) {
 		model.addAttribute("sites", siteService.getSiteIdAndNames());
@@ -150,7 +152,7 @@ public class CircuitController extends BaseController{
 		return "circuit/edit";
 	}
 
-	@PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
+	@AdminWrite
 	@PostMapping(value = "/update/{id}")
 	public String updateCircuit(@PathVariable("id") Integer id, @Valid CircuitDTO circuitDTO, Model model) {
 		model.addAttribute("sites", siteService.getSiteIdAndNames());

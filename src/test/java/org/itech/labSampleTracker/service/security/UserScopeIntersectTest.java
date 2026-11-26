@@ -78,4 +78,18 @@ class UserScopeIntersectTest {
 		assertNull(f.getAccessibleSiteIds());
 		assertEquals(28, f.getRegionId());
 	}
+
+	@Test
+	void unPerimetreSansAucunSiteNeDonneRien() {
+		// Refus par défaut : une liste de sites vide vaudrait « aucune restriction ».
+		Scope labSansSite = Scope.builder().global(false).regionIds(List.of(28)).districtIds(List.of(5))
+				.siteIds(List.of()).labIds(List.of(6)).circuitIds(List.of()).build();
+		assertTrue(service.intersect(labSansSite, null, null, null, null).isForceEmpty());
+		assertTrue(service.intersect(labSansSite, 28, null, null, null).isForceEmpty());
+		// Le filtre sur son labo reste possible : il ne dépend pas des sites.
+		ScopedFilter f = service.intersect(labSansSite, null, null, null, 6);
+		assertFalse(f.isForceEmpty());
+		assertNull(f.getAccessibleSiteIds());
+		assertEquals(6, f.getLabId());
+	}
 }

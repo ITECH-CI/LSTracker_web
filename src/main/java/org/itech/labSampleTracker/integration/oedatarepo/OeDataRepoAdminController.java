@@ -1,5 +1,7 @@
 package org.itech.labSampleTracker.integration.oedatarepo;
 
+import org.itech.labSampleTracker.security.AdminRead;
+import org.itech.labSampleTracker.security.AdminWrite;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -33,7 +35,7 @@ import org.springframework.web.bind.annotation.ResponseBody;
  */
 @Controller
 @RequestMapping("/sync-openelis")
-@PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
+@AdminWrite
 public class OeDataRepoAdminController extends BaseController {
 
     private final SampleRepository sampleRepository;
@@ -65,6 +67,7 @@ public class OeDataRepoAdminController extends BaseController {
 
     // --- Page ------------------------------------------------------------
 
+    @AdminRead
     @GetMapping("")
     public String index(Model model) {
         model.addAttribute("enabled", enabled);
@@ -78,6 +81,7 @@ public class OeDataRepoAdminController extends BaseController {
 
     // --- État (panneau) --------------------------------------------------
 
+    @AdminRead
     @GetMapping(value = "/state", produces = "application/json")
     @ResponseBody
     public Map<String, Object> state() {
@@ -102,6 +106,7 @@ public class OeDataRepoAdminController extends BaseController {
 
     // --- Liste des éligibles (DataTables server-side) --------------------
 
+    @AdminRead
     @GetMapping(value = "/eligible/data", produces = "application/json")
     @ResponseBody
     public Map<String, Object> eligibleData(
@@ -129,6 +134,7 @@ public class OeDataRepoAdminController extends BaseController {
 
     // --- Historique des exécutions --------------------------------------
 
+    @AdminRead
     @GetMapping(value = "/runs/data", produces = "application/json")
     @ResponseBody
     public Map<String, Object> runsData() {

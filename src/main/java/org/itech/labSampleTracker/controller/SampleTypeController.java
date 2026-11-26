@@ -3,6 +3,8 @@
  */
 package org.itech.labSampleTracker.controller;
 
+import org.itech.labSampleTracker.security.AdminRead;
+import org.itech.labSampleTracker.security.AdminWrite;
 import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -44,7 +46,7 @@ public class SampleTypeController extends BaseController {
 	private SampleTypeService sampletypeService;
 
 	@GetMapping(value = "")
-	@PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
+	@AdminRead
 	public String getAllSampleType(Model model) {
 		// La liste reelle est chargee via /sampletype/data (DataTables).
 		return "sampletype/index";
@@ -54,7 +56,7 @@ public class SampleTypeController extends BaseController {
 	 * JSON endpoint alimentant la liste DataTables.
 	 */
 	@GetMapping(value = "/data", produces = "application/json")
-	@PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
+	@AdminRead
 	@ResponseBody
 	public Map<String, Object> getSampleTypesData(
 			@RequestParam(name = "draw", defaultValue = "1") int draw,
@@ -76,7 +78,7 @@ public class SampleTypeController extends BaseController {
 	}
 
 	@GetMapping(value = "/new")
-	@PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
+	@AdminWrite
 	public String newSampleType(Model model) {
 		// Un POST en erreur redirige ici avec la saisie en flash attribute :
 		// on ne la remplace pas par un formulaire vierge.
@@ -94,7 +96,7 @@ public class SampleTypeController extends BaseController {
 	 * messages et la saisie en cours transitent par des flash attributes.
 	 */
 	@PostMapping(value = "/new")
-	@PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
+	@AdminWrite
 	public String createSampleType(@Valid SampleType sampletype, RedirectAttributes redirectAttributes) {
 		try {
 			String name = StringUtils.trimToNull(sampletype.getName());
@@ -137,7 +139,7 @@ public class SampleTypeController extends BaseController {
 	}
 
 	@GetMapping(value = "/update/{id}")
-	@PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
+	@AdminWrite
 	public String getOneSampleType(@PathVariable("id") Integer id, Model model) {
 		// Si un POST en erreur vient de rediriger ici, le flash attribute
 		// porte deja la saisie de l'utilisateur : on ne l'ecrase pas.
@@ -159,7 +161,7 @@ public class SampleTypeController extends BaseController {
 
 	/** Post/Redirect/Get, cf. {@link #createSampleType}. */
 	@PostMapping(value = "/update/{id}")
-	@PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
+	@AdminWrite
 	public String updateSampleType(@PathVariable("id") Integer id, @Valid SampleType sampletype,
 			RedirectAttributes redirectAttributes) {
 		SampleType toUpdate;
@@ -207,8 +209,8 @@ public class SampleTypeController extends BaseController {
 	 * pas etre supprime (contrainte de cle etrangere, et perte de sens des
 	 * donnees historiques). On propose alors de le desactiver.
 	 */
-	@GetMapping(value = "/delete/{id}")
-	@PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
+	@PostMapping(value = "/delete/{id}")
+	@AdminWrite
 	public String deleteSampleType(@PathVariable("id") Integer id, RedirectAttributes redirectAttributes) {
 		long used = sampletypeService.countSamples(id);
 		if (used > 0) {
