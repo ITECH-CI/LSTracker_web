@@ -93,7 +93,7 @@
 							<th class="num">Valeur</th><th class="num">Écart</th><th>État</th></tr></thead>
 						<tbody>
 							<tr th:each="c : ${indicators}" th:classappend="${c.ok()} ? '' : 'bad'">
-								<td th:text="${c.indicator()}">Collectés</td>
+								<td th:text="${c.indicator()}">Échantillons collectés</td>
 								<td class="num" th:text="${c.reference()}">120</td>
 								<td th:text="${c.source()}">Répartition par région</td>
 								<td class="num" th:text="${c.value()}">120</td>
@@ -114,7 +114,7 @@
 							<tr class="bad" th:each="g : ${gaps}">
 								<td th:text="${g.level()}">District</td>
 								<td th:text="${g.name()}">Région › District</td>
-								<td th:text="${g.indicator()}">Collectés</td>
+								<td th:text="${g.indicator()}">Échantillons collectés</td>
 								<td class="num" th:text="${g.parent()}">10</td>
 								<td class="num" th:text="${g.children()}">9</td>
 							</tr>

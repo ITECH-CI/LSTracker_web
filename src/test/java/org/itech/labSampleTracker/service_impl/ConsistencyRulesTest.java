@@ -21,7 +21,7 @@ class ConsistencyRulesTest {
 
 	@Test
 	void aCheckIsOkOnlyWhenValuesAreIdentical() {
-		assertTrue(new ConsistencyCheckService.Check("Collectés", 120, "Répartition", 120).ok());
-		assertFalse(new ConsistencyCheckService.Check("Analysés", 991, "Rapport PDF", 16).ok());
+		assertTrue(new ConsistencyCheckService.Check("Échantillons collectés", 120, "Répartition", 120).ok());
+		assertFalse(new ConsistencyCheckService.Check("Échantillons analysés", 991, "Rapport PDF", 16).ok());
 	}
 }

@@ -492,7 +492,7 @@
 				{ name: 'Déposés', data: pick(data.delivered), color: STAGE.deposited },
 				{ name: 'Analysés', data: pick(data.analysisDone), color: STAGE.analysed },
 				{ name: 'Résultats récupérés au laboratoire', data: pick(data.resultCollected), color: STAGE.resultCollected },
-				{ name: 'Résultats livrés', data: pick(data.resultOnSite), color: STAGE.delivered },
+				{ name: 'Résultats rendus aux sites', data: pick(data.resultOnSite), color: STAGE.delivered },
 				{ name: 'Non-conformités', data: pick(data.nonConform), color: STATUS_CRITICAL }
 			]
 		});
@@ -529,7 +529,7 @@
 				{ name: 'Collectés', data: bucketize(res.collected, granularity), color: STAGE.collected },
 				{ name: 'Déposés', data: bucketize(res.deposited, granularity), color: STAGE.deposited },
 				{ name: 'Analysés', data: bucketize(res.analysed, granularity), color: STAGE.analysed },
-				{ name: 'Livrés', data: bucketize(res.delivered, granularity), color: STAGE.delivered }
+				{ name: 'Résultats rendus aux sites', data: bucketize(res.delivered, granularity), color: STAGE.delivered }
 			]
 		});
 	}
