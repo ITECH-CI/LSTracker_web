@@ -62,7 +62,10 @@ public class AuthApiController {
 		String access = jwtService.generateToken(username, role, userId);
 		String refresh = refreshTokenService.issue(userId, username, role, clientIp(http));
 
-		return new LoginResponse(access, refresh, appRole(appUser), userId);
+		// password_reset : mot de passe temporaire à changer. En 2.2.3 l'API
+		// accepte la connexion sans l'imposer ; le mobile l'exploitera.
+		return new LoginResponse(access, refresh, appRole(appUser), userId,
+				Boolean.TRUE.equals(appUser.getPasswordReset()));
 	}
 
 	/**

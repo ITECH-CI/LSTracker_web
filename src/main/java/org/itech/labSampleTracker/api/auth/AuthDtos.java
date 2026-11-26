@@ -9,7 +9,9 @@ public class AuthDtos {
 			@NotBlank @Size(max = 200) String password) {
 	}
 
-	public record LoginResponse(String access_token, String refresh_token, String role, Long user_id) {
+	/** password_reset : mot de passe temporaire à changer (réinitialisation par un administrateur). */
+	public record LoginResponse(String access_token, String refresh_token, String role, Long user_id,
+			boolean password_reset) {
 	}
 
 	public record RefreshRequest(@NotBlank @Size(max = 1024) String refresh_token) {

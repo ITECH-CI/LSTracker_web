@@ -32,7 +32,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
  * Messages de connexion avant blocage, en HTTP réel, sur la page de
  * connexion et sur /api_v2/auth/login : mêmes messages pour un compte réel
  * et pour un identifiant inexistant ; seul le compte réel est verrouillé en
- * base.
+ * base. Indicateur password_reset de la réponse de connexion mobile.
  */
 @Testcontainers(disabledWithoutDocker = true)
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
@@ -160,5 +160,17 @@ class LoginMessagesIntegrationTest {
 		assertEquals(EXPECTED, unknown);
 		assertEquals(Boolean.TRUE, locked("agentapi"));
 		assertEquals(EXPECTED.get(4), apiAttempt("agentapi", PASSWORD));
+	}
+
+	@Test
+	void laConnexionMobileSignaleUnMotDePasseTemporaire() throws Exception {
+		account("temporaire", true);
+		account("definitif", false);
+		HttpResponse<String> reset = apiLogin("temporaire", PASSWORD);
+		assertEquals(200, reset.statusCode(), reset.body());
+		assertTrue(reset.body().contains("\"password_reset\":true"), reset.body());
+		HttpResponse<String> normal = apiLogin("definitif", PASSWORD);
+		assertEquals(200, normal.statusCode(), normal.body());
+		assertTrue(normal.body().contains("\"password_reset\":false"), normal.body());
 	}
 }
