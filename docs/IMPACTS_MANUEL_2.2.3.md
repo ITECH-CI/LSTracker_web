@@ -50,7 +50,7 @@ La même reformulation s'applique aux spécifications d'architecture et au rappo
 
 - **3.2 Se connecter** : ajouter « À partir du troisième échec, un message indique le nombre de tentatives restantes. Au cinquième, le compte est bloqué : “Compte bloqué après 5 tentatives. Contactez l'administration centrale.” Seul un administrateur le débloque. » et « Après une réinitialisation, le mot de passe temporaire permet de se connecter ; l'application demande alors de choisir un nouveau mot de passe avant toute autre page. »
 - **3.3 Description de l'interface** : « menus Tableau de bord, Échantillons, Rapports, Administration (selon le profil) » ; préciser que le menu Administration n'apparaît pas pour les superviseurs. Le compteur de pagination s'écrit « 1 à 25 sur 33 » (et non « 1–25 sur 33 »).
-- **3.4 Le menu Administration** : « Réservé aux administrateurs » devient « Réservé à l'administration centrale (administrateur national, administrateur système). Le profil Pilotage national le consulte en lecture seule. »
+- **3.4 Le menu Administration** : « Réservé aux administrateurs » devient « Réservé à l'administration centrale (administrateur national, administrateur système). Le profil Pilotage national le consulte en lecture seule, journaux des connexions et d'activité compris. »
 - **Figure 1** : capture à refaire si l'en-tête ou la pagination y figurent.
 
 ## 4. Gestion des utilisateurs et des habilitations
@@ -78,7 +78,7 @@ La même reformulation s'applique aux spécifications d'architecture et au rappo
 
 - **7.1 Utiliser les filtres** : ajouter
   - « Chaque liste commence par “Tout”, sélectionné par défaut » ;
-  - « Type de labo : laboratoire de district, laboratoire régional, CAT, plateforme de biologie moléculaire, hub. Le choix restreint aussi la liste des laboratoires » ;
+  - « Type de labo : les types proposés sont ceux des laboratoires paramétrés (par exemple laboratoire de district, CAT, plateforme de biologie moléculaire). Le choix restreint aussi la liste des laboratoires » ;
   - « Type d'échantillon : CV, EID, TB, HPV… » ;
   - « Les listes Région, District, Site et Laboratoire ne proposent que les éléments de votre périmètre ».
 - **7.2 Indicateurs du parcours** : titre « Indicateurs des étapes de l'échantillon » ; le bandeau s'intitule « Étapes de l'échantillon ». Dans le tableau : ajouter « En cours d'acheminement : échantillons collectés, pas encore déposés au laboratoire » ; « Résultats livrés » devient « Résultats rendus aux sites » ; ajouter « Résultats récupérés au laboratoire ». Ligne TAT : ajouter « Le TAT s'affiche sans couleur ; les délais cibles par type d'examen viendront dans une version ultérieure. »

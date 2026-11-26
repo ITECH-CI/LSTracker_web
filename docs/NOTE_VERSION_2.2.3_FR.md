@@ -54,18 +54,18 @@ Seuls les administrateurs nationaux créent les comptes et administrent le maill
 
 - **Journal d'activité** : chaque création, modification ou suppression est enregistrée avec son auteur, sa date, son canal (web, mobile, système) et la valeur antérieure de chaque champ modifié. Les exports et les rapports sont eux aussi journalisés.
 - **Journal des connexions** : chaque tentative de connexion, réussie ou non, est enregistrée. Une page d'administration présente la fréquentation, les comptes inactifs et les échecs répétés.
-- Conservation de 12 mois ; consultation réservée aux administrateurs.
+- Conservation de 12 mois. Consultation par les administrateurs et par le profil Pilotage national (Administration › Connexions, Administration › Journal d'activité).
 
 ---
 
 ## 2. Centralisation des données pour le pilotage national
 
 - **Vue nationale consolidée** : les profils nationaux voient l'ensemble du pays sur le même tableau de bord que les zones, avec les mêmes définitions de calcul.
-- **Répartition par zone géographique** : un seul tableau, du niveau région au niveau site, avec le niveau courant indiqué dans le titre et le fil d'Ariane. Chaque ligne se déplie pour montrer la répartition par type d'échantillon, les durées médianes par étape et les non-conformités par motif, et ouvre la liste des échantillons correspondante, qui donne le même nombre.
+- **Répartition par zone géographique** : un seul tableau, du niveau région au niveau site, avec le niveau courant indiqué dans le titre et le fil d'Ariane. Chaque ligne se déplie pour montrer la répartition par type d'échantillon, les durées médianes par étape et les non-conformités par motif, et donne accès à la liste des échantillons correspondante.
 - **Totaux concordants** : un échantillon est rattaché à la zone de son site de collecte, à défaut à celle de son site demandeur. Les totaux de la répartition égalent ceux des indicateurs.
 - **Exports datés et situés** : l'export des échantillons et celui de la répartition indiquent la date, l'auteur, la période, le périmètre et les filtres appliqués.
 - **Maillage préservé** : régions, districts et sites se désactivent au lieu d'être supprimés ; ils disparaissent des listes de saisie et gardent leur historique. Les taux de couverture ne comptent que les éléments actifs.
-- **Dates fiabilisées** : les dates antérieures à la mise en service ou futures sont refusées à la saisie ; un script d'audit et de correction traite les années mal saisies dans les données existantes.
+- **Dates fiabilisées** : les dates antérieures au 1ᵉʳ janvier 2024 ou futures sont refusées à la saisie ; un script d'audit et de correction traite les années mal saisies dans les données existantes.
 
 ---
 
@@ -74,7 +74,7 @@ Seuls les administrateurs nationaux créent les comptes et administrent le maill
 ### Filtres
 
 - Chaque liste de filtre commence par « Tout », sélectionné par défaut.
-- Nouveau filtre **« Type de labo »** (laboratoire de district, laboratoire régional, CAT, plateforme de biologie moléculaire, hub), qui restreint aussi la liste des laboratoires.
+- Nouveau filtre **« Type de labo »**, selon les types de laboratoire paramétrés, qui restreint aussi la liste des laboratoires.
 - Nouveau filtre **« Type d'échantillon »** (CV, EID, TB, HPV…).
 - Les filtres s'appliquent à tous les blocs du tableau de bord, aux exports et aux rapports, toujours en plus du périmètre de l'utilisateur.
 
@@ -97,14 +97,14 @@ La carte **« Circuits »** présente, pour chaque tournée de convoyeur : écha
 
 ### Chiffres contrôlés
 
-Une page de contrôle de cohérence, réservée aux administrateurs, recalcule chaque indicateur par le code de chaque écran (répartitions, graphiques, rapports, carte Circuits) et signale tout écart, pour les filtres choisis.
+Un outil de contrôle de cohérence, ouvert aux administrateurs et au profil Pilotage national, recalcule chaque indicateur par le code de chaque écran (répartitions, graphiques, rapports, carte Circuits) et signale tout écart, pour les filtres choisis. Outil de vérification, il ne figure pas dans les menus : il s'ouvre à l'adresse `/coherence`.
 
 ---
 
 ## 4. Exploitation et maintenance des serveurs
 
 - Réglages de la base de données et des conteneurs documentés, avec leur règle de calcul.
-- Tests de montée en charge représentatifs : deux défauts corrigés, qui faisaient chuter le service à 50 utilisateurs simultanés.
+- Tests de montée en charge représentatifs, sur une base de près de 600 000 échantillons (environ treize ans d'activité au rythme actuel) : avec les réglages retenus, 50 utilisateurs simultanés, web et mobiles, sont servis sans erreur, à 46,5 requêtes par seconde, le tableau de bord s'affichant en moins d'une seconde en médiane.
 - Supervision de la disponibilité et des ressources, avec alertes.
 
 ---

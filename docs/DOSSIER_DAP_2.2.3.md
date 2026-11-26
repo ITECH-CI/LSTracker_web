@@ -1,6 +1,6 @@
-# Dossier pour la DAP : données à trancher avant la migration de la production (2.2.3)
+# Dossier pour la DAP et la DISD : données à trancher avant la migration de la production (2.2.3)
 
-La version 2.2.3 rattache chaque échantillon à un circuit et à une zone géographique selon des règles explicites. Quatre situations de données restent à trancher par la DAP avant la migration de la production, et une vérification technique est à faire. Pour chacune, ce dossier donne le constat, l'effet visible dans l'application, les options et la requête SQL qui produit la liste nominative.
+La version 2.2.3 rattache chaque échantillon à un circuit et à une zone géographique selon des règles explicites. Cinq situations de données restent à trancher par la DAP avant la migration de la production (points 1 à 4 et 6), une vérification technique est à faire (point 5) et la DISD reprend une partie des comptes (point 7). Pour chacune, ce dossier donne le constat, l'effet visible dans l'application, les options et la requête SQL qui produit la liste nominative.
 
 Les chiffres cités viennent de la base de test (2 995 échantillons, régions PORO et HAUT-SASSANDRA). Les listes de décision se produisent sur la base de production, ou sur sa copie restaurée en démonstration.
 
@@ -101,7 +101,7 @@ FROM sample WHERE sample_retrieving_id IS NULL AND requester_site_id IS NULL;
 
 ## 4. Échantillons à l'année de collecte aberrante
 
-**Constat.** La date de collecte est antérieure au 01/01/2024 (mise en service) ou future. Il s'agit de fautes de frappe sur l'année, saisies avant le contrôle des dates. Sur la base de test : 23 échantillons (année 0024 : 7 ; 0204 : 5 ; 0219 : 1 ; 2021 : 10), tous enregistrés en 2024. Sur la base de production, l'audit avait relevé 423 échantillons sur 46 392 portant une date aberrante.
+**Constat.** La date de collecte est antérieure au 1ᵉʳ janvier 2024 ou future. Il s'agit de fautes de frappe sur l'année, saisies avant le contrôle des dates. Sur la base de test : 23 échantillons (année 0024 : 7 ; 0204 : 5 ; 0219 : 1 ; 2021 : 10), tous enregistrés en 2024. Sur la base de production, l'audit avait relevé 423 échantillons sur 46 392 portant une date aberrante.
 
 **Effet.** Ces échantillons sortent de toutes les périodes du tableau de bord et des rapports.
 
@@ -166,12 +166,112 @@ FROM region r
 WHERE r.name ILIKE '%pkom%';
 ```
 
+## 6. Non-conformités sans motif de rejet
+
+**Constat.** Un échantillon au statut « non conforme » n'a aucun motif pris dans le référentiel des types de rejet : la raison n'existe qu'en commentaire libre, quand elle existe. Sur la base de test : 62 non-conformités sur 64, dont 30 sur 31 dans HAUT-SASSANDRA et 32 sur 33 dans PORO. Le commentaire est presque toujours renseigné (« échantillon hémolysé », « fiche sans échantillon », « échantillon insuffisant »…), avec des graphies variables pour une même raison. Le commentaire le plus fréquent, « échantillon non parvenu » et ses variantes (environ 18 échantillons), ne correspond à aucun motif du référentiel.
+
+**Effet.** La répartition des non-conformités par motif (ligne « Détails » du tableau par zone) et tout indicateur par motif sont vides ou presque, alors que les non-conformités sont bien comptées.
+
+**Options.** Établir la correspondance entre les commentaires libres et les motifs du référentiel (requête 6.3), puis l'appliquer en gardant le commentaire d'origine ; décider si « échantillon non parvenu » relève d'une non-conformité, d'un motif à créer ou d'un autre traitement (échantillon perdu) ; laisser « Autres » pour les commentaires sans correspondance. La correspondance retenue s'applique par un script relu ou un changeset Liquibase, pas par une saisie à la main.
+
+```sql
+-- 6.1 Par région
+SELECT COALESCE(r.name, 'Zone non renseignée') AS region,
+       count(*) AS non_conformes,
+       count(*) FILTER (WHERE NOT EXISTS (SELECT 1 FROM sample_rejection sj
+                          WHERE sj.sample_id = x.id AND sj.sample_rejection_type_id IS NOT NULL)) AS sans_motif
+FROM sample x
+JOIN sample_status ss ON ss.id = x.sample_status_id
+LEFT JOIN sample_retrieving sr ON sr.id = x.sample_retrieving_id
+LEFT JOIN site s ON s.id = COALESCE(sr.site_id, x.requester_site_id)
+LEFT JOIN district d ON d.id = s.district_id
+LEFT JOIN region r ON r.id = d.region_id
+WHERE ss.status = 'NON_CONFORM'
+GROUP BY r.name
+ORDER BY sans_motif DESC, region;
+
+-- 6.2 Par site
+SELECT COALESCE(r.name, 'Zone non renseignée') AS region, d.name AS district, s.name AS site,
+       count(*) AS non_conformes,
+       count(*) FILTER (WHERE NOT EXISTS (SELECT 1 FROM sample_rejection sj
+                          WHERE sj.sample_id = x.id AND sj.sample_rejection_type_id IS NOT NULL)) AS sans_motif
+FROM sample x
+JOIN sample_status ss ON ss.id = x.sample_status_id
+LEFT JOIN sample_retrieving sr ON sr.id = x.sample_retrieving_id
+LEFT JOIN site s ON s.id = COALESCE(sr.site_id, x.requester_site_id)
+LEFT JOIN district d ON d.id = s.district_id
+LEFT JOIN region r ON r.id = d.region_id
+WHERE ss.status = 'NON_CONFORM'
+GROUP BY r.name, d.name, s.name
+ORDER BY sans_motif DESC, region, district, site;
+
+-- 6.3 Commentaires libres des non-conformités sans motif, pour établir la correspondance
+SELECT COALESCE(NULLIF(lower(trim(sj.comment)), ''), '(aucun commentaire)') AS commentaire,
+       count(DISTINCT x.id) AS echantillons
+FROM sample x
+JOIN sample_status ss ON ss.id = x.sample_status_id
+LEFT JOIN sample_rejection sj ON sj.sample_id = x.id
+WHERE ss.status = 'NON_CONFORM'
+  AND NOT EXISTS (SELECT 1 FROM sample_rejection t
+                  WHERE t.sample_id = x.id AND t.sample_rejection_type_id IS NOT NULL)
+GROUP BY 1
+ORDER BY echantillons DESC, commentaire;
+
+-- 6.4 Liste nominative
+SELECT x.id, x.lab_number, st.name AS type,
+       to_char(x.rejection_date, 'YYYY-MM-DD') AS date_rejet,
+       s.name AS site, r.name AS region, l.lab_name AS labo_destination,
+       string_agg(DISTINCT NULLIF(trim(sj.comment), ''), ' / ') AS commentaire
+FROM sample x
+JOIN sample_status ss ON ss.id = x.sample_status_id
+LEFT JOIN sample_type st ON st.id = x.sample_type_id
+LEFT JOIN sample_rejection sj ON sj.sample_id = x.id
+LEFT JOIN sample_retrieving sr ON sr.id = x.sample_retrieving_id
+LEFT JOIN site s ON s.id = COALESCE(sr.site_id, x.requester_site_id)
+LEFT JOIN district d ON d.id = s.district_id
+LEFT JOIN region r ON r.id = d.region_id
+LEFT JOIN lab l ON l.id = x.destination_lab_id
+WHERE ss.status = 'NON_CONFORM'
+  AND NOT EXISTS (SELECT 1 FROM sample_rejection t
+                  WHERE t.sample_id = x.id AND t.sample_rejection_type_id IS NOT NULL)
+GROUP BY x.id, x.lab_number, st.name, x.rejection_date, s.name, r.name, l.lab_name
+ORDER BY r.name, s.name, x.id;
+
+-- 6.5 Référentiel des motifs de rejet
+SELECT id, rejection_type, is_active FROM sample_rejection_type ORDER BY rejection_type;
+```
+
+## 7. Pour la DISD : comptes au profil « Utilisateur » qui sont des convoyeurs
+
+**Constat.** Des comptes de convoyeur ont le rôle USER (« Utilisateur (consultation) ») et le type d'utilisateur CONVOYEUR. Sur la base de test : 17 comptes, tous actifs, contre 2 au rôle CONVOYEUR. Ils fonctionnent, car le serveur et le mobile tiennent compte du type d'utilisateur, mais la liste des comptes les affiche comme des profils de consultation et toute règle fondée sur le rôle les traite comme tels. La même situation existe pour 16 comptes de laboratoire (rôle USER, type BIOLOGISTE).
+
+**À faire lors de la reprise des comptes.** Passer ces comptes au profil « Convoyeur » depuis Administration › Utilisateurs, en vérifiant que leurs circuits restent affectés ; la modification est journalisée. Le même traitement vers « Technicien ou superviseur de laboratoire » est à décider pour les comptes de laboratoire.
+
+```sql
+-- 7.1 Comptes USER de type convoyeur
+SELECT u.id, u.login, u.first_name, u.last_name, u.user_level, u.is_active,
+       to_char(u.last_login, 'YYYY-MM-DD') AS derniere_connexion,
+       (SELECT count(*) FROM app_user_has_circuit h WHERE h.app_user_id = u.id) AS circuits,
+       (SELECT count(*) FROM sample_retrieving sr WHERE sr.app_user_id = u.id) AS collectes
+FROM app_user u
+WHERE u.role = 'USER' AND upper(u.user_type) = 'CONVOYEUR'
+ORDER BY u.is_active DESC, u.login;
+
+-- 7.2 Synthèse des comptes USER par type d'utilisateur
+SELECT COALESCE(user_type, '(vide)') AS type_utilisateur, count(*) AS comptes,
+       count(*) FILTER (WHERE is_active) AS actifs
+FROM app_user WHERE role = 'USER'
+GROUP BY 1 ORDER BY comptes DESC;
+```
+
 ## Décisions attendues
 
-| Point | Liste | Base de test | Décision de la DAP |
+| Point | Liste | Base de test | Décision attendue |
 |---|---|---|---|
 | 1. Sites actifs sans circuit | Requête 1 | 21 sites, dont 2 avec collectes | Rattacher, désactiver ou laisser « Non rattaché » |
 | 2. Sites rattachés à plusieurs circuits | Requête 2 | 17 sites ; CHR de Korhogo (15 circuits) et CHR de Daloa (12) en tête | Circuit principal par site, retrait des laboratoires, ou partage confirmé |
 | 3. Échantillons sans collecte | Requête 3 | 3600 et 3601 | Conserver, rattacher ou supprimer |
 | 4. Années de collecte aberrantes | Requête 4 | 23 échantillons | Correction proposée, correction manuelle ou statu quo |
 | 5. Région de test | Requête 5 | « Pkom Region », vide | Vérification technique, sans décision de la DAP |
+| 6. Non-conformités sans motif | Requêtes 6.1 à 6.5 | 62 sur 64, dont 30 sur 31 dans HAUT-SASSANDRA | DAP : correspondance commentaires et motifs, sort de « échantillon non parvenu » |
+| 7. Comptes USER de type convoyeur | Requêtes 7.1 et 7.2 | 17 comptes (et 16 de type BIOLOGISTE) | DISD : passage au profil Convoyeur à la reprise des comptes |

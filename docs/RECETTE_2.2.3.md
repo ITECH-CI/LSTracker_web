@@ -64,8 +64,8 @@ Avant de commencer : navigateur en navigation privée (aucun cookie de LSTracker
 | | |
 |---|---|
 | Compte | `testmanager` |
-| Étapes | Ouvrir le tableau de bord, puis Administration › Utilisateurs, Régions, Circuits. |
-| Attendu | Chiffres nationaux, identiques à ceux du compte administrateur pour les mêmes filtres. Les écrans d'administration s'ouvrent en consultation : aucun bouton de création, de modification, de désactivation ou de suppression. |
+| Étapes | Ouvrir le tableau de bord, puis Administration › Utilisateurs, Régions, Circuits, Connexions, Journal d'activité ; ouvrir `/coherence` par la barre d'adresse. |
+| Attendu | Chiffres nationaux, identiques à ceux du compte administrateur pour les mêmes filtres. Les écrans d'administration s'ouvrent en consultation : aucun bouton de création, de modification, de désactivation ou de suppression. Les journaux des connexions et d'activité se consultent et s'exportent. Le contrôle de cohérence s'ouvre et se lance. |
 | Constat | |
 
 ### 2.5 Libellés des profils et affectation obligatoire
@@ -103,7 +103,7 @@ Avant de commencer : navigateur en navigation privée (aucun cookie de LSTracker
 |---|---|
 | Compte | administrateur national, puis `testregion` |
 | Étapes | 1. Choisir « Plateforme de biologie moléculaire » dans Type de labo. 2. Dérouler la liste Laboratoire. 3. Exporter le tableau de répartition. 4. Ouvrir la liste des échantillons et appliquer le même type de labo. |
-| Attendu | 1. Les cartes, graphiques et tableaux se recalculent. Libellés proposés : « Laboratoire de district », « Laboratoire régional », « CAT », « Plateforme de biologie moléculaire », « Hub », « Laboratoire relais », selon les types présents en base. 2. Seuls les laboratoires de ce type sont proposés (et, pour `testregion`, seulement ceux de son périmètre). 3. L'en-tête de l'export mentionne le filtre. 4. La liste applique le filtre sur le laboratoire de destination. |
+| Attendu | 1. Les cartes, graphiques et tableaux se recalculent. Seuls les types de laboratoire paramétrés sont proposés, avec leur libellé (sur la base de test : « Laboratoire de district », « CAT », « Plateforme de biologie moléculaire »). 2. Seuls les laboratoires de ce type sont proposés (et, pour `testregion`, seulement ceux de son périmètre). 3. L'en-tête de l'export mentionne le filtre. 4. La liste applique le filtre sur le laboratoire de destination. |
 | Constat | |
 
 ### 3.3 Type d'échantillon
@@ -120,7 +120,7 @@ Avant de commencer : navigateur en navigation privée (aucun cookie de LSTracker
 | | |
 |---|---|
 | Compte | administrateur national |
-| Étapes | Ouvrir `/coherence` ; lancer le contrôle sur l'année, sans filtre, puis avec un type de labo, puis avec un type d'échantillon, puis avec la région HAUT-SASSANDRA. |
+| Étapes | Vérifier qu'aucun menu ne mène au contrôle de cohérence ; ouvrir `/coherence` par la barre d'adresse ; lancer le contrôle sur l'année, sans filtre, puis avec un type de labo, puis avec un type d'échantillon, puis avec la région HAUT-SASSANDRA. |
 | Attendu | Verdict au vert dans chaque cas, carte Circuits comprise (somme des lignes égale au total collecté). |
 | Constat | |
 
@@ -141,7 +141,7 @@ Avant de commencer : navigateur en navigation privée (aucun cookie de LSTracker
 |---|---|
 | Compte | administrateur national, puis `testregion` |
 | Étapes | 1. Faire défiler jusqu'au tableau de répartition ; passer du niveau région au niveau district puis site. 2. Cliquer sur « Détails » d'une ligne. 3. Cliquer sur le lien vers la liste des échantillons de cette ligne. |
-| Attendu | 1. Titre « Répartition par zone géographique », niveau courant dans le sous-titre et le fil d'Ariane. Colonnes : « Échantillons collectés », « Échantillons en cours d'acheminement », « Échantillons déposés au laboratoire », « Échantillons non conformes », « Échecs d'analyse », « Résultats rendus aux sites », « TAT médian », « Détails ». Plus de colonnes « Rang » ni « Écart moy. ». 2. Une ligne se déplie : répartition par type d'échantillon, durée médiane par étape, non-conformités par motif. 3. La liste s'ouvre avec les mêmes filtres et donne le même nombre d'échantillons que la ligne. |
+| Attendu | 1. Titre « Répartition par zone géographique », niveau courant dans le sous-titre et le fil d'Ariane. Colonnes : « Échantillons collectés », « Échantillons en cours d'acheminement », « Échantillons déposés au laboratoire », « Échantillons non conformes », « Échecs d'analyse », « Résultats rendus aux sites », « TAT médian », « Détails ». Plus de colonnes « Rang » ni « Écart moy. ». 2. Une ligne se déplie : répartition par type d'échantillon, durée médiane par étape, non-conformités par motif. 3. La liste s'ouvre avec les mêmes filtres. Pour l'administrateur, elle donne le même nombre d'échantillons que la ligne. Pour un superviseur, un écart de 2 échantillons est connu et reporté à la version 2.2.4 (`docs/BACKLOG_2.2.4.md`, point 6) : le relever sans le compter comme non-conformité. |
 | Constat | |
 
 ### 4.3 Carte « Circuits »

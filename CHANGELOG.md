@@ -37,7 +37,7 @@ La version 2.2.3 regroupe les trois sections datées du 2026-09-23, du 2026-09-2
 ### Présentation et indicateurs
 
 - Retrait de la comparaison avec la période précédente : bandeau « Comparée à », tendances des cartes, mentions dans les infobulles. Le point d'accès `funnel-previous` reste disponible.
-- Tableau « Répartition par zone géographique » : niveau courant dans le sous-titre et le fil d'Ariane ; colonnes « Rang » et « Écart moy. » retirées ; en-têtes explicites (« Échantillons collectés », « Échantillons en cours d'acheminement », « Échantillons déposés au laboratoire », « Échantillons non conformes », « Échecs d'analyse », « Résultats rendus aux sites », « TAT médian ») ; colonne « Détails » ouvrant une ligne dépliable (types d'échantillon, durée médiane par étape, non-conformités par motif, lien vers la liste filtrée, qui donne le même nombre).
+- Tableau « Répartition par zone géographique » : niveau courant dans le sous-titre et le fil d'Ariane ; colonnes « Rang » et « Écart moy. » retirées ; en-têtes explicites (« Échantillons collectés », « Échantillons en cours d'acheminement », « Échantillons déposés au laboratoire », « Échantillons non conformes », « Échecs d'analyse », « Résultats rendus aux sites », « TAT médian ») ; colonne « Détails » ouvrant une ligne dépliable (types d'échantillon, durée médiane par étape, non-conformités par motif, lien vers la liste filtrée).
 - Carte « Circuits » à la place de « Convoyeurs les plus actifs » : collectes, dépôts, délai médian d'acheminement (collecte au premier dépôt) et sites desservis. Rattachement : circuit du trajet s'il existe ; sinon circuit du site (collecte, à défaut site demandeur) s'il n'appartient qu'à un seul circuit actif ; ligne « Sites partagés entre plusieurs circuits » s'il en a plusieurs ; « Non rattaché » s'il n'en a aucun. Seuls les circuits actifs reçoivent des échantillons. Chaque échantillon est compté une fois : la somme des lignes égale le total collecté, ce que vérifie le contrôle de cohérence. La mini-carte « Convoyeurs actifs » est conservée.
 - « En transit » devient « En cours d'acheminement » : tableau de bord, export CSV, contrôle de cohérence, libellé du statut ON_TRANSIT (changeset Liquibase).
 - Le TAT s'affiche sans coloration (les seuils de 3 et 7 jours ne correspondaient à aucune cible).
@@ -98,7 +98,7 @@ La version 2.2.3 regroupe les trois sections datées du 2026-09-23, du 2026-09-2
 - Les entrées d'une transaction ne sont écrites qu'après sa validation ; un périmètre réenregistré à l'identique ne laisse aucune trace (retrait + ajout identiques annulés). Champs techniques ignorés (version, dernière connexion…) ; mot de passe et identifiant patient jamais stockés (« masqué »).
 - Exports journalisés : CSV des échantillons, rapports PDF, exports des journaux.
 - Page Administration → Journal d'activité : période, filtres (utilisateur, objet, n°, action, canal), références affichées par leur nom (statut, labo, site…), historique d'un objet en un clic, export CSV. Bouton « Historique » sur la fiche de modification d'un échantillon (administrateurs).
-- Journal des connexions, visites et journal d'activité conservés 12 mois (purge quotidienne, une seule instance) ; consultation réservée aux administrateurs.
+- Journal des connexions, visites et journal d'activité conservés 12 mois (purge quotidienne, une seule instance) ; consultation par les administrateurs et le profil Pilotage national (MANAGER, `@AdminRead`).
 
 ### Maillage : désactivation plutôt que suppression (cahier IV.b, IV.f)
 
@@ -115,7 +115,7 @@ La version 2.2.3 regroupe les trois sections datées du 2026-09-23, du 2026-09-2
 
 ### Contrôle de cohérence des indicateurs (cahier VI.4, V.5, XII.3)
 
-- Page de contrôle de cohérence, réservée aux administrateurs et accessible à l'adresse `/coherence` (outil de recette, sans entrée de menu) : pour une période et une région, chaque indicateur (collectés, reçus au laboratoire, analysés, résultats livrés, non-conformités, échecs) est recalculé par le code réel de chaque écran — répartitions régions / districts / sites, répartition par type, courbes, parcours par type, rapports PDF — et comparé aux cartes du tableau de bord ; l'additivité site → district → région est vérifiée. Verdict global et liste des écarts : outil de recette.
+- Page de contrôle de cohérence, ouverte aux administrateurs et au profil Pilotage national (MANAGER, `@AdminRead`), accessible à l'adresse `/coherence` (outil de recette, sans entrée de menu) : pour une période et une région, chaque indicateur (collectés, reçus au laboratoire, analysés, résultats livrés, non-conformités, échecs) est recalculé par le code réel de chaque écran — répartitions régions / districts / sites, répartition par type, courbes, parcours par type, rapports PDF — et comparé aux cartes du tableau de bord ; l'additivité site → district → région est vérifiée. Verdict global et liste des écarts : outil de recette.
 - Écart trouvé et corrigé : le rapport laboratoire (« Nombre de résultats disponibles ») ne comptait que les résultats encore en attente de récupération (16 contre 991 « analysés » sur la base de test) ; il compte désormais tous les résultats validés sur la période, comme le tableau de bord.
 
 ### Réglages documentés (cahier VII.2)

@@ -38,9 +38,11 @@ Dans les deux cas, choisir un laboratoire ne doit pas élargir le périmètre : 
 
 ## 6. Écart entre la liste des échantillons et le tableau de bord
 
-**Constat.** Sur une même période, un superviseur obtient des nombres différents entre la liste des échantillons et certaines cartes du tableau de bord. La liste filtre sur la date de collecte ; chaque carte d'étape du tableau de bord compte les échantillons dont la date de cette étape tombe dans la période (par exemple la date de rendu pour « Résultats rendus aux sites »). Les deux sont justes, mais la différence n'est pas expliquée à l'écran. Le lien d'une ligne du tableau de répartition transmet ses filtres à la liste et donne le même nombre que cette ligne.
+**Constat.** Pour un superviseur, la liste des échantillons ouverte depuis une ligne du tableau de répartition diffère encore de 2 échantillons du nombre de cette ligne, alors qu'elle reprend ses filtres. Plus largement, la liste filtre sur la date de collecte, tandis que chaque carte d'étape du tableau de bord compte les échantillons dont la date de cette étape tombe dans la période (par exemple la date de rendu pour « Résultats rendus aux sites ») ; la différence n'est pas expliquée à l'écran.
 
-**À trancher.** Afficher, sur chaque carte et dans la liste, la date de référence utilisée ; ou proposer dans la liste un choix de date de référence (collecte, dépôt, rendu des résultats) pour retrouver le nombre d'une carte. Le contrôle de cohérence devra couvrir la règle retenue.
+**À analyser.** Identifier les 2 échantillons en écart et la date de référence qui les sépare (date de collecte de la liste, date retenue par la répartition, bornes de la période), puis aligner la liste sur la règle de la répartition.
+
+**À trancher ensuite.** Afficher, sur chaque carte et dans la liste, la date de référence utilisée ; ou proposer dans la liste un choix de date de référence (collecte, dépôt, rendu des résultats) pour retrouver le nombre d'une carte. Le contrôle de cohérence devra couvrir la règle retenue.
 
 ## 7. Appel déprécié de Liquibase dans les tests
 
