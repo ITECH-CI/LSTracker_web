@@ -46,8 +46,28 @@ public class SampleServiceImpl implements SampleService {
 	@PersistenceContext
 	private EntityManager em;
 
+	/** Message du refus d'un échantillon sans zone (repris par l'écran de modification). */
+	public static final String NO_ZONE_MESSAGE = "Échantillon sans collecte ni site demandeur : "
+			+ "renseignez la collecte ou le site demandeur pour l'enregistrer.";
+
+	/**
+	 * Un échantillon a une zone : sa collecte (et son site), ou à défaut son
+	 * site demandeur. Sans l'un ni l'autre, il n'apparaîtrait dans aucune zone.
+	 * Même règle que la contrainte ck_sample_collection_or_requester de la base.
+	 */
+	static void requireZone(Sample d) {
+		if (d.getSampleRetrievingId() == null && d.getRequesterSiteId() == null) {
+			throw new IllegalArgumentException(NO_ZONE_MESSAGE);
+		}
+	}
+
+	/**
+	 * Enregistre un échantillon (création ou modification). Refuse, avant toute
+	 * écriture, un échantillon sans collecte ni site demandeur.
+	 */
 	@Override
 	public Sample create(Sample d) {
+		requireZone(d);
 
 		Sample entity;
 
