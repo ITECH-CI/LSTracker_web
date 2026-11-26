@@ -34,7 +34,7 @@
 		relativeToChangelogFile="true" />
 	<include file="./add_supervisor_roles.xml"
 		relativeToChangelogFile="true" />
-	<include file="./rename_status_on_transit.xml"
+	<include file="./rename_sample_status_labels.xml"
 		relativeToChangelogFile="true" />
 
 

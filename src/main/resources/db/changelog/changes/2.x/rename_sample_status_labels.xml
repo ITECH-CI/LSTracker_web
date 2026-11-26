@@ -26,4 +26,25 @@
 			</update>
 		</rollback>
 	</changeSet>
+
+	<!--
+		Libellé du statut RESULT_COLLECTED : « RESULTAT COLLECTE » devient
+		« RESULTATS RECUPERES », du nom de l'action du mobile (« Récupérer les
+		résultats »). Même règle : seul le libellé d'origine est remplacé.
+	-->
+	<changeSet id="rename-status-result-collected" author="lstracker">
+		<preConditions onFail="MARK_RAN" onFailMessage="sample_status table missing">
+			<tableExists tableName="sample_status" schemaName="sample_tracker"/>
+		</preConditions>
+		<update schemaName="sample_tracker" tableName="sample_status">
+			<column name="description" value="RESULTATS RECUPERES"/>
+			<where>status = 'RESULT_COLLECTED' AND description = 'RESULTAT COLLECTE'</where>
+		</update>
+		<rollback>
+			<update schemaName="sample_tracker" tableName="sample_status">
+				<column name="description" value="RESULTAT COLLECTE"/>
+				<where>status = 'RESULT_COLLECTED' AND description = 'RESULTATS RECUPERES'</where>
+			</update>
+		</rollback>
+	</changeSet>
 </databaseChangeLog>
