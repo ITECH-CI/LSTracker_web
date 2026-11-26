@@ -233,6 +233,11 @@ public class SampleController {
 		if (ObjectUtils.isNotEmpty(district)) {
 			sites = siteService.getSiteIdAndNamesByDistrict(district);
 		}
+		// Listes des filtres limitées au périmètre (tout le référentiel pour un compte national).
+		UserScopeService.Scope zone = userScopeService.resolveCurrent();
+		regions = UserScopeService.visible(zone, UserScopeService.ZoneList.REGIONS, regions);
+		districts = UserScopeService.visible(zone, UserScopeService.ZoneList.DISTRICTS, districts);
+		sites = UserScopeService.visible(zone, UserScopeService.ZoneList.SITES, sites);
 
 		List<Map<String, Object>> sampleList = sampleListPageable.getContent();
 		model.addAttribute("totalElements", sampleListPageable.getTotalElements());
@@ -256,7 +261,8 @@ public class SampleController {
 		model.addAttribute("natureList", sampleService.getDistinctSampleNatures());
 		model.addAttribute("patientIdentifier", patientIdentifier);
 
-		model.addAttribute("labs", labService.getLabIdAndNames());
+		model.addAttribute("labs", UserScopeService.visible(zone, UserScopeService.ZoneList.LABS,
+				labService.getLabIdAndNames()));
 		model.addAttribute("regions", regions);
 		model.addAttribute("districts", districts);
 		model.addAttribute("sites", sites);

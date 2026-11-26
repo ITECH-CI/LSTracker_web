@@ -159,6 +159,34 @@ class ZoneSupervisorScopeTest {
 	}
 
 	@Test
+	void lesListesDeFiltreSeLimitentAuPerimetre() {
+		connect("SUPERVISEUR_REGION", "REGION", 50);
+		assignedToRegionA(50);
+		java.util.function.Function<int[], List<java.util.Map<String, Object>>> rows = ids -> java.util.Arrays
+				.stream(ids).mapToObj(i -> java.util.Map.<String, Object>of("id", i, "name", "Zone " + i)).toList();
+		java.util.function.Function<List<java.util.Map<String, Object>>, List<Object>> idsOf = l -> l.stream()
+				.map(m -> m.get("id")).toList();
+
+		assertEquals(List.of(REGION_A), idsOf.apply(service.visibleCurrent(UserScopeService.ZoneList.REGIONS,
+				rows.apply(new int[] { REGION_A, REGION_B }))));
+		assertEquals(List.of(DISTRICT_A), idsOf.apply(service.visibleCurrent(UserScopeService.ZoneList.DISTRICTS,
+				rows.apply(new int[] { DISTRICT_A, DISTRICT_B }))));
+		assertEquals(List.of(SITE_A1, SITE_A2), idsOf.apply(service.visibleCurrent(UserScopeService.ZoneList.SITES,
+				rows.apply(new int[] { SITE_A1, SITE_A2, SITE_B }))));
+		assertEquals(List.of(LAB_A), idsOf.apply(service.visibleCurrent(UserScopeService.ZoneList.LABS,
+				rows.apply(new int[] { LAB_A, LAB_B }))));
+
+		// Compte national : tout le référentiel.
+		Scope national = Scope.builder().global(true).build();
+		assertEquals(2, UserScopeService.visible(national, UserScopeService.ZoneList.REGIONS,
+				rows.apply(new int[] { REGION_A, REGION_B })).size());
+		// Sans affectation : rien.
+		connect("SUPERVISEUR_REGION", "REGION", 71);
+		assertTrue(service.visibleCurrent(UserScopeService.ZoneList.REGIONS, rows.apply(new int[] { REGION_A }))
+				.isEmpty());
+	}
+
+	@Test
 	void lesAutresProfilsGardentLAccesParLeLaboDestinataire() {
 		Scope labUser = Scope.builder().global(false).regionIds(List.of(REGION_A)).districtIds(List.of(DISTRICT_A))
 				.siteIds(List.of(SITE_A1)).labIds(List.of(LAB_A)).circuitIds(List.of()).build();

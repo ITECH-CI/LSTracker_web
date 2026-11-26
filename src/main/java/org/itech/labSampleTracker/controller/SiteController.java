@@ -192,7 +192,10 @@ public class SiteController extends BaseController {
 
 	@GetMapping(value = "names_by_districts", produces = "application/json")
 	public ResponseEntity<List<Map<String, Object>>> getDistrictNamesAll(@RequestParam List<Integer> districts) {
-		List<Map<String, Object>> siteList = siteService.getSiteIdAndNamesByDistricts(districts);
+		// Cascade des filtres : seulement les sites du périmètre.
+		List<Map<String, Object>> siteList = userScopeService.visibleCurrent(
+				org.itech.labSampleTracker.service.security.UserScopeService.ZoneList.SITES,
+				siteService.getSiteIdAndNamesByDistricts(districts));
 		return new ResponseEntity<List<Map<String, Object>>>(siteList, HttpStatus.OK);
 	}
 	

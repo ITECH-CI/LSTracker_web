@@ -105,6 +105,12 @@ public class DashboardController {
 		if (ObjectUtils.isNotEmpty(district)) {
 			sites = siteService.getSiteIdAndNamesByDistrict(district);
 		}
+		// Listes des filtres limitées au périmètre (tout le référentiel pour un compte national).
+		UserScopeService.Scope zone = userScopeService.resolveCurrent();
+		regions = UserScopeService.visible(zone, UserScopeService.ZoneList.REGIONS, regions);
+		districts = UserScopeService.visible(zone, UserScopeService.ZoneList.DISTRICTS, districts);
+		sites = UserScopeService.visible(zone, UserScopeService.ZoneList.SITES, sites);
+		labs = UserScopeService.visible(zone, UserScopeService.ZoneList.LABS, labs);
 
 		model.addAttribute("sampleCount", summary);
 		model.addAttribute("labs", labs);

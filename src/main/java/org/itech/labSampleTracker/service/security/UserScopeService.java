@@ -2,8 +2,10 @@ package org.itech.labSampleTracker.service.security;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
 
 import org.itech.labSampleTracker.dao.UserScopeRepository;
 import org.itech.labSampleTracker.entities.AppUser;
@@ -241,6 +243,39 @@ public class UserScopeService {
 
 	public ScopedFilter intersectCurrent(Integer region, Integer district, Integer site, Integer lab) {
 		return intersect(resolveCurrent(), region, district, site, lab);
+	}
+
+	/** Zones d'une liste de filtre (lignes id, name). */
+	public enum ZoneList {
+		REGIONS(Scope::getRegionIds), DISTRICTS(Scope::getDistrictIds), SITES(Scope::getSiteIds),
+		LABS(Scope::getLabIds);
+
+		private final Function<Scope, List<Integer>> ids;
+
+		ZoneList(Function<Scope, List<Integer>> ids) {
+			this.ids = ids;
+		}
+	}
+
+	/**
+	 * Liste de filtre (régions, districts, sites, laboratoires, cascade
+	 * comprise) restreinte au périmètre du compte connecté : un compte
+	 * national voit tout le référentiel, les autres seulement ce que leur
+	 * périmètre contient.
+	 */
+	public List<Map<String, Object>> visibleCurrent(ZoneList list, List<Map<String, Object>> rows) {
+		return visible(resolveCurrent(), list, rows);
+	}
+
+	public static List<Map<String, Object>> visible(Scope scope, ZoneList list, List<Map<String, Object>> rows) {
+		if (rows == null || (scope != null && scope.isGlobal())) {
+			return rows;
+		}
+		List<Integer> ids = scope == null ? null : list.ids.apply(scope);
+		Set<Integer> allowed = ids == null ? Set.of() : Set.copyOf(ids);
+		return rows.stream()
+				.filter(r -> r.get("id") instanceof Number n && allowed.contains(n.intValue()))
+				.toList();
 	}
 
 	/**

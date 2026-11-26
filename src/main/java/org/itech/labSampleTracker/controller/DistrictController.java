@@ -42,6 +42,9 @@ public class DistrictController extends BaseController {
 	@Autowired
 	private RegionService regionService;
 
+	@Autowired
+	private org.itech.labSampleTracker.service.security.UserScopeService userScopeService;
+
 
 	@PostMapping(value = "/new")
 	@AdminWrite
@@ -162,7 +165,10 @@ public class DistrictController extends BaseController {
 
 	@GetMapping(value = "/names_by_regions", produces = "application/json")
 	public ResponseEntity<List<Map<String, Object>>> getDistrictNamesAll(@RequestParam List<Integer> regions) {
-		List<Map<String, Object>> districtList = districtService.getDistrictIdAndNamesByRegions(regions);
+		// Cascade des filtres : seulement les districts du périmètre.
+		List<Map<String, Object>> districtList = userScopeService.visibleCurrent(
+				org.itech.labSampleTracker.service.security.UserScopeService.ZoneList.DISTRICTS,
+				districtService.getDistrictIdAndNamesByRegions(regions));
 		return new ResponseEntity<List<Map<String, Object>>>(districtList, HttpStatus.OK);
 	}
 
