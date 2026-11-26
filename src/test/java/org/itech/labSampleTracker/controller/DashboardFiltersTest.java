@@ -78,6 +78,13 @@ class DashboardFiltersTest {
 	}
 
 	@Test
+	void typeDeLaboDeLaListeDesEchantillons() {
+		assertNull(SampleController.labTypeCode("0"));
+		assertNull(SampleController.labTypeCode(" "));
+		assertEquals("CAT", SampleController.labTypeCode(" CAT "));
+	}
+
+	@Test
 	void libellesDesTypesDeLabo() {
 		assertEquals("Laboratoire régional", LabType.label("REGION"));
 		assertEquals("Hub", LabType.label("HUB"));

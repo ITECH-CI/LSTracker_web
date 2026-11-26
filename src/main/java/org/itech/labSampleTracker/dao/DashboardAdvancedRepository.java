@@ -154,7 +154,7 @@ public class DashboardAdvancedRepository {
 				+ "  SELECT " + groupExpr + " AS gid, "
 				+ "    COUNT(*) AS total, "
 				+ "    SUM(CASE WHEN ss.status = 'ON_TRANSIT' THEN 1 ELSE 0 END) AS in_transit, "
-				// Livrés : déposés au laboratoire qui réalise l'analyse (même date
+				// Déposés au laboratoire qui réalise l'analyse (même date
 				// que l'étape « Déposés au labo » du haut de page).
 				+ "    COUNT(s.deliver_at_lab_date) AS deposited, "
 				+ "    SUM(CASE WHEN ss.status = 'RESULT_ON_SITE' THEN 1 ELSE 0 END) AS delivered, "

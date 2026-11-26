@@ -41,7 +41,7 @@ public class ConsistencyCheckService {
 	private static final String[] HIERARCHY_INDICATORS = { "total", "in_transit", "deposited", "delivered",
 			"non_conform", "failed" };
 	private static final Map<String, String> HIERARCHY_LABELS = Map.of("total", "Collectés", "in_transit",
-			"En cours d'acheminement", "deposited", "Livrés au laboratoire", "delivered", "Résultats rendus",
+			"En cours d'acheminement", "deposited", "Déposés au laboratoire", "delivered", "Résultats rendus aux sites",
 			"non_conform", "Non-conformités", "failed", "Échecs d'analyse");
 
 	private final DashboardAdvancedRepository dashboard;

@@ -1191,7 +1191,7 @@ public class SampleServiceImpl implements SampleService {
 
 	@Override
 	public Page<Map<String, Object>> getSampleDetailsAdvanced(Pageable pageable,
-			Integer regionId, Integer districtId, Integer siteId, Integer labId,
+			Integer regionId, Integer districtId, Integer siteId, Integer labId, String labType,
 			Date startDate, Date endDate,
 			List<Integer> statusIds, List<Integer> typeIds,
 			List<String> natures,
@@ -1211,7 +1211,7 @@ public class SampleServiceImpl implements SampleService {
 		String dir = "asc".equalsIgnoreCase(sortDir) ? "asc" : "desc";
 
 		return sampleRepo.getSampleDetailsAdvanced(pageable,
-				regionId, districtId, siteId, labId, startDate, endDate,
+				regionId, districtId, siteId, labId, labType, startDate, endDate,
 				statusActive ? statusIds : Collections.singletonList(-1), statusActive,
 				typeActive ? typeIds : Collections.singletonList(-1), typeActive,
 				naturesActive ? natures : Collections.singletonList("__none__"), naturesActive,
@@ -1244,7 +1244,7 @@ public class SampleServiceImpl implements SampleService {
 	}
 
 	@Override
-	public List<Map<String, String>> getAll(Integer region, Integer district, Integer site, Integer lab, Date startDate,
+	public List<Map<String, String>> getAll(Integer region, Integer district, Integer site, Integer lab, String labType, Date startDate,
 			Date endDate, Integer status, Integer sampleType, String patientIdentifier, List<Integer> accessibleSiteIds) {
 		StringBuffer sql = new StringBuffer();
 		sql.append(" SELECT s.id,"
@@ -1294,6 +1294,8 @@ public class SampleServiceImpl implements SampleService {
 			sql.append(" AND site.id = :siteId ");
 		if (ObjectUtils.isNotEmpty(lab))
 			sql.append(" AND s.destination_lab_id = :labId ");
+		if (labType != null)
+			sql.append(" AND EXISTS (SELECT 1 FROM lab flt WHERE flt.id = s.destination_lab_id AND flt.lab_type = :labType) ");
 		if (ObjectUtils.isNotEmpty(status))
 			sql.append(" AND (:status IS NULL OR ss2.id = :status)");
 		if (ObjectUtils.isNotEmpty(sampleType))
@@ -1319,6 +1321,10 @@ public class SampleServiceImpl implements SampleService {
 				query.setParameter("labId", lab);
 			if (ObjectUtils.isNotEmpty(status))
 				query.setParameter("status", status);
+			if (ObjectUtils.isNotEmpty(sampleType))
+				query.setParameter("sampleType", sampleType);
+			if (labType != null)
+				query.setParameter("labType", labType);
 			query.setParameter("startDate", startDate);
 			query.setParameter("endDate", endDate);
 

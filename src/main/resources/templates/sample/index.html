@@ -150,7 +150,10 @@
         grid-column: 4 / span 3;
       }
       .sample-sidebar .filter-site {
-        grid-column: 7 / span 6;
+        grid-column: 7 / span 3;
+      }
+      .sample-sidebar .filter-lab-type {
+        grid-column: 10 / span 3;
       }
       .sample-sidebar .filter-lab {
         grid-column: 1 / span 3;
@@ -727,6 +730,25 @@
                     </select>
                   </div>
                 </div>
+                <div class="filter-group filter-lab-type">
+                  <div class="input-group input-group-sm">
+                    <label class="input-group-text" for="select_lab_type"
+                      >Type de labo</label
+                    >
+                    <select
+                      class="form-select form-select-sm select2-single"
+                      id="select_lab_type"
+                    >
+                      <option value=""></option>
+                      <option
+                        th:each="t : ${labTypes}"
+                        th:value="${t.code}"
+                        th:text="${t.label}"
+                        th:selected="${t.code == selectedLabType}"
+                      ></option>
+                    </select>
+                  </div>
+                </div>
                 <div class="filter-group filter-lab">
                   <div class="input-group input-group-sm">
                     <label class="input-group-text" for="select_lab"
@@ -741,6 +763,7 @@
                         th:each="l : ${labs}"
                         th:value="${l.id}"
                         th:text="${l.name}"
+                        th:attr="data-lab-type=${l.labType}"
                         th:selected="${selectedLab != null and l.id == selectedLab}"
                       ></option>
                     </select>
@@ -1046,6 +1069,27 @@
           placeholder: "— Sélectionner —",
         });
 
+        // Type de labo : la liste des laboratoires ne garde que ce type ; un
+        // labo d'un autre type est désélectionné.
+        const allLabOptions = $("#select_lab option").slice(1).clone();
+        function restrictLabs() {
+          const type = $("#select_lab_type").val();
+          const $lab = $("#select_lab");
+          const current = $lab.val();
+          $lab.find("option").slice(1).remove();
+          $lab.append(
+            (type
+              ? allLabOptions.filter((i, o) => $(o).attr("data-lab-type") === type)
+              : allLabOptions
+            ).clone(),
+          );
+          $lab
+            .val($lab.find('option[value="' + current + '"]').length ? current : null)
+            .trigger("change.select2");
+        }
+        restrictLabs();
+        $("#select_lab_type").on("change", restrictLabs);
+
         // Region → District → Site cascades
         $("#select_region").on("change", function () {
           const r = $(this).val();
@@ -1204,6 +1248,7 @@
               d.district = $("#select_district").val() || null;
               d.site = $("#select_site").val() || null;
               d.lab = $("#select_lab").val() || null;
+              d.lab_type = $("#select_lab_type").val() || null;
               d.start_date = isoFromFr($("#startDate").val());
               d.end_date = isoFromFr($("#endDate").val());
               d.search_text =
@@ -1245,17 +1290,18 @@
         window.reloadTable = reload;
         const debouncedReload = debounce(reload, 300);
         $(
-          "#select_region, #select_district, #select_site, #select_lab, #select_status, #select_type, #select_nature, #toggleStuck, #toggleRejected, #startDate, #endDate",
+          "#select_region, #select_district, #select_site, #select_lab_type, #select_lab, #select_status, #select_type, #select_nature, #toggleStuck, #toggleRejected, #startDate, #endDate",
         ).on("change", reload);
         $("#searchText, #quickSearch").on("input", debouncedReload);
         $("#btnReload").on("click", reload);
         $("#btnResetAll").on("click", function () {
           $("#searchText, #quickSearch, #startDate, #endDate").val("");
           $(
-            "#select_region, #select_district, #select_site, #select_lab, #select_status, #select_type, #select_nature",
+            "#select_region, #select_district, #select_site, #select_lab_type, #select_lab, #select_status, #select_type, #select_nature",
           )
             .val(null)
             .trigger("change.select2");
+          restrictLabs();
           $("#toggleStuck, #toggleRejected").prop("checked", false);
           reload();
         });
@@ -1288,6 +1334,10 @@
           if (district) params.set("district", district);
           if (site) params.set("site", site);
           if (lab) params.set("lab", lab);
+          const labType = $("#select_lab_type").val();
+          if (labType) params.set("lab_type", labType);
+          const types = $("#select_type").val() || [];
+          if (types.length === 1) params.set("sample_type", types[0]);
           if ($("#startDate").val()) params.set("start", $("#startDate").val());
           if ($("#endDate").val()) params.set("end", $("#endDate").val());
           const search = $("#searchText").val() || $("#quickSearch").val();
@@ -1694,7 +1744,7 @@
             },
           );
         $(
-          "#select_region option:selected, #select_district option:selected, #select_site option:selected, #select_lab option:selected",
+          "#select_region option:selected, #select_district option:selected, #select_site option:selected, #select_lab_type option:selected, #select_lab option:selected",
         ).each(function () {
           if (this.value) addPill($(this).text(), null);
         });

@@ -740,8 +740,8 @@
 		if (!showEmpty) rows = rows.filter(r => num(r.total) > 0);
 		rows = sortDrillRows(rows, lvl);
 		const cols = ['ID'].concat(lvl === 'region' ? ['Région'] : lvl === 'district' ? ['Région', 'District'] : ['Région', 'District', 'Site'])
-			.concat(['Échantillons collectés', "Échantillons en cours d'acheminement", 'Échantillons livrés',
-				'Échantillons non conformes', "Échecs d'analyse", 'Résultats rendus', 'TAT médian (j)']);
+			.concat(['Échantillons collectés', "Échantillons en cours d'acheminement", 'Échantillons déposés au laboratoire',
+				'Échantillons non conformes', "Échecs d'analyse", 'Résultats rendus aux sites', 'TAT médian (j)']);
 		const cell = v => {
 			let t = v == null ? '' : String(v);
 			// Un tableur interprète comme formule un texte commençant par
@@ -963,8 +963,8 @@
 			+ '<td class="num">' + formatNumber(r.non_conform) + '</td>'
 			+ '<td class="num">' + formatNumber(r.delivered) + '</td></tr>').join('');
 		const types = '<div><h4>Par type d\'échantillon</h4>' + (byType.length
-			? '<table><thead><tr><th>Type</th><th class="num">Collectés</th><th class="num">Livrés</th>'
-				+ '<th class="num">Non conformes</th><th class="num">Résultats rendus</th></tr></thead><tbody>'
+			? '<table><thead><tr><th>Type</th><th class="num">Collectés</th><th class="num">Déposés au laboratoire</th>'
+				+ '<th class="num">Non conformes</th><th class="num">Résultats rendus aux sites</th></tr></thead><tbody>'
 				+ typeRows + '</tbody></table>'
 			: '<span class="text-muted-sm">Aucun échantillon.</span>') + '</div>';
 
@@ -987,10 +987,10 @@
 	}
 
 	// Liste des échantillons avec les mêmes filtres (période de collecte, zone,
-	// laboratoire, type d'échantillon).
+	// type de labo, laboratoire, type d'échantillon) : même nombre que la ligne.
 	function sampleListUrl(f) {
 		const p = new URLSearchParams();
-		['region', 'district', 'site', 'lab', 'sample_type'].forEach(k => { if (f[k]) p.set(k, f[k]); });
+		['region', 'district', 'site', 'lab', 'lab_type', 'sample_type'].forEach(k => { if (f[k]) p.set(k, f[k]); });
 		if (f.startDate) p.set('start', frFromIso(f.startDate));
 		if (f.endDate) p.set('end', frFromIso(f.endDate));
 		return 'sample?' + p.toString();

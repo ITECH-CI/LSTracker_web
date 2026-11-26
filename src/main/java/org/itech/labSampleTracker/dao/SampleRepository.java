@@ -248,7 +248,9 @@ public interface SampleRepository extends JpaRepository<Sample, Integer>, JpaSpe
 			+ "AND (CAST(:siteId AS INT) IS NULL OR site.id = CAST(:siteId AS INT)) "
 			+ "AND (CAST(:labId AS INT) IS NULL OR s.destination_lab_id = CAST(:labId AS INT)) "
 			+ "AND (CAST(:startDate AS DATE) IS NULL OR s.collection_date >= CAST(:startDate AS DATE)) "
-			+ "AND (CAST(:endDate AS DATE) IS NULL OR s.collection_date <= CAST(:endDate AS DATE)) "
+			+ "AND (CAST(:endDate AS DATE) IS NULL OR s.collection_date < CAST(:endDate AS DATE) + 1) "
+			+ "AND (CAST(:labType AS VARCHAR) IS NULL OR EXISTS (SELECT 1 FROM lab flt "
+			+ "     WHERE flt.id = s.destination_lab_id AND flt.lab_type = CAST(:labType AS VARCHAR))) "
 			+ "AND (:statusIdsActive = FALSE OR ss2.id IN (:statusIds)) "
 			+ "AND (:typeIdsActive = FALSE OR st.id IN (:typeIds)) "
 			+ "AND (:naturesActive = FALSE OR s.sample_nature IN (:natures)) "
@@ -313,9 +315,12 @@ public interface SampleRepository extends JpaRepository<Sample, Integer>, JpaSpe
 					+ "AND (CAST(:siteId AS INT) IS NULL OR site.id = CAST(:siteId AS INT)) "
 					+ "AND (CAST(:labId AS INT) IS NULL OR s.destination_lab_id = CAST(:labId AS INT)) "
 					+ "AND (CAST(:startDate AS DATE) IS NULL OR s.collection_date >= CAST(:startDate AS DATE)) "
-					+ "AND (CAST(:endDate AS DATE) IS NULL OR s.collection_date <= CAST(:endDate AS DATE)) "
+					+ "AND (CAST(:endDate AS DATE) IS NULL OR s.collection_date < CAST(:endDate AS DATE) + 1) "
+					+ "AND (CAST(:labType AS VARCHAR) IS NULL OR EXISTS (SELECT 1 FROM lab flt "
+					+ "     WHERE flt.id = s.destination_lab_id AND flt.lab_type = CAST(:labType AS VARCHAR))) "
 					+ "AND (:statusIdsActive = FALSE OR ss2.id IN (:statusIds)) "
 					+ "AND (:typeIdsActive = FALSE OR st.id IN (:typeIds)) "
+					+ "AND (:naturesActive = FALSE OR s.sample_nature IN (:natures)) "
 					+ "AND (:accessibleSiteIdsActive = FALSE OR site.id IN (:accessibleSiteIds)) "
 					+ "AND (CAST(:searchText AS TEXT) IS NULL OR ("
 					+ "      s.sample_identifier ILIKE CONCAT('%', CAST(:searchText AS TEXT), '%') "
@@ -336,7 +341,7 @@ public interface SampleRepository extends JpaRepository<Sample, Integer>, JpaSpe
 			nativeQuery = true)
 	Page<Map<String, Object>> getSampleDetailsAdvanced(Pageable pageable,
 			@Param("regionId") Integer regionId, @Param("districtId") Integer districtId,
-			@Param("siteId") Integer siteId, @Param("labId") Integer labId,
+			@Param("siteId") Integer siteId, @Param("labId") Integer labId, @Param("labType") String labType,
 			@Param("startDate") Date startDate, @Param("endDate") Date endDate,
 			@Param("statusIds") List<Integer> statusIds, @Param("statusIdsActive") Boolean statusIdsActive,
 			@Param("typeIds") List<Integer> typeIds, @Param("typeIdsActive") Boolean typeIdsActive,
