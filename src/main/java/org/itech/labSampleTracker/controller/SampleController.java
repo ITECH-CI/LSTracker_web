@@ -308,6 +308,17 @@ public class SampleController {
 		return userScopeService.canAccessSample(siteId, s.getDestinationLabId(), s.getLabId(), s.getHubId());
 	}
 
+	/**
+	 * Site affiché sur la fiche : celui de la collecte, à défaut le site
+	 * demandeur, sinon aucun (échantillon sans zone).
+	 */
+	static Integer displayedSiteId(Sample sample) {
+		if (sample.getSampleRetrieving() != null) {
+			return sample.getSampleRetrieving().getSiteId();
+		}
+		return sample.getRequesterSiteId() != null ? sample.getRequesterSiteId().intValue() : null;
+	}
+
 	@GetMapping(value = "/update/{id}")
 	public String updateSample(@PathVariable("id") Integer id, Model model) {
 		// Hors périmètre ou inconnu : refus avant de construire le formulaire
@@ -327,8 +338,7 @@ public class SampleController {
 				sampleToUpdate.setRejectionComment(rejection.getComment());
 				sampleToUpdate.setRejectionDate(rejection.getRejectionDate());
 			}
-			Integer sampleRequesterId = ObjectUtils.isNotEmpty(sample.getSampleRetrieving())?sample.getSampleRetrieving().getSiteId():sample.getRequesterSiteId().intValue();
-			sampleToUpdate.setRequesterSiteId(sampleRequesterId);
+			sampleToUpdate.setRequesterSiteId(displayedSiteId(sample));
 
 		} catch (Exception ex) {
 			model.addAttribute("message_error", ex.getMessage());
@@ -389,6 +399,9 @@ public class SampleController {
 			SampleDateValidator.validate(updatedSample);
 			updatedSample.setLastupdatedAt(new Date());
 			updatedSample = sampleService.create(updatedSample);
+			if (updatedSample == null) {
+				throw new IllegalStateException("l'enregistrement a échoué.");
+			}
 			model.addAttribute("message_success", "Échantillon modifié avec succès");
 
 		} catch (Exception ex) {
