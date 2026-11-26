@@ -277,8 +277,8 @@ table#tab_labs tbody tr:hover { background: #fafcff; }
 
 	<script th:inline="none">
 	$(function () {
-		$('.select2-single').select2({ width: '100%', allowClear: true, placeholder: '— Tous —' });
-		$('.select2-multi').select2({ width: '100%', allowClear: true, placeholder: '— Sélectionner —' });
+		$('.select2-single').select2({ width: '100%', allowClear: true, placeholder: 'Tous' });
+		$('.select2-multi').select2({ width: '100%', allowClear: true, placeholder: 'Sélectionner' });
 
 		// Cascade Région → District
 		$('#filter_region').on('change', function() {
@@ -343,7 +343,7 @@ table#tab_labs tbody tr:hover { background: #fafcff; }
 			language: {
 				processing: '<i class="fas fa-spinner fa-spin"></i> Chargement...',
 				lengthMenu: 'Afficher _MENU_',
-				info: '_START_–_END_ sur _TOTAL_',
+				info: '_START_ à _END_ sur _TOTAL_',
 				infoEmpty: 'Aucun laboratoire',
 				zeroRecords: 'Aucun laboratoire trouvé',
 				emptyTable: 'Aucun laboratoire',
@@ -365,10 +365,10 @@ table#tab_labs tbody tr:hover { background: #fafcff; }
 	});
 
 	function renderText(data) {
-		return data ? escapeHtml(data) : '<span class="empty-cell">—</span>';
+		return data ? escapeHtml(data) : '<span class="empty-cell">-</span>';
 	}
 	function renderLabType(data) {
-		if (!data) return '<span class="empty-cell">—</span>';
+		if (!data) return '<span class="empty-cell">-</span>';
 		const t = String(data).toUpperCase();
 		let cls = 'lp-default';
 		if (t.includes('PLATEFORM')) cls = 'lp-plateform';
@@ -380,7 +380,7 @@ table#tab_labs tbody tr:hover { background: #fafcff; }
 	function renderContact(data, type, row) {
 		const phone = row.lab_phone;
 		const mail  = row.lab_mail;
-		if (!phone && !mail) return '<span class="empty-cell">—</span>';
+		if (!phone && !mail) return '<span class="empty-cell">-</span>';
 		let html = '<div class="contact-stack">';
 		if (phone) html += '<span class="phone"><i class="fas fa-phone-alt text-muted me-1"></i>' + escapeHtml(phone) + '</span>';
 		if (mail)  html += '<span class="mail"><i class="fas fa-envelope text-muted me-1"></i>' + escapeHtml(mail) + '</span>';
@@ -389,7 +389,7 @@ table#tab_labs tbody tr:hover { background: #fafcff; }
 	}
 	function renderCoords(data, type, row) {
 		if (row.longitude == null && row.latitude == null) {
-			return '<span class="empty-cell">—</span>';
+			return '<span class="empty-cell">-</span>';
 		}
 		return '<span class="coords">' + (row.latitude ?? '?') + ', ' + (row.longitude ?? '?') + '</span>';
 	}

@@ -8,6 +8,7 @@ import java.util.Map;
 
 import org.apache.commons.lang3.ObjectUtils;
 import org.itech.labSampleTracker.dao.ReportJdbcRepository;
+import org.itech.labSampleTracker.dto.DashboardFilter;
 import org.itech.labSampleTracker.dto.ReportItem;
 import org.itech.labSampleTracker.entities.AppUser;
 import org.itech.labSampleTracker.entities.AppUserHasCircuit;
@@ -119,13 +120,15 @@ public class ReportItemServiceImpl implements ReportItemService {
 		}
 		it.setFocalPointName(focalPoint);
 
+		DashboardFilter filter = new DashboardFilter(start, end, regionId, districtId, siteId, labId, null, null,
+				accessibleSiteIds);
+
 		// 1) collectés
-		applyByType(jdbcRepository.collectedByType(start, end, regionId, districtId, siteId, labId, riderId, accessibleSiteIds),
+		applyByType(jdbcRepository.collectedByType(filter, riderId),
 				(type, n) -> setCount(it, "collected", type, n));
 
 		// 2) réceptionnés par catégorie
-		for (Map<String, Object> row : jdbcRepository.receivedByTypeAndLabKind(start, end, regionId, districtId, siteId,
-				labId, riderId, accessibleSiteIds)) {
+		for (Map<String, Object> row : jdbcRepository.receivedByTypeAndLabKind(filter, riderId)) {
 			String type = String.valueOf(row.get("type_code"));
 			String kind = String.valueOf(row.get("lab_kind")); // DISTRICT/RELAIS/CAT/BM
 			int n = toInt(row.get("cnt"));
@@ -138,28 +141,27 @@ public class ReportItemServiceImpl implements ReportItemService {
 		}
 
 		// 3) acceptés
-		applyByType(jdbcRepository.acceptedByType(start, end, regionId, districtId, siteId, labId, riderId, accessibleSiteIds),
+		applyByType(jdbcRepository.acceptedByType(filter, riderId),
 				(type, n) -> setCount(it, "accepted", type, n));
 
 		// 4) prêts (analysis_done)
-		applyByType(jdbcRepository.resultReadyByType(start, end, regionId, districtId, siteId, labId, riderId, accessibleSiteIds),
+		applyByType(jdbcRepository.resultReadyByType(filter, riderId),
 				(type, n) -> setCount(it, "resultReady", type, n));
 
 		// 5) résultats collectés / déposés
-		applyByType(jdbcRepository.resultCollectedByType(start, end, regionId, districtId, siteId, labId, riderId, accessibleSiteIds),
+		applyByType(jdbcRepository.resultCollectedByType(filter, riderId),
 				(type, n) -> setCount(it, "resultCollected", type, n));
-		applyByType(jdbcRepository.resultDeliveredByType(start, end, regionId, districtId, siteId, labId, riderId, accessibleSiteIds),
+		applyByType(jdbcRepository.resultDeliveredByType(filter, riderId),
 				(type, n) -> setCount(it, "resultDelivered", type, n));
 
 		// 6) rejets + échecs
-		applyByType(jdbcRepository.rejectedByType(start, end, regionId, districtId, siteId, labId, riderId, accessibleSiteIds),
+		applyByType(jdbcRepository.rejectedByType(filter, riderId),
 				(type, n) -> setCount(it, "rejected", type, n));
-		applyByType(jdbcRepository.failedByType(start, end, regionId, districtId, siteId, labId, riderId, accessibleSiteIds),
+		applyByType(jdbcRepository.failedByType(filter, riderId),
 				(type, n) -> setCount(it, "failed", type, n));
 
 		// 7) TAT médian (jours)
-		for (Map<String, Object> row : jdbcRepository.tatMedianDaysByType(start, end, regionId, districtId, siteId,
-				labId, riderId, accessibleSiteIds)) {
+		for (Map<String, Object> row : jdbcRepository.tatMedianDaysByType(filter, riderId)) {
 			String type = String.valueOf(row.get("type_code"));
 			int days = (int) Math.ceil(toDouble(row.get("median_days")));
 			setTat(it, type, days);

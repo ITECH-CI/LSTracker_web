@@ -37,7 +37,7 @@
 					sourceHeight: 500,
 					chartOptions: {
 						title: { style: { fontSize: '14px' } },
-						subtitle: { text: 'LSTracker — ' + new Date().toLocaleDateString('fr-FR'), style: { fontSize: '10px', color: '#9ca3af' } }
+						subtitle: { text: 'LSTracker · ' + new Date().toLocaleDateString('fr-FR'), style: { fontSize: '10px', color: '#9ca3af' } }
 					},
 					buttons: {
 						contextButton: {
@@ -55,29 +55,42 @@
 			changeMonth: true, changeYear: true, dateFormat: 'dd/mm/yy', showAnim: '', firstDay: 1
 		});
 
-		// Select2
-		$('.select2').select2({ width: '100%', allowClear: true, placeholder: '— Tous —' });
+		// Listes complètes rendues par le serveur, reprises quand on revient à « Tout ».
+		ALL_OPTIONS.district = $('#select_district option').slice(1).clone();
+		ALL_OPTIONS.site = $('#select_site option').slice(1).clone();
+		ALL_OPTIONS.lab = $('#select_lab option').slice(1).clone();
+
+		// Select2 : chaque liste commence par l'option « Tout » (valeur 0).
+		$('.select2').select2({ width: '100%' });
 
 		// Region → District → Site cascades
 		$('#select_region').on('change', function() {
-			const r = $(this).val();
-			if (!r) return;
+			const r = filterValue('#select_region');
+			if (!r) {
+				fillOptions('#select_district', ALL_OPTIONS.district);
+				$('#select_district').val('0').trigger('change');
+				return;
+			}
 			$.get('district/names_by_regions?regions=' + r, function(districts) {
-				const $d = $('#select_district');
-				$d.empty().append('<option value=""></option>');
-				$.each(districts, (i, d) => $d.append('<option value="' + d.id + '">' + d.name + '</option>'));
-				$d.val(null).trigger('change');
+				fillOptions('#select_district', districts);
+				$('#select_district').val('0').trigger('change');
 			});
 		});
 		$('#select_district').on('change', function() {
-			const d = $(this).val();
-			if (!d) return;
+			const d = filterValue('#select_district');
+			if (!d) {
+				fillOptions('#select_site', ALL_OPTIONS.site);
+				$('#select_site').val('0').trigger('change.select2');
+				return;
+			}
 			$.get('site/names_by_districts?districts=' + d, function(sites) {
-				const $s = $('#select_site');
-				$s.empty().append('<option value=""></option>');
-				$.each(sites, (i, s) => $s.append('<option value="' + s.id + '">' + s.name + '</option>'));
-				$s.val(null).trigger('change');
+				fillOptions('#select_site', sites);
+				$('#select_site').val('0').trigger('change.select2');
 			});
+		});
+		// Type de labo → la liste « Laboratoire » ne garde que les labos de ce type.
+		$('#select_lab_type').on('change', function() {
+			restrictLabs(filterValue('#select_lab_type'));
 		});
 
 		// Date presets — remplissent les champs PUIS rechargent l'URL pour
@@ -100,8 +113,7 @@
 			else if (p === 'year')     { s = new Date(y, 0, 1); }
 			$('#input_start_date').val(fmt(s));
 			$('#input_end_date').val(fmt(today));
-			// La période est transmise au calcul de la période précédente
-			// (cf. DashboardController.funnelPrevious).
+			// Raccourci choisi : nommé dans le bandeau de période.
 			window._period = p;
 			applyFiltersToUrl();
 		});
@@ -136,6 +148,37 @@
 		initFiltersFromUrlThenLoad();
 	});
 
+	// --- Listes de filtres ---
+
+	const ALL_OPTIONS = {};
+
+	// Valeur d'un filtre ; null pour « Tout » (0) ou une liste vide.
+	function filterValue(sel) {
+		const v = $(sel).val();
+		return v && v !== '0' ? v : null;
+	}
+
+	// Remplace les options d'une liste (après « Tout ») : options clonées ou
+	// lignes { id, name } renvoyées par le serveur.
+	function fillOptions(sel, items) {
+		const $s = $(sel);
+		$s.find('option').slice(1).remove();
+		if (items && items.jquery) {
+			$s.append(items.clone());
+		} else {
+			$.each(items || [], (i, it) => $s.append($('<option>').val(it.id).text(it.name)));
+		}
+	}
+
+	// Liste « Laboratoire » restreinte au type choisi ; le labo sélectionné
+	// revient à « Tout » s'il n'est pas de ce type.
+	function restrictLabs(type) {
+		const $lab = $('#select_lab');
+		const current = $lab.val();
+		fillOptions('#select_lab', type ? ALL_OPTIONS.lab.filter((i, o) => $(o).attr('data-lab-type') === type) : ALL_OPTIONS.lab);
+		$lab.val($lab.find('option[value="' + current + '"]').length ? current : '0').trigger('change.select2');
+	}
+
 	// --- Persistance des filtres dans l'URL ---
 
 	// Construit l'URL avec les filtres actifs et recharge la page.
@@ -146,14 +189,10 @@
 		if (sd) p.set('startDate', sd);
 		if (ed) p.set('endDate', ed);
 		if (window._period) p.set('period', window._period);
-		const region = $('#select_region').val();
-		const district = $('#select_district').val();
-		const site = $('#select_site').val();
-		const lab = $('#select_lab').val();
-		if (region) p.set('region', region);
-		if (district) p.set('district', district);
-		if (site) p.set('site', site);
-		if (lab) p.set('lab', lab);
+		const f = currentFilters();
+		['region', 'district', 'site', 'lab', 'lab_type', 'sample_type'].forEach(function(k) {
+			if (f[k]) p.set(k, f[k]);
+		});
 		const qs = p.toString();
 		window.location = '/dashboard' + (qs ? '?' + qs : '');
 	}
@@ -196,21 +235,15 @@
 		return pad(d.getDate()) + '/' + pad(d.getMonth() + 1) + '/' + d.getFullYear();
 	}
 
-	// Bandeau « Période analysée · Comparée à » : toujours visible, rempli dès
-	// que la période précédente est connue (réponse de funnel-previous).
+	// Bandeau de la période analysée, toujours visible.
 	const PERIOD_NAMES = { today: "Aujourd'hui", week: 'Semaine en cours', month: 'Mois en cours',
 		quarter: 'Trimestre en cours', semester: 'Semestre en cours', year: 'Année en cours' };
-	function renderPeriodBanner(prev) {
+	function renderPeriodBanner() {
 		const f = currentFilters();
 		const range = 'du ' + frFromIso(f.startDate) + ' au ' + frFromIso(f.endDate);
 		$('[data-period-name]').text((PERIOD_NAMES[window._period] || 'Période analysée') + ' :');
 		$('[data-period-range]').text(range);
 		$('[data-period-short]').text(frFromIso(f.startDate) + ' → ' + frFromIso(f.endDate));
-		$('[data-period-prev]').text(prev && prev.prev_start
-			? 'du ' + frFromIso(prev.prev_start) + ' au ' + frFromIso(prev.prev_end) : '—');
-		$('[data-period-rule]').text(window._period
-			? '(même nombre de jours de la période précédente)'
-			: '(période de même durée juste avant)');
 	}
 
 	// ISO yyyy-MM-dd → format datepicker dd/mm/yyyy. Null-safe.
@@ -228,6 +261,8 @@
 		const district = u.get('district');
 		const site = u.get('site');
 		const lab = u.get('lab');
+		const labType = u.get('lab_type');
+		const sampleType = u.get('sample_type');
 
 		// Dates (converties ISO→FR pour le datepicker). Sans dates dans l'URL,
 		// les champs affichent la période par défaut appliquée par le serveur
@@ -237,7 +272,7 @@
 		$('#input_start_date').val(frFromIso(u.get('startDate')) || frFromDate(twoYearsAgo));
 		$('#input_end_date').val(frFromIso(u.get('endDate')) || frFromDate(today));
 		// Période calendaire choisie par un raccourci : bouton actif. Une date
-		// modifiée à la main la fait oublier (comparaison à durée égale).
+		// modifiée à la main la fait oublier.
 		// Liste fermée : une valeur arbitraire de l'URL cassait le sélecteur
 		// jQuery ci-dessous (exception → page blanche).
 		const PERIODS = ['today', 'week', 'month', 'quarter', 'semester', 'year'];
@@ -251,8 +286,16 @@
 			$('.date-presets .btn').removeClass('active');
 		});
 
-		// Lab : indépendant de la cascade
-		if (lab) $('#select_lab').val(lab).trigger('change.select2');
+		// Type de labo, labo et type d'échantillon : indépendants de la cascade
+		// géographique. Une valeur absente des listes revient à « Tout ».
+		const pick = (sel, v) => {
+			const $s = $(sel);
+			$s.val(v && $s.find('option[value="' + v + '"]').length ? v : '0').trigger('change.select2');
+		};
+		pick('#select_lab_type', labType);
+		restrictLabs(filterValue('#select_lab_type'));
+		pick('#select_lab', lab);
+		pick('#select_sample_type', sampleType);
 
 		// Cascade géographique : il faut charger les options enfant avant de
 		// pouvoir sélectionner district puis site. On chaîne les $.get.
@@ -271,10 +314,8 @@
 
 		// Charger les districts de la région, sélectionner, puis (si besoin) sites
 		$.get('district/names_by_regions?regions=' + region, function(districts) {
-			const $d = $('#select_district');
-			$d.empty().append('<option value=""></option>');
-			$.each(districts, (i, d) => $d.append('<option value="' + d.id + '">' + d.name + '</option>'));
-			$d.val(district).trigger('change.select2');
+			fillOptions('#select_district', districts);
+			$('#select_district').val(district).trigger('change.select2');
 
 			if (!site) {
 				loadAll();
@@ -282,10 +323,8 @@
 			}
 
 			$.get('site/names_by_districts?districts=' + district, function(sites) {
-				const $s = $('#select_site');
-				$s.empty().append('<option value=""></option>');
-				$.each(sites, (i, s) => $s.append('<option value="' + s.id + '">' + s.name + '</option>'));
-				$s.val(site).trigger('change.select2');
+				fillOptions('#select_site', sites);
+				$('#select_site').val(site).trigger('change.select2');
 				loadAll();
 			});
 		});
@@ -295,10 +334,12 @@
 		return {
 			startDate: isoFromFr($('#input_start_date').val()),
 			endDate: isoFromFr($('#input_end_date').val()),
-			region: $('#select_region').val() || null,
-			district: $('#select_district').val() || null,
-			site: $('#select_site').val() || null,
-			lab: $('#select_lab').val() || null
+			region: filterValue('#select_region'),
+			district: filterValue('#select_district'),
+			site: filterValue('#select_site'),
+			lab: filterValue('#select_lab'),
+			lab_type: filterValue('#select_lab_type'),
+			sample_type: filterValue('#select_sample_type')
 		};
 	}
 
@@ -314,69 +355,19 @@
 	}
 
 	function loadFunnelAndKpis() {
-		const f = currentFilters();
-		$.when(
-			$.get('dashboard/data/funnel', f),
-			$.get('dashboard/data/funnel-previous', Object.assign({}, f, { period: window._period || '' }))
-		).done(function(currResp, prevResp) {
-			const curr = currResp[0] || {};
-			const prev = prevResp[0] || {};
-			renderPeriodBanner(prev);
-			updateKpis(curr, prev);
+		renderPeriodBanner();
+		$.get('dashboard/data/funnel', currentFilters(), function(curr) {
+			updateKpis(curr || {});
 		}).fail(function() {
-			$('[data-kpi]').text('—');
+			$('[data-kpi]').text('-');
 		});
 	}
 
-	function updateKpis(curr, prev) {
-		const map = {
-			total: 'total', in_transit: 'in_transit', at_hub: 'at_hub', at_lab: 'at_lab',
-			analysed: 'analysed', result_collected: 'result_collected',
-			delivered: 'delivered', tat_avg_days: 'tat_avg_days',
-			non_conform: 'non_conform', failed: 'failed'
-		};
-		const prevRange = (prev.prev_start && prev.prev_end)
-			? 'Période précédente : du ' + frFromIso(prev.prev_start) + ' au ' + frFromIso(prev.prev_end)
-			: '';
-		Object.entries(map).forEach(function(p) {
-			const v = num(curr[p[1]]);
-			$('[data-kpi="' + p[0] + '"]').text(formatNumber(v));
-			renderTrend('[data-trend="' + p[0] + '"]', v, num(prev[p[1]]), prevRange,
-				p[0] === 'tat_avg_days' ? ' j' : '', LOWER_IS_BETTER.includes(p[0]));
+	function updateKpis(curr) {
+		['total', 'in_transit', 'at_hub', 'at_lab', 'analysed', 'result_collected',
+		 'delivered', 'tat_avg_days', 'non_conform', 'failed'].forEach(function(k) {
+			$('[data-kpi="' + k + '"]').text(formatNumber(num(curr[k])));
 		});
-	}
-
-	// Tendance : variation en % puis valeur de la période précédente (obs. 1.5 :
-	// plus de « vs préc. », la valeur précédente est affichée). Les dates de la
-	// période précédente sont en info-bulle.
-	// Indicateurs pour lesquels une hausse est une mauvaise nouvelle : la
-	// flèche suit la valeur, la couleur suit le sens (hausse = rouge).
-	const LOWER_IS_BETTER = ['non_conform', 'failed', 'tat_avg_days'];
-
-	function renderTrend(selector, curr, prev, prevRange, unit, lowerIsBetter) {
-		const good = lowerIsBetter ? 'kpi-trend-down' : 'kpi-trend-up';
-		const bad = lowerIsBetter ? 'kpi-trend-up' : 'kpi-trend-down';
-		const $el = $(selector);
-		const prevTxt = ' <span class="kpi-trend-prev">· préc. ' + formatNumber(prev) + (unit || '') + '</span>';
-		// Rien à comparer : pas de flèche ni de « nouveau », seulement la valeur.
-		if (prev === 0) {
-			$el.html(curr === 0 ? '' : '<span class="kpi-trend-prev">préc. 0' + (unit || '') + '</span>');
-			return;
-		}
-		const diff = curr - prev;
-		const pct = Math.round(100 * diff / prev);
-		// Au-delà de +1000 %, un facteur se lit mieux (« ×297 » plutôt que « +29 620 % »).
-		const ratio = curr / prev;
-		const upTxt = pct >= 1000
-			? '×' + (ratio < 10 ? ratio.toFixed(1).replace('.', ',') : Math.round(ratio))
-			: '+' + pct + '%';
-		if (Math.abs(pct) < 1) {
-			$el.html('<span class="kpi-trend-flat"><i class="fas fa-minus"></i> stable</span>' + prevTxt);
-		} else if (diff > 0) {
-			$el.html('<span class="' + good + '"><i class="fas fa-arrow-up"></i> ' + upTxt + '</span>' + prevTxt);
-		} else {
-			$el.html('<span class="' + bad + '"><i class="fas fa-arrow-down"></i> ' + pct + '%</span>' + prevTxt);
-		}
 	}
 
 	function loadCoverage() {
@@ -407,7 +398,7 @@
 	function loadTypeBreakdown() {
 		const f = currentFilters();
 		$.get('dashboard/data/type-breakdown', f, function(rows) {
-			const data = (rows || []).map(r => ({ name: r.sample_type || '—', y: num(r.total), color: typeColor(r.sample_type) }))
+			const data = (rows || []).map(r => ({ name: r.sample_type || '-', y: num(r.total), color: typeColor(r.sample_type) }))
 				.sort((x, y) => y.y - x.y);
 			Highcharts.chart('type-breakdown-chart', {
 				chart: { type: 'bar', backgroundColor: 'transparent', spacing: [0, 0, 0, 0] },
@@ -467,7 +458,7 @@
 		});
 	}
 
-	// Parcours par type : les types sans aucun échantillon sont masqués ; le
+	// Étapes par type : les types sans aucun échantillon sont masqués ; le
 	// mode « % des collectés » rend lisibles les petits types face à CV.
 	function renderStatusByType() {
 		const data = window._statusByType || {};
@@ -487,7 +478,7 @@
 			chart: { type: 'column' },
 			title: { text: null },
 			credits: { enabled: false },
-			exporting: { chartOptions: { title: { text: "Parcours par type d'échantillon" } } },
+			exporting: { chartOptions: { title: { text: "Étapes des échantillons par type" } } },
 			xAxis: { categories: keep.map(i => cats[i]), crosshair: { color: 'rgba(99,102,241,.12)' },
 				labels: { useHTML: true, formatter: function() { return typeDot(this.value); } } },
 			yAxis: { title: { text: pct ? '% des collectés' : "Nombre d'échantillons" }, allowDecimals: pct, min: 0,
@@ -500,8 +491,8 @@
 				{ name: 'Collectés', data: pick(data.collected), color: STAGE.collected },
 				{ name: 'Déposés', data: pick(data.delivered), color: STAGE.deposited },
 				{ name: 'Analysés', data: pick(data.analysisDone), color: STAGE.analysed },
-				{ name: 'Résultats collectés', data: pick(data.resultCollected), color: STAGE.resultCollected },
-				{ name: 'Résultats livrés', data: pick(data.resultOnSite), color: STAGE.delivered },
+				{ name: 'Résultats récupérés au laboratoire', data: pick(data.resultCollected), color: STAGE.resultCollected },
+				{ name: 'Résultats rendus aux sites', data: pick(data.resultOnSite), color: STAGE.delivered },
 				{ name: 'Non-conformités', data: pick(data.nonConform), color: STATUS_CRITICAL }
 			]
 		});
@@ -527,7 +518,7 @@
 			chart: { type: 'line' },
 			title: { text: null },
 			credits: { enabled: false },
-			exporting: { chartOptions: { title: { text: "Évolution dans le temps (granularité : " + granularity + ")" } } },
+			exporting: { chartOptions: { title: { text: "Évolution des échantillons dans le temps (granularité : " + granularity + ")" } } },
 			xAxis: { type: 'datetime', crosshair: { color: '#a5b4fc', width: 1, dashStyle: 'Solid' } },
 			yAxis: { title: { text: 'Nombre' }, allowDecimals: false, min: 0 },
 			legend: { enabled: true },
@@ -538,22 +529,25 @@
 				{ name: 'Collectés', data: bucketize(res.collected, granularity), color: STAGE.collected },
 				{ name: 'Déposés', data: bucketize(res.deposited, granularity), color: STAGE.deposited },
 				{ name: 'Analysés', data: bucketize(res.analysed, granularity), color: STAGE.analysed },
-				{ name: 'Livrés', data: bucketize(res.delivered, granularity), color: STAGE.delivered }
+				{ name: 'Résultats rendus aux sites', data: bucketize(res.delivered, granularity), color: STAGE.delivered }
 			]
 		});
 	}
 
+	// Étapes des durées, dans l'ordre du parcours (codes renvoyés par le serveur).
+	const STEP_ORDER = [
+		'collecte→dépôt',
+		'dépôt→réception',
+		'réception→analyse',
+		'analyse→résultat prêt',
+		'résultat prêt→collecte résultat',
+		'collecte résultat→dépôt résultat'
+	];
+
 	function loadChartDurations() {
 		const f = currentFilters();
 		$.get('dashboard/data/step-durations', f, function(rows) {
-			const steps = [
-				'collecte→dépôt',
-				'dépôt→réception',
-				'réception→analyse',
-				'analyse→résultat prêt',
-				'résultat prêt→collecte résultat',
-				'collecte résultat→dépôt résultat'
-			];
+			const steps = STEP_ORDER;
 			const byType = {};
 			(rows || []).forEach(function(r) {
 				if (!byType[r.sampleType]) byType[r.sampleType] = {};
@@ -598,7 +592,7 @@
 		types.forEach(t => steps.forEach(st => { max = Math.max(max, num(byType[t][st])); }));
 		const lo = [255, 241, 230], hi = [194, 65, 12]; // #fff1e6 → #c2410c
 		const cell = v => {
-			if (v === undefined || v === null) return '<td class="empty">—</td>';
+			if (v === undefined || v === null) return '<td class="empty">-</td>';
 			const t = max > 0 ? v / max : 0;
 			const rgb = lo.map((c, k) => Math.round(c + (hi[k] - c) * t));
 			const ink = t > 0.5 ? '#ffffff' : '#1f2937'; // texte lisible selon la luminance
@@ -635,6 +629,7 @@
 	}
 
 	function renderDrillRegions() {
+		renderDrillCrumbs();
 		const showEmpty = $('#showEmptyZones').is(':checked');
 		let rows = window._drillRegions || [];
 		const totalRowsRaw = rows.length;
@@ -658,7 +653,6 @@
 		window._drillMax = Math.max.apply(null, rows.map(r => num(r.total)).concat([0]));
 		// Pagination côté page (données déjà chargées). Les sous-niveaux dépliés
 		// s'insèrent sous leur ligne parente, donc restent sur la même page.
-		annotateRank(rows);
 		const sorted = sortDrillRows(rows, lvl);
 		const size = window._drillPageSize;
 		const pages = Math.max(1, Math.ceil(sorted.length / size));
@@ -678,7 +672,7 @@
 		// Inutile d'afficher la pagination quand tout tient sur une page.
 		if (total <= 25 && window._drillPageSize === 25) { $p.hide(); return; }
 		$p.css('display', 'flex');
-		$p.find('[data-pager-info]').text((from + 1) + '–' + to + ' sur ' + formatNumber(total));
+		$p.find('[data-pager-info]').text((from + 1) + ' à ' + to + ' sur ' + formatNumber(total));
 		$p.find('[data-pager-page]').text(window._drillPage + ' / ' + pages);
 		$p.find('[data-page-nav="-1"]').prop('disabled', window._drillPage <= 1);
 		$p.find('[data-page-nav="1"]').prop('disabled', window._drillPage >= pages);
@@ -710,6 +704,9 @@
 			: num(r[sort.key]);
 		const dir = sort.dir === 'asc' ? 1 : -1;
 		return rows.slice().sort(function(a, b) {
+			// « Zone non renseignée » (sans identifiant) reste en dernier.
+			const na = drillId(a, lvl) == null, nb = drillId(b, lvl) == null;
+			if (na !== nb) return na ? 1 : -1;
 			const va = val(a), vb = val(b);
 			const c = typeof va === 'string' ? va.localeCompare(vb, 'fr', { sensitivity: 'base' }) : va - vb;
 			return c * dir;
@@ -744,10 +741,10 @@
 		const showEmpty = $('#showEmptyZones').is(':checked');
 		let rows = window._drillRegions || [];
 		if (!showEmpty) rows = rows.filter(r => num(r.total) > 0);
-		annotateRank(rows);
 		rows = sortDrillRows(rows, lvl);
 		const cols = ['ID'].concat(lvl === 'region' ? ['Région'] : lvl === 'district' ? ['Région', 'District'] : ['Région', 'District', 'Site'])
-			.concat(['Rang', 'Total', 'Écart à la moyenne (%)', 'En transit', 'Livrés', 'Non-conformités', "Échecs d'analyse", 'TAT médian (j)']);
+			.concat(['Échantillons collectés', "Échantillons en cours d'acheminement", 'Échantillons déposés au laboratoire',
+				'Échantillons non conformes', "Échecs d'analyse", 'Résultats rendus aux sites', 'TAT médian (j)']);
 		const cell = v => {
 			let t = v == null ? '' : String(v);
 			// Un tableur interprète comme formule un texte commençant par
@@ -759,16 +756,18 @@
 		// En-tête (cahier V.5) : export horodaté, avec le périmètre et la période,
 		// pour qu'un fichier renommé ou transmis reste interprétable.
 		const f0 = currentFilters();
-		const selText = sel => { const t = $(sel + ' option:selected').text().trim(); return $(sel).val() ? t : ''; };
+		const selText = sel => filterValue(sel) ? $(sel + ' option:selected').text().trim() : '';
 		const perimetre = [selText('#select_region'), selText('#select_district'), selText('#select_site')]
 			.filter(Boolean).join(' › ') || 'Tout le périmètre de l\'utilisateur';
-		const labo = selText('#select_lab');
+		const labo = [selText('#select_lab_type'), selText('#select_lab')].filter(Boolean).join(' › ');
+		const typeEch = selText('#select_sample_type');
 		const now = new Date();
 		const pad = n => String(n).padStart(2, '0');
 		const header = [
-			cell('LSTracker — Répartition par ' + { region: 'région sanitaire', district: 'district sanitaire', site: 'site' }[lvl]),
+			cell('LSTracker : Répartition par zone géographique (' + DRILL_LEVELS[lvl].name + ')'),
 			cell('Période : ' + (f0.startDate ? frFromIso(f0.startDate) : 'début') + ' au ' + (f0.endDate ? frFromIso(f0.endDate) : "aujourd'hui")),
-			cell('Périmètre : ' + perimetre + (labo ? ' · Laboratoire : ' + labo : '')),
+			cell('Périmètre : ' + perimetre + (labo ? ' · Laboratoire : ' + labo : '')
+				+ (typeEch ? " · Type d'échantillon : " + typeEch : '')),
 			cell('Exporté le ' + pad(now.getDate()) + '/' + pad(now.getMonth() + 1) + '/' + now.getFullYear()
 				+ ' à ' + pad(now.getHours()) + ':' + pad(now.getMinutes())),
 			''
@@ -776,7 +775,7 @@
 		const lines = header.concat([cols.join(';')]).concat(rows.map(function(r) {
 			const geo = lvl === 'region' ? [r.region] : lvl === 'district' ? [r.region, r.district] : [r.region, r.district, r.site];
 			return [drillId(r, lvl)].concat(geo)
-				.concat([r._rank, num(r.total), r._gap == null ? '' : r._gap, num(r.in_transit), num(r.delivered), num(r.non_conform), num(r.failed), num(r.total) > 0 ? dec(r.tat_avg_days) : ''])
+				.concat([num(r.total), num(r.in_transit), num(r.deposited), num(r.non_conform), num(r.failed), num(r.delivered), num(r.total) > 0 ? dec(r.tat_avg_days) : ''])
 				.map(cell).join(';');
 		}));
 		const f = currentFilters();
@@ -807,24 +806,29 @@
 		// La cascade n'existe qu'en vue "Régions" : les vues à plat
 		// (Districts / Sites) listent deja tout le niveau demande.
 		const flat = (window._drillLevel || 'region') !== 'region';
-		const expander = (level === 'site' || flat)
+		// Ligne « Zone non renseignée » : pas de zone à déplier ni à détailler.
+		const unknown = id == null;
+		const expander = (level === 'site' || flat || unknown)
 			? '<span class="expander placeholder">·</span>'
 			: '<span class="expander" data-toggle="' + level + '" data-id="' + id + '" onclick="toggleDrill(this)">▶</span>';
 		const indentCls = indent === 1 ? 'indent-1' : (indent === 2 ? 'indent-2' : '');
 		return '<tr class="' + cls + '" data-row-id="' + level + '-' + id + '">'
-			+ '<td class="num drill-id">' + (id != null ? id : '—') + '</td>'
-			+ '<td><span class="' + indentCls + '">' + expander + ' ' + escapeHtml(name || '—')
-			+   (parent && (window._drillLevel || 'region') !== 'region'
+			+ '<td class="num drill-id">' + (id != null ? id : '-') + '</td>'
+			+ '<td><span class="' + indentCls + '">' + expander + ' ' + escapeHtml(name || '-')
+			+   (parent && !unknown && (window._drillLevel || 'region') !== 'region'
 					? ' <span class="drill-parent">' + escapeHtml(parent) + '</span>' : '')
 			+ '</span></td>'
-			+ '<td class="num"><span class="rank-chip">' + (r._rank || '—') + '</span></td>'
 			+ totalCell(r.total)
-			+ '<td class="num">' + gapCell(r._gap) + '</td>'
 			+ '<td class="num">' + formatNumber(r.in_transit) + '</td>'
-			+ '<td class="num">' + formatNumber(r.delivered) + '</td>'
+			+ '<td class="num">' + formatNumber(r.deposited) + '</td>'
 			+ '<td class="num">' + formatNumber(r.non_conform) + '</td>'
 			+ '<td class="num">' + formatNumber(r.failed) + '</td>'
+			+ '<td class="num">' + formatNumber(r.delivered) + '</td>'
 			+ '<td class="num">' + renderTat(r.tat_avg_days, r.total) + '</td>'
+			+ '<td class="num">' + (num(r.total) > 0 && !unknown
+				? '<button type="button" class="btn btn-outline-secondary btn-details" data-zone-level="' + level
+					+ '" data-zone-id="' + id + '" aria-expanded="false">Détails</button>'
+				: '') + '</td>'
 			+ '</tr>';
 	}
 
@@ -837,36 +841,30 @@
 		$('.drill-level button').removeClass('active');
 		$(this).addClass('active');
 		$('[data-drill-hint]').toggle(lvl === 'region');
-		// Titre et en-tête suivent le niveau (obs. 1.12 : tableau des districts
-		// sanitaires). En mode Régions, la cascade peut afficher les trois niveaux.
-		const labels = {
-			region: ['Répartition par région sanitaire', 'Région / District / Site'],
-			district: ['Répartition par district sanitaire', 'District (région)'],
-			site: ['Répartition par site', 'Site (région › district)']
-		}[lvl];
-		$('[data-drill-title]').text(labels[0]);
-		$('[data-drill-col]').text(labels[1]);
+		// Sous-titre, fil d'Ariane et en-tête suivent le niveau. En mode
+		// Régions, la cascade peut afficher les trois niveaux.
+		$('[data-drill-col]').text(DRILL_LEVELS[lvl].column);
 		$('#drillTableBody').html('<tr><td colspan="10" class="empty-state">Chargement...</td></tr>');
 		loadDrillRegions();
 	});
 
-	// Classement (cahier VI.2) : rang par volume et écart à la moyenne, calculés
-	// parmi les lignes d'un même niveau (ou les lignes sœurs d'un dépliage).
-	function annotateRank(rows) {
-		const byTotal = rows.slice().sort((a, b) => num(b.total) - num(a.total));
-		const mean = rows.length ? rows.reduce((acc, r) => acc + num(r.total), 0) / rows.length : 0;
-		let rank = 0, prev = null;
-		byTotal.forEach(function(r, i) {
-			if (num(r.total) !== prev) { rank = i + 1; prev = num(r.total); } // ex æquo : même rang
-			r._rank = rank;
-			r._gap = mean > 0 ? Math.round(100 * (num(r.total) - mean) / mean) : null;
-		});
-	}
+	// Niveaux du tableau de répartition : nom affiché et en-tête de la colonne.
+	const DRILL_LEVELS = {
+		region: { name: 'régions sanitaires', column: 'Région / District / Site' },
+		district: { name: 'districts sanitaires', column: 'District (région)' },
+		site: { name: 'sites', column: 'Site (région › district)' }
+	};
 
-	function gapCell(gap) {
-		if (gap == null) return '<span class="text-muted-sm">—</span>';
-		const cls = gap > 0 ? 'gap-up' : (gap < 0 ? 'gap-down' : 'gap-flat');
-		return '<span class="' + cls + '">' + (gap > 0 ? '+' : '') + gap + ' %</span>';
+	// Fil d'Ariane : zone choisie dans les filtres, puis niveau affiché.
+	function renderDrillCrumbs() {
+		const lvl = window._drillLevel || 'region';
+		$('[data-drill-level-name]').text(DRILL_LEVELS[lvl].name);
+		const parts = ['Toutes les zones'];
+		['#select_region', '#select_district', '#select_site'].forEach(function(sel) {
+			if (filterValue(sel)) parts.push($(sel + ' option:selected').text().trim());
+		});
+		parts.push(DRILL_LEVELS[lvl].name.charAt(0).toUpperCase() + DRILL_LEVELS[lvl].name.slice(1));
+		$('[data-drill-crumbs]').html(parts.map(t => '<span>' + escapeHtml(t) + '</span>').join(''));
 	}
 
 	// Barre discrète derrière le total, relative au plus grand total du niveau
@@ -878,11 +876,10 @@
 			+ pct + '%, transparent ' + pct + '%)">' + formatNumber(total) + '</td>';
 	}
 
+	// TAT affiché sans couleur : les cibles de délai ne sont pas paramétrées.
 	function renderTat(days, total) {
-		if (!total || num(total) === 0) return '<span class="tat-pill tat-na">—</span>';
-		const d = num(days);
-		const cls = d < 3 ? 'tat-green' : (d < 7 ? 'tat-orange' : 'tat-red');
-		return '<span class="tat-pill ' + cls + '">' + d + ' j</span>';
+		if (!total || num(total) === 0) return '<span class="text-muted-sm">-</span>';
+		return formatNumber(num(days)) + ' j';
 	}
 
 	function toggleDrill(btn) {
@@ -891,10 +888,14 @@
 		const id = $btn.data('id');
 		const $parent = $btn.closest('tr');
 		const rowMarker = level + '-' + id;
+		// Lignes ancêtres d'un enfant : celles du parent, plus le parent. Replier
+		// une ligne retire tout ce qui a été déplié dessous (détails compris).
+		const ancestors = (($parent.attr('data-ancestor') || '') + ' ' + rowMarker).trim();
 		if ($btn.text() === '▼') {
 			$btn.text('▶');
-			$('tr[data-parent="' + rowMarker + '"]').remove();
-			$('tr[data-ancestor*="' + rowMarker + '"]').remove();
+			$('#drillTableBody tr').filter(function() {
+				return ($(this).attr('data-ancestor') || '').split(' ').includes(rowMarker);
+			}).remove();
 			return;
 		}
 		// Filtres de l'écran + parent déplié (déplier = filtrer sur le parent).
@@ -903,6 +904,9 @@
 		const params = Object.assign({}, f, level === 'region' ? { region: id } : { district: id });
 		$.get(url, params, function(rows) {
 			$btn.text('▼');
+			// Sous la ligne de détails de la zone si elle est ouverte.
+			const $details = $parent.next('tr.drill-details[data-details-for="' + rowMarker + '"]');
+			const $anchor = $details.length ? $details : $parent;
 			const showEmpty = $('#showEmptyZones').is(':checked');
 			const totalRowsRaw = rows.length;
 			let filtered = rows;
@@ -911,21 +915,90 @@
 				const msg = totalRowsRaw === 0 ? 'Aucun élément'
 					: 'Aucun élément avec activité (' + totalRowsRaw + ' masqué' + (totalRowsRaw > 1 ? 's' : '') + ')';
 				const $empty = $('<tr><td colspan="10" class="text-muted-sm" style="padding:.4rem 1rem;"></td></tr>')
-					.attr('data-parent', rowMarker);
+					.attr('data-parent', rowMarker).attr('data-ancestor', ancestors);
 				$empty.find('td').text(msg);
-				$parent.after($empty);
+				$anchor.after($empty);
 				return;
 			}
 			const childLevel = level === 'region' ? 'district' : 'site';
 			const indent = level === 'region' ? 1 : 2;
-			annotateRank(filtered);
 			sortDrillRows(filtered, childLevel).reverse().forEach(function(r) {
 				const $row = $(renderDrillRow(childLevel, r, indent))
 					.attr('data-parent', rowMarker)
-					.attr('data-ancestor', rowMarker);
-				$parent.after($row);
+					.attr('data-ancestor', ancestors);
+				$anchor.after($row);
 			});
 		});
+	}
+
+	// --- Ligne dépliable « Détails » d'une zone ---
+	// La zone est passée comme filtre, avec les autres filtres de l'écran.
+	$(document).on('click', '#drillTable .btn-details', function() {
+		const $btn = $(this);
+		const $row = $btn.closest('tr');
+		const level = $btn.data('zone-level');
+		const id = $btn.data('zone-id');
+		const key = level + '-' + id;
+		const $open = $row.next('tr.drill-details[data-details-for="' + key + '"]');
+		if ($open.length) {
+			$open.remove();
+			$btn.attr('aria-expanded', 'false').removeClass('active');
+			return;
+		}
+		const params = Object.assign({}, currentFilters());
+		params[level] = id;
+		const $tr = $('<tr class="drill-details"><td colspan="10"><span class="text-muted-sm">Chargement...</span></td></tr>')
+			.attr('data-details-for', key);
+		// Repliée avec ses lignes ancêtres.
+		if ($row.attr('data-ancestor')) $tr.attr('data-ancestor', $row.attr('data-ancestor'));
+		$row.after($tr);
+		$btn.attr('aria-expanded', 'true').addClass('active');
+		$.get('dashboard/data/zone-details', params, function(d) {
+			$tr.find('td').html(renderZoneDetails(d || {}, params));
+		}).fail(function() {
+			$tr.find('td').html('<span class="text-muted-sm">Détails indisponibles.</span>');
+		});
+	});
+
+	function renderZoneDetails(d, params) {
+		const byType = d.by_type || [];
+		const typeRows = byType.map(r => '<tr><td>' + typeDot(r.sample_type) + '</td>'
+			+ '<td class="num">' + formatNumber(r.total) + '</td>'
+			+ '<td class="num">' + formatNumber(r.deposited) + '</td>'
+			+ '<td class="num">' + formatNumber(r.non_conform) + '</td>'
+			+ '<td class="num">' + formatNumber(r.delivered) + '</td></tr>').join('');
+		const types = '<div><h4>Par type d\'échantillon</h4>' + (byType.length
+			? '<table><thead><tr><th>Type</th><th class="num">Collectés</th><th class="num">Déposés au laboratoire</th>'
+				+ '<th class="num">Non conformes</th><th class="num">Résultats rendus aux sites</th></tr></thead><tbody>'
+				+ typeRows + '</tbody></table>'
+			: '<span class="text-muted-sm">Aucun échantillon.</span>') + '</div>';
+
+		const medians = {};
+		(d.durations || []).forEach(r => { medians[r.step] = r.median_days; });
+		const stepRows = STEP_ORDER.map(st => '<tr><td>' + escapeHtml((STEP_DEFS[st] || {}).label || st) + '</td>'
+			+ '<td class="num">' + (medians[st] == null ? '<span class="text-muted-sm">-</span>' : formatNumber(medians[st]) + ' j')
+			+ '</td></tr>').join('');
+		const durations = '<div><h4>Durée médiane par étape</h4><table><tbody>' + stepRows + '</tbody></table></div>';
+
+		const reasons = d.non_conform_reasons || [];
+		const nc = '<div><h4>Non-conformités par motif</h4>' + (reasons.length
+			? '<table><tbody>' + reasons.map(r => '<tr><td>' + escapeHtml(r.reason) + '</td><td class="num">'
+				+ formatNumber(r.n) + '</td></tr>').join('') + '</tbody></table>'
+			: '<span class="text-muted-sm">Aucune non-conformité.</span>') + '</div>';
+
+		const link = '<div class="zone-link"><a href="' + escapeHtml(sampleListUrl(params)) + '">'
+			+ '<i class="fas fa-list"></i> Voir la liste des échantillons de cette zone</a></div>';
+		return '<div class="zone-details">' + types + durations + nc + link + '</div>';
+	}
+
+	// Liste des échantillons avec les mêmes filtres (période de collecte, zone,
+	// type de labo, laboratoire, type d'échantillon) : même nombre que la ligne.
+	function sampleListUrl(f) {
+		const p = new URLSearchParams();
+		['region', 'district', 'site', 'lab', 'lab_type', 'sample_type'].forEach(k => { if (f[k]) p.set(k, f[k]); });
+		if (f.startDate) p.set('start', frFromIso(f.startDate));
+		if (f.endDate) p.set('end', frFromIso(f.endDate));
+		return 'sample?' + p.toString();
 	}
 
 	function loadTopPerformers() {
@@ -933,7 +1006,7 @@
 		$.get('dashboard/data/top-performers', Object.assign({}, f, { limit: 5 }), function(resp) {
 			renderRanking('#topRejectionSites', resp.rejection_sites, function(r) {
 				return {
-					name: r.site || '—',
+					name: r.site || '-',
 					sub: (r.district || '') + ' · ' + (r.region || '') + (r.by_type ? ' · ' + r.by_type : ''),
 					metric: r.non_conform_rate + '% (' + r.non_conform + '/' + r.total + ')',
 					value: r.non_conform_rate
@@ -941,21 +1014,27 @@
 			});
 			renderRanking('#slowestLabs', resp.slowest_labs, function(r) {
 				return {
-					name: r.lab || '—',
-					sub: 'TAT labo médian (dépôt → validation) · ' + formatNumber(r.total) + ' échantillons',
+					name: r.lab || '-',
+					sub: 'Délai médian au laboratoire (dépôt → validation) · ' + formatNumber(r.total) + ' échantillons',
 					metric: r.avg_tat_days + ' j',
 					value: r.avg_tat_days
 				};
 			});
-			renderRanking('#topConveyors', resp.top_conveyors, function(r) {
-				const fullName = ((r.first_name || '') + ' ' + (r.last_name || '')).trim() || r.login || '—';
+			renderRanking('#topCircuits', resp.circuits, function(r) {
+				const kind = r.kind || 'circuit';
+				const sites = num(r.sites_served);
+				const name = kind === 'shared' ? 'Sites partagés entre plusieurs circuits'
+					: kind === 'unattached' ? 'Non rattaché'
+					: (r.circuit || 'Circuit ' + r.circuit_id);
 				return {
-					name: fullName,
-					sub: formatNumber(r.deposits) + ' dépôts'
+					name: name,
+					sub: formatNumber(r.deposited) + ' déposés'
 						+ (r.median_transport_days != null ? ' · acheminement ' + formatDuration(r.median_transport_days) : '')
-						+ (num(r.non_conform) > 0 ? ' · ' + r.non_conform_rate + '% non conf.' : ''),
-					metric: formatNumber(r.samples_handled) + ' coll.',
-					value: r.samples_handled
+						+ (kind === 'circuit' ? ' · ' + formatNumber(sites) + (sites > 1 ? ' sites desservis' : ' site desservi')
+							: kind === 'unattached' ? ' · site hors circuit' : ''),
+					metric: formatNumber(r.collected) + ' coll.',
+					value: r.collected,
+					unranked: kind !== 'circuit'
 				};
 			});
 		});
@@ -975,7 +1054,7 @@
 		mapped.forEach(function(m, i) {
 			const w = max > 0 ? Math.round(100 * num(m.value) / max) : 0;
 			$el.append('<li>'
-				+ '<span class="rank">' + (i + 1) + '</span>'
+				+ '<span class="rank">' + (m.unranked ? '·' : (i + 1)) + '</span>'
 				+ '<div><div class="name">' + escapeHtml(m.name) + '</div><div class="sub">' + escapeHtml(m.sub) + '</div></div>'
 				+ '<div class="metric">' + escapeHtml(m.metric) + '</div>'
 				+ '<div class="rank-bar"><span style="width:' + w + '%"></span></div>'

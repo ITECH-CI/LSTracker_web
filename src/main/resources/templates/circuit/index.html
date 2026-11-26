@@ -279,7 +279,7 @@ table#tab_circuits tbody tr:hover { background: #fafcff; }
 			language: {
 				processing: '<i class="fas fa-spinner fa-spin"></i> Chargement...',
 				lengthMenu: 'Afficher _MENU_',
-				info: '_START_–_END_ sur _TOTAL_',
+				info: '_START_ à _END_ sur _TOTAL_',
 				infoEmpty: 'Aucun circuit',
 				zeroRecords: 'Aucun circuit trouvé',
 				emptyTable: 'Aucun circuit',
@@ -299,12 +299,12 @@ table#tab_circuits tbody tr:hover { background: #fafcff; }
 	});
 
 	function renderCode(data) {
-		return data ? '<span class="code-pill">' + escapeHtml(data) + '</span>' : '<span class="empty-cell">—</span>';
+		return data ? '<span class="code-pill">' + escapeHtml(data) + '</span>' : '<span class="empty-cell">-</span>';
 	}
 	function renderSiteCount(data) {
 		const n = (data == null) ? 0 : Number(data);
 		if (n > 0) return '<span class="count-pill">' + n + '</span>';
-		return '<span class="empty-cell">—</span>';
+		return '<span class="empty-cell">-</span>';
 	}
 	function renderConveyors(data) {
 		if (data == null || String(data).trim() === '') {
@@ -319,7 +319,7 @@ table#tab_circuits tbody tr:hover { background: #fafcff; }
 		return '<span class="badge-status b-inactive"><i class="fas fa-times-circle"></i> Inactif</span>';
 	}
 	function renderDate(data) {
-		if (!data) return '<span class="empty-cell">—</span>';
+		if (!data) return '<span class="empty-cell">-</span>';
 		const d = new Date(data);
 		if (isNaN(d.getTime())) return escapeHtml(String(data));
 		const dd = String(d.getDate()).padStart(2, '0');

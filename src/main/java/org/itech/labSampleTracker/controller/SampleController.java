@@ -60,7 +60,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
-import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 
 @Controller
@@ -117,22 +116,6 @@ public class SampleController {
 		binder.registerCustomEditor(Date.class, new CustomDateEditor(dateFormat, true));
 	}
 
-	// Saisie web des échantillons : administrateurs seulement, comme le bouton
-	// « Modifier » de la liste (canEditSamples). La saisie de terrain passe par
-	// le mobile (SampleWrite).
-	@PostMapping(value = "")
-	@AdminWrite
-	public String createSample(@Valid Sample model) {
-
-		SampleDateValidator.validate(model);
-		Sample data = sampleService.create(model);
-		if (data != null) {
-			return "";
-		} else {
-			return "";
-		}
-	}
-
 	@GetMapping(value = "")
 	public String getAllSample(Model model, @RequestParam(defaultValue = "collection_date,desc") String[] sort,
 			@RequestParam(required = false, defaultValue = "0") Integer region,
@@ -144,6 +127,7 @@ public class SampleController {
 			@RequestParam(required = false, name = "start", defaultValue = "") String startDateString,
 			@RequestParam(required = false, name = "end", defaultValue = "") String endDateString,
 			@RequestParam(required = false, name = "sample_type", defaultValue = "0") Integer sampleType,
+			@RequestParam(required = false, name = "lab_type") String labType,
 			@RequestParam(required = false, name = "patient_identifier", defaultValue = "") String patientIdentifier,
 			@RequestParam(defaultValue = "1") int page, @RequestParam(defaultValue = "20") int size) {
 		SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy");
@@ -262,8 +246,11 @@ public class SampleController {
 		model.addAttribute("natureList", sampleService.getDistinctSampleNatures());
 		model.addAttribute("patientIdentifier", patientIdentifier);
 
-		model.addAttribute("labs", UserScopeService.visible(zone, UserScopeService.ZoneList.LABS,
-				labService.getLabIdAndNames()));
+		List<Map<String, Object>> labs = UserScopeService.visible(zone, UserScopeService.ZoneList.LABS,
+				labService.getLabIdAndNames());
+		model.addAttribute("labs", labs);
+		model.addAttribute("labTypes", DashboardController.labTypeOptions(labs));
+		model.addAttribute("selectedLabType", labTypeCode(labType));
 		model.addAttribute("regions", regions);
 		model.addAttribute("districts", districts);
 		model.addAttribute("sites", sites);
@@ -300,8 +287,21 @@ public class SampleController {
 	 * l'existence.
 	 */
 	private boolean canAccess(Sample s) {
-		Integer siteId = s.getSampleRetrieving() != null ? s.getSampleRetrieving().getSiteId() : null;
+		// Même zone que la liste et le tableau de bord : site de la collecte, à
+		// défaut site demandeur.
+		Integer siteId = displayedSiteId(s);
 		return userScopeService.canAccessSample(siteId, s.getDestinationLabId(), s.getLabId(), s.getHubId());
+	}
+
+	/**
+	 * Site affiché sur la fiche : celui de la collecte, à défaut le site
+	 * demandeur, sinon aucun (échantillon sans zone).
+	 */
+	static Integer displayedSiteId(Sample sample) {
+		if (sample.getSampleRetrieving() != null) {
+			return sample.getSampleRetrieving().getSiteId();
+		}
+		return sample.getRequesterSiteId() != null ? sample.getRequesterSiteId().intValue() : null;
 	}
 
 	@GetMapping(value = "/update/{id}")
@@ -323,8 +323,7 @@ public class SampleController {
 				sampleToUpdate.setRejectionComment(rejection.getComment());
 				sampleToUpdate.setRejectionDate(rejection.getRejectionDate());
 			}
-			Integer sampleRequesterId = ObjectUtils.isNotEmpty(sample.getSampleRetrieving())?sample.getSampleRetrieving().getSiteId():sample.getRequesterSiteId().intValue();
-			sampleToUpdate.setRequesterSiteId(sampleRequesterId);
+			sampleToUpdate.setRequesterSiteId(displayedSiteId(sample));
 
 		} catch (Exception ex) {
 			model.addAttribute("message_error", ex.getMessage());
@@ -385,6 +384,9 @@ public class SampleController {
 			SampleDateValidator.validate(updatedSample);
 			updatedSample.setLastupdatedAt(new Date());
 			updatedSample = sampleService.create(updatedSample);
+			if (updatedSample == null) {
+				throw new IllegalStateException("l'enregistrement a échoué.");
+			}
 			model.addAttribute("message_success", "Échantillon modifié avec succès");
 
 		} catch (Exception ex) {
@@ -443,6 +445,7 @@ public class SampleController {
 			@RequestParam(required = false) Integer district,
 			@RequestParam(required = false) Integer site,
 			@RequestParam(required = false) Integer lab,
+			@RequestParam(name = "lab_type", required = false) String labType,
 			// Listes en CSV (cf. JS data: function ci-dessus) pour éviter
 			// d'avoir besoin de `traditional:true` qui casserait la
 			// sérialisation des `columns[N][data]` de DataTables.
@@ -502,7 +505,7 @@ public class SampleController {
 
 		Page<Map<String, Object>> p = sampleService.getSampleDetailsAdvanced(pageable,
 				scope.getRegionId(), scope.getDistrictId(), scope.getSiteId(), scope.getLabId(),
-				startDate, endDate,
+				labTypeCode(labType), startDate, endDate,
 				statusIds, typeIds, natures,
 				scope.getAccessibleSiteIds(),
 				effectiveSearch, onlyRejected, stuckDays,
@@ -512,6 +515,11 @@ public class SampleController {
 		result.put("recordsFiltered", p.getTotalElements());
 		result.put("data", p.getContent());
 		return result;
+	}
+
+	/** Type de laboratoire (lab.lab_type) ; null pour « Tout » (0) ou une valeur vide. */
+	static String labTypeCode(String labType) {
+		return labType == null || labType.isBlank() || "0".equals(labType.trim()) ? null : labType.trim();
 	}
 
 	private static Date parseDateSilently(SimpleDateFormat sdf, String s) {
@@ -699,6 +707,7 @@ public class SampleController {
 			@RequestParam(required = false, defaultValue = "0") Integer lab,
 			@RequestParam(required = false, defaultValue = "0") Integer status,
 			@RequestParam(required = false, name = "sample_type", defaultValue = "0") Integer sampleType,
+			@RequestParam(required = false, name = "lab_type") String labTypeParam,
 			@RequestParam(required = false, name = "patient_identifier", defaultValue = "") String patientIdentifier,
 			@RequestParam(required = false, name = "start", defaultValue = "") String startDateString,
 			@RequestParam(required = false, name = "end", defaultValue = "") String endDateString) {
@@ -759,11 +768,13 @@ public class SampleController {
 			patientIdentifier = null;
 		}
 
+		String labType = labTypeCode(labTypeParam);
+
 		// Périmètre de l'utilisateur : même règle que la liste et le tableau de bord.
 		ScopedFilter scope = userScopeService.intersectCurrent(region, district, site, lab);
 		List<Map<String, String>> sampleRecords = scope.isForceEmpty() ? java.util.List.of()
 				: sampleService.getAll(scope.getRegionId(), scope.getDistrictId(), scope.getSiteId(), scope.getLabId(),
-						startDate, endDate, status, sampleType, patientIdentifier, scope.getAccessibleSiteIds());
+						labType, startDate, endDate, status, sampleType, patientIdentifier, scope.getAccessibleSiteIds());
 
 		activityLog.recordAction(ActivityLogService.EXPORT, "Export", null,
 				"Export CSV des échantillons : " + sampleRecords.size() + " lignes, du " + startDate + " au " + endDate
@@ -780,6 +791,9 @@ public class SampleController {
 		}
 		if (sampleType != null) {
 			filters.add("type " + exportPreamble.typeName(sampleType));
+		}
+		if (labType != null) {
+			filters.add("type de labo " + org.itech.labSampleTracker.enums.LabType.label(labType));
 		}
 		if (patientIdentifier != null) {
 			filters.add("recherche par identifiant patient");

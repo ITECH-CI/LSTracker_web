@@ -274,7 +274,7 @@ table#tab_users tbody tr:hover { background: #fafcff; }
 				</div>
 				<div class="modal-body">
 					<p class="small text-muted">Le mot de passe a été régénéré. Communiquez-le à l'utilisateur par un canal sécurisé. <strong>Il devra le changer à la prochaine connexion.</strong></p>
-					<div class="mb-2"><strong>Utilisateur :</strong> <span id="rpLogin">—</span></div>
+					<div class="mb-2"><strong>Utilisateur :</strong> <span id="rpLogin">-</span></div>
 					<div class="input-group">
 						<input type="text" id="rpPassword" class="form-control font-monospace" readonly/>
 						<button class="btn btn-outline-secondary" type="button" onclick="copyResetPwd()">
@@ -307,8 +307,8 @@ table#tab_users tbody tr:hover { background: #fafcff; }
 	<script th:inline="none">
 	/* eslint-disable */
 	$(function () {
-		$('.select2-single').select2({ width: '100%', allowClear: true, placeholder: '— Tous —' });
-		$('.select2-multi').select2({ width: '100%', allowClear: true, placeholder: '— Sélectionner —' });
+		$('.select2-single').select2({ width: '100%', allowClear: true, placeholder: 'Tous' });
+		$('.select2-multi').select2({ width: '100%', allowClear: true, placeholder: 'Sélectionner' });
 
 		// Mutually exclusive Active/Inactive toggles
 		$('#toggleActive').on('change', function() {
@@ -364,7 +364,7 @@ table#tab_users tbody tr:hover { background: #fafcff; }
 			language: {
 				processing: '<i class="fas fa-spinner fa-spin"></i> Chargement...',
 				lengthMenu: 'Afficher _MENU_',
-				info: '_START_–_END_ sur _TOTAL_',
+				info: '_START_ à _END_ sur _TOTAL_',
 				infoEmpty: 'Aucun utilisateur',
 				zeroRecords: 'Aucun utilisateur trouvé',
 				emptyTable: 'Aucun utilisateur',
@@ -391,13 +391,13 @@ table#tab_users tbody tr:hover { background: #fafcff; }
 		const ln = row.last_name || '';
 		const fn = row.first_name || '';
 		const full = (ln + ' ' + fn).trim();
-		return full ? escapeHtml(full) : '<span class="empty-cell">—</span>';
+		return full ? escapeHtml(full) : '<span class="empty-cell">-</span>';
 	}
 	function renderText(data) {
-		return data ? escapeHtml(data) : '<span class="empty-cell">—</span>';
+		return data ? escapeHtml(data) : '<span class="empty-cell">-</span>';
 	}
 	function renderRole(data) {
-		if (!data) return '<span class="empty-cell">—</span>';
+		if (!data) return '<span class="empty-cell">-</span>';
 		const label = (window.ROLE_LABELS || {})[data] || data;
 		return '<span class="role-pill" title="' + escapeHtml(data) + '">' + escapeHtml(label) + '</span>';
 	}
@@ -458,7 +458,7 @@ table#tab_users tbody tr:hover { background: #fafcff; }
 		if (!confirm('Réinitialiser le mot de passe ? Un nouveau mot de passe temporaire sera généré et toutes ses sessions seront fermées.')) return;
 		$.post('appuser/' + id + '/reset-password')
 			.done(function(data) {
-				$('#rpLogin').text(data.login || '—');
+				$('#rpLogin').text(data.login || '-');
 				$('#rpPassword').val(data.temporaryPassword || '');
 				const modal = new bootstrap.Modal(document.getElementById('resetPwdModal'));
 				modal.show();

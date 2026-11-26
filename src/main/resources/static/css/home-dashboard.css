@@ -76,13 +76,15 @@
 
 .sample-sidebar .filter-group { margin-bottom: 0; }
 /* Ligne 1 : Période + presets + Laboratoire */
-.sample-sidebar .filter-period  { grid-column: 1 / span 5; }
-.sample-sidebar .filter-presets { grid-column: 6 / span 4; }
-.sample-sidebar .filter-lab     { grid-column: 10 / span 3; }
+.sample-sidebar .filter-period  { grid-column: 1 / span 6; }
+.sample-sidebar .filter-presets { grid-column: 7 / span 6; }
 /* Ligne 2 : Région + District + Site */
 .sample-sidebar .filter-region  { grid-column: 1 / span 4; }
 .sample-sidebar .filter-district{ grid-column: 5 / span 4; }
 .sample-sidebar .filter-site    { grid-column: 9 / span 4; }
+.sample-sidebar .filter-lab-type    { grid-column: 1 / span 4; }
+.sample-sidebar .filter-lab         { grid-column: 5 / span 4; }
+.sample-sidebar .filter-sample-type { grid-column: 9 / span 4; }
 .sample-sidebar .filter-actions { grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: .5rem; }
 @media (max-width: 991.98px) {
 	.sample-sidebar .filter-group { grid-column: 1 / -1; }
@@ -201,7 +203,7 @@
 }
 #dashTip.show { opacity: 1; }
 
-/* Bandeau de période : période analysée + période de comparaison. */
+/* Bandeau de période : période analysée. */
 .period-banner {
 	display: flex; flex-wrap: wrap; gap: .5rem 1.5rem; align-items: center;
 	margin: 0 0 1rem; padding: .7rem 1.1rem;
@@ -211,8 +213,6 @@
 .period-banner i { margin-right: .35rem; color: #4f46e5; }
 .period-banner strong { color: #1e1b4b; }
 .period-banner .period-label { font-weight: 600; }
-.period-banner .period-prev { color: #4338ca; }
-.period-banner .period-hint { color: #6366f1; font-size: .78rem; }
 
 /* ===== Parcours de l'échantillon (bandeau fléché) ===== */
 .section-sub { font-size: .74rem; color: #6b7280; margin-top: .15rem; }
@@ -265,7 +265,6 @@
 	font-size: 2rem; font-weight: 700; color: #0f172a;
 	line-height: 1.1; letter-spacing: -0.02em; margin: .15rem 0 .1rem;
 }
-.flow-step .trend { font-size: .7rem; min-height: .95rem; display: flex; align-items: center; gap: .2rem; flex-wrap: wrap; }
 .flow-detail { font-size: .7rem; color: #6b7280; margin-top: .3rem; }
 .flow-detail i { font-size: .65rem; margin-right: .15rem; }
 .flow-detail strong { color: #374151; }
@@ -289,10 +288,6 @@
 
 .chart-toggle .btn { font-size: .72rem; padding: .15rem .55rem; }
 #drillTable th.sortable { cursor: pointer; user-select: none; white-space: nowrap; }
-.rank-chip { display: inline-block; min-width: 1.6rem; padding: .05rem .35rem; border-radius: 999px; background: #eef2ff; color: #3730a3; font-size: .72rem; font-weight: 700; text-align: center; }
-.gap-up { color: #15803d; font-weight: 600; }
-.gap-down { color: #b45309; font-weight: 600; }
-.gap-flat { color: #6b7280; }
 #drillTable th.sortable:hover { color: #4f46e5; }
 #drillTable th .sort-arrow { margin-left: .3rem; font-size: .65rem; color: #cbd5e1; }
 #drillTable th.sorted .sort-arrow { color: #4f46e5; }
@@ -333,7 +328,6 @@
 .status-warning  .stat-icon { background: #fef3c7; color: #b45309; }
 .status-neutral  .stat-icon { background: #f1f5f9; color: #334155; }
 .stat-label { font-size: .8rem; font-weight: 600; color: #374151; display: flex; align-items: center; gap: .25rem; }
-.stat-text .trend { font-size: .7rem; min-height: .9rem; display: flex; align-items: center; gap: .2rem; flex-wrap: wrap; }
 .stat-value { font-size: 1.6rem; font-weight: 700; color: #0f172a; letter-spacing: -0.02em; }
 .stat-value small { font-size: .8rem; font-weight: 500; color: #6b7280; }
 
@@ -358,13 +352,6 @@
 .mini-value small { font-size: .72rem; font-weight: 500; color: #6b7280; }
 .mini-sub { display: block; font-size: .7rem; color: #9ca3af; }
 
-.kpi-trend-up   { color: #16a34a; } /* évolution favorable */
-.kpi-trend-down { color: #dc2626; } /* évolution défavorable */
-.kpi-trend-flat { color: #9ca3af; }
-.kpi-trend-prev {
-	display: inline-block; margin-left: .15rem; padding: .02rem .45rem;
-	border-radius: 999px; background: #f1f5f9; color: #334155; font-weight: 600;
-}
 
 
 /* ===== Coverage section ===== */
@@ -484,20 +471,21 @@
 .drill-table .expander.placeholder:hover { background: none; color: #6b7280; }
 .drill-table .num { text-align: right; font-variant-numeric: tabular-nums; }
 
-.tat-pill {
-	display: inline-block;
-	min-width: 3rem;
-	text-align: center;
-	font-weight: 600;
-	font-size: .74rem;
-	padding: .15rem .5rem;
-	border-radius: 999px;
-}
-/* Teintes de statut claires + texte foncé : le sens reste, sans « crier ». */
-.tat-green  { background: #dcfce7; color: #166534; }
-.tat-orange { background: #fef3c7; color: #92400e; }
-.tat-red    { background: #fee2e2; color: #991b1b; }
-.tat-na     { background: #f1f5f9; color: #64748b; }
+/* Fil d'Ariane du tableau de répartition. */
+.drill-crumbs { font-size: .74rem; color: #6b7280; margin-top: .2rem; }
+.drill-crumbs span + span::before { content: "›"; margin: 0 .35rem; color: #cbd5e1; }
+.drill-crumbs span:last-child { color: #374151; font-weight: 600; }
+
+/* Ligne dépliable « Détails » d'une zone. */
+.drill-table .btn-details { font-size: .7rem; padding: .1rem .45rem; white-space: nowrap; }
+.drill-table tr.drill-details > td { background: #f8fafc; padding: .75rem 1rem; }
+.zone-details { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr)); gap: 1rem; }
+.zone-details h4 { font-size: .74rem; font-weight: 600; color: #374151; margin: 0 0 .35rem; }
+.zone-details table { width: 100%; font-size: .76rem; }
+.zone-details td, .zone-details th { padding: .15rem .3rem; border-bottom: 1px solid #eef1f6; }
+.zone-details th { font-weight: 600; color: #6b7280; font-size: .7rem; }
+.zone-details .num { text-align: right; font-variant-numeric: tabular-nums; }
+.zone-details .zone-link { grid-column: 1 / -1; font-size: .76rem; }
 
 /* Total : barre discrète dans la cellule, proportionnelle au plus grand du niveau. */
 .drill-table td.total-cell { font-weight: 600; }

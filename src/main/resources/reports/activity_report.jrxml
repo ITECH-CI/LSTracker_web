@@ -56,14 +56,14 @@
 				<textElement textAlignment="Center" verticalAlignment="Middle">
 					<font size="16" isBold="true"/>
 				</textElement>
-				<text><![CDATA[Rapport d’activité – LSTracker]]></text>
+				<text><![CDATA[Rapport d’activité · LSTracker]]></text>
 			</staticText>
 			<textField>
 				<reportElement x="0" y="28" width="782" height="18" uuid="20970106-a2ec-4c37-a9dd-09cfb7559eec"/>
 				<textElement textAlignment="Center">
 					<font size="11"/>
 				</textElement>
-				<textFieldExpression><![CDATA["Période : " + $P{start_date} + "  —  " + $P{end_date}]]></textFieldExpression>
+				<textFieldExpression><![CDATA["Période : " + $P{start_date} + " au " + $P{end_date}]]></textFieldExpression>
 			</textField>
 			<textField>
 				<reportElement x="0" y="48" width="782" height="18" uuid="11f2091e-540b-4b99-ba1c-05b66f8af588"/>

@@ -1,10 +1,9 @@
 package org.itech.labSampleTracker.dao;
 
-import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 
-import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.itech.labSampleTracker.dto.DashboardFilter;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
@@ -16,33 +15,19 @@ public class ReportJdbcRepository {
 		this.jdbc = jdbc;
 	}
 
-	private MapSqlParameterSource params(LocalDate start, LocalDate end, Integer regionId, Integer districtId,
-			Integer siteId, Integer labId, Integer riderId, List<Integer> accessibleSiteIds) {
-		MapSqlParameterSource p = new MapSqlParameterSource().addValue("startDate", start).addValue("endDate", end)
-				.addValue("regionId", regionId).addValue("districtId", districtId).addValue("siteId", siteId)
-				.addValue("labId", labId).addValue("riderId", riderId);
-		// Scope géographique (UserScope) : booléen + liste, même convention
-		// que DashboardNativeRepository pour éviter les soucis de type-inference
-		// PostgreSQL sur un array NULL.
-		boolean active = accessibleSiteIds != null && !accessibleSiteIds.isEmpty();
-		p.addValue("accessibleSiteIdsActive", active);
-		p.addValue("accessibleSiteIds", active ? accessibleSiteIds : List.of(-1));
-		return p;
-	}
-
 	private static final String SCOPE_JOIN = " LEFT JOIN sample_retrieving sr ON sr.id = s.sample_retrieving_id "
-			+ " LEFT JOIN site st ON st.id = sr.site_id LEFT JOIN district dis ON dis.id = st.district_id ";
+			+ " LEFT JOIN site st ON st.id = COALESCE(sr.site_id, s.requester_site_id) LEFT JOIN district dis ON dis.id = st.district_id ";
 
 	private static final String SCOPE_WHERE = " AND (CAST(:siteId AS INT) IS NULL OR st.id = CAST(:siteId AS INT)) "
 			+ " AND (CAST(:districtId AS INT) IS NULL OR dis.id = CAST(:districtId AS INT)) "
 			+ " AND (CAST(:regionId AS INT) IS NULL OR dis.region_id = CAST(:regionId AS INT)) "
 			+ " AND (CAST(:labId AS INT) IS NULL OR s.destination_lab_id = CAST(:labId AS INT)) "
 			+ " AND (CAST(:riderId AS INT) IS NULL OR sr.app_user_id = CAST(:riderId AS INT)) "
-			+ " AND (:accessibleSiteIdsActive = FALSE OR st.id IN (:accessibleSiteIds)) ";
+			+ " AND (:accessibleSiteIdsActive = FALSE OR st.id IN (:accessibleSiteIds)) "
+			+ DashboardFilter.SAMPLE_FILTER_SQL;
 
 	// --------- 1) Collectés par type (BI, BS, ...) ----------
-	public List<Map<String, Object>> collectedByType(LocalDate start, LocalDate end, Integer regionId,
-			Integer districtId, Integer siteId, Integer labId, Integer riderId, List<Integer> accessibleSiteIds) {
+	public List<Map<String, Object>> collectedByType(DashboardFilter f, Integer riderId) {
 
 		String sql = "SELECT stype.name AS type_code, COUNT(*) AS cnt FROM sample s "
 				+ "JOIN sample_type stype ON stype.id = s.sample_type_id " + SCOPE_JOIN
@@ -50,7 +35,7 @@ public class ReportJdbcRepository {
 				+ "  AND (CAST(:endDate   AS date) IS NULL OR CAST(s.collection_date AS DATE) <= CAST(:endDate AS DATE)) " + SCOPE_WHERE
 				+ "GROUP BY stype.name";
 
-		return jdbc.queryForList(sql, params(start, end, regionId, districtId, siteId, labId, riderId, accessibleSiteIds));
+		return jdbc.queryForList(sql, f.params().addValue("riderId", riderId));
 	}
 
 	// --------- 2) Réceptionnés par type ET catégorie labo ----------
@@ -64,8 +49,7 @@ public class ReportJdbcRepository {
 	// Axe temporel : date effective de dépôt au labo (deliver_at_lab_date
 	// ou deliver_at_hub_date selon la cible). Plus cohérent avec rejected
 	// (qui filtre sur rejection_date) → received ⊇ rejected garanti.
-	public List<Map<String, Object>> receivedByTypeAndLabKind(LocalDate start, LocalDate end, Integer regionId,
-			Integer districtId, Integer siteId, Integer labId, Integer riderId, List<Integer> accessibleSiteIds) {
+	public List<Map<String, Object>> receivedByTypeAndLabKind(DashboardFilter f, Integer riderId) {
 
 		// Mapping lab_kind mutuellement exclusif :
 		//   - RELAIS : passé par un hub, pas encore arrivé au lab final
@@ -88,7 +72,7 @@ public class ReportJdbcRepository {
 				+ SCOPE_WHERE
 				+ "GROUP BY stype.name, lab_kind";
 
-		return jdbc.queryForList(sql, params(start, end, regionId, districtId, siteId, labId, riderId, accessibleSiteIds));
+		return jdbc.queryForList(sql, f.params().addValue("riderId", riderId));
 	}
 
 	// --------- 3) Acceptés par type ----------
@@ -97,8 +81,7 @@ public class ReportJdbcRepository {
 	// acceptés historiquement (accepted_at_*_date IS NOT NULL),
 	// indépendamment du statut courant. Axe temporel = date d'acceptation
 	// effective.
-	public List<Map<String, Object>> acceptedByType(LocalDate start, LocalDate end, Integer regionId,
-			Integer districtId, Integer siteId, Integer labId, Integer riderId, List<Integer> accessibleSiteIds) {
+	public List<Map<String, Object>> acceptedByType(DashboardFilter f, Integer riderId) {
 
 		String sql = "SELECT stype.name AS type_code, COUNT(*) AS cnt FROM sample s "
 				+ "JOIN sample_type stype ON stype.id = s.sample_type_id " + SCOPE_JOIN
@@ -108,12 +91,11 @@ public class ReportJdbcRepository {
 				+ SCOPE_WHERE
 				+ "GROUP BY stype.name";
 
-		return jdbc.queryForList(sql, params(start, end, regionId, districtId, siteId, labId, riderId, accessibleSiteIds));
+		return jdbc.queryForList(sql, f.params().addValue("riderId", riderId));
 	}
 
 	// --------- 4) Résultats prêts (analysis_done) par type ----------
-	public List<Map<String, Object>> resultReadyByType(LocalDate start, LocalDate end, Integer regionId,
-			Integer districtId, Integer siteId, Integer labId, Integer riderId, List<Integer> accessibleSiteIds) {
+	public List<Map<String, Object>> resultReadyByType(DashboardFilter f, Integer riderId) {
 
 		String sql = "SELECT stype.name AS type_code, COUNT(*) AS cnt FROM sample s "
 				+ "JOIN sample_status ss ON ss.id = s.sample_status_id "
@@ -126,12 +108,11 @@ public class ReportJdbcRepository {
 				+ "  AND (CAST(:endDate   AS date) IS NULL OR CAST(s.analysis_released_date AS DATE) <= :endDate) "
 				+ SCOPE_WHERE + "GROUP BY stype.name";
 
-		return jdbc.queryForList(sql, params(start, end, regionId, districtId, siteId, labId, riderId, accessibleSiteIds));
+		return jdbc.queryForList(sql, f.params().addValue("riderId", riderId));
 	}
 
 	// --------- 5) Résultats collectés / déposés par type ----------
-	public List<Map<String, Object>> resultCollectedByType(LocalDate start, LocalDate end, Integer regionId,
-			Integer districtId, Integer siteId, Integer labId, Integer riderId, List<Integer> accessibleSiteIds) {
+	public List<Map<String, Object>> resultCollectedByType(DashboardFilter f, Integer riderId) {
 
 		String sql = "SELECT stype.name AS type_code, COUNT(*) AS cnt FROM sample s "
 				+ "JOIN sample_type stype ON stype.id = s.sample_type_id " + SCOPE_JOIN
@@ -140,11 +121,10 @@ public class ReportJdbcRepository {
 				+ "  AND (CAST(:endDate   AS date) IS NULL OR CAST(s.result_collection_date AS DATE) <= :endDate) "
 				+ SCOPE_WHERE + "GROUP BY stype.name";
 
-		return jdbc.queryForList(sql, params(start, end, regionId, districtId, siteId, labId, riderId, accessibleSiteIds));
+		return jdbc.queryForList(sql, f.params().addValue("riderId", riderId));
 	}
 
-	public List<Map<String, Object>> resultDeliveredByType(LocalDate start, LocalDate end, Integer regionId,
-			Integer districtId, Integer siteId, Integer labId, Integer riderId, List<Integer> accessibleSiteIds) {
+	public List<Map<String, Object>> resultDeliveredByType(DashboardFilter f, Integer riderId) {
 
 		String sql = "SELECT stype.name AS type_code, COUNT(*) AS cnt FROM sample s "
 				+ "JOIN sample_type stype ON stype.id = s.sample_type_id " + SCOPE_JOIN
@@ -153,7 +133,7 @@ public class ReportJdbcRepository {
 				+ "  AND (CAST(:endDate   AS date) IS NULL OR CAST(s.result_delivery_date AS DATE) <= :endDate) " + SCOPE_WHERE
 				+ "GROUP BY stype.name";
 
-		return jdbc.queryForList(sql, params(start, end, regionId, districtId, siteId, labId, riderId, accessibleSiteIds));
+		return jdbc.queryForList(sql, f.params().addValue("riderId", riderId));
 	}
 
 	// --------- 6) Rejets & échecs par type ----------
@@ -165,8 +145,7 @@ public class ReportJdbcRepository {
 	// On filtre aussi sur sample_status pour exclure les samples qui
 	// auraient une rejection_date "résiduelle" mais qui sont passés à un
 	// autre statut depuis (cas rare mais possible).
-	public List<Map<String, Object>> rejectedByType(LocalDate start, LocalDate end, Integer regionId,
-			Integer districtId, Integer siteId, Integer labId, Integer riderId, List<Integer> accessibleSiteIds) {
+	public List<Map<String, Object>> rejectedByType(DashboardFilter f, Integer riderId) {
 
 		String sql = "SELECT stype.name AS type_code, COUNT(*) AS cnt FROM sample s "
 				+ "JOIN sample_status ss ON ss.id = s.sample_status_id "
@@ -176,15 +155,14 @@ public class ReportJdbcRepository {
 				+ "  AND (CAST(:endDate   AS date) IS NULL OR CAST(s.rejection_date AS DATE) <= :endDate) "
 				+ SCOPE_WHERE + "GROUP BY stype.name";
 
-		return jdbc.queryForList(sql, params(start, end, regionId, districtId, siteId, labId, riderId, accessibleSiteIds));
+		return jdbc.queryForList(sql, f.params().addValue("riderId", riderId));
 	}
 
 	// FIX : pour failedByType, on s'appuie sur analysis_completed_date
 	// strictement non-null (date à laquelle l'échec a été constaté) au
 	// lieu d'un COALESCE qui retombait sur des dates antérieures hors
 	// période.
-	public List<Map<String, Object>> failedByType(LocalDate start, LocalDate end, Integer regionId, Integer districtId,
-			Integer siteId, Integer labId, Integer riderId, List<Integer> accessibleSiteIds) {
+	public List<Map<String, Object>> failedByType(DashboardFilter f, Integer riderId) {
 
 		String sql = "SELECT stype.name AS type_code, COUNT(*) AS cnt FROM sample s "
 				+ " JOIN sample_status ss ON ss.id = s.sample_status_id "
@@ -194,7 +172,7 @@ public class ReportJdbcRepository {
 				+ " AND (CAST(:endDate   AS date) IS NULL OR CAST(s.analysis_completed_date AS DATE) <= :endDate) "
 				+ SCOPE_WHERE + "GROUP BY stype.name";
 
-		return jdbc.queryForList(sql, params(start, end, regionId, districtId, siteId, labId, riderId, accessibleSiteIds));
+		return jdbc.queryForList(sql, f.params().addValue("riderId", riderId));
 	}
 
 	// --------- 7) TAT médian par type d'échantillon ----------
@@ -202,8 +180,7 @@ public class ReportJdbcRepository {
 	//   TAT = result_delivery_date - collection_date
 	// PERCENTILE_CONT ignore les NULL → les samples sans result_delivery_date
 	// ne sont pas comptés. Cohorte = collectés dans la fenêtre.
-	public List<Map<String, Object>> tatMedianDaysByType(LocalDate start, LocalDate end, Integer regionId,
-			Integer districtId, Integer siteId, Integer labId, Integer riderId, List<Integer> accessibleSiteIds) {
+	public List<Map<String, Object>> tatMedianDaysByType(DashboardFilter f, Integer riderId) {
 
 		String sql = "SELECT stype.name AS type_code, "
 				+ "       PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY " + TatSql.DAYS + ") AS median_days "
@@ -214,6 +191,6 @@ public class ReportJdbcRepository {
 				+ SCOPE_WHERE
 				+ "GROUP BY stype.name";
 
-		return jdbc.queryForList(sql, params(start, end, regionId, districtId, siteId, labId, riderId, accessibleSiteIds));
+		return jdbc.queryForList(sql, f.params().addValue("riderId", riderId));
 	}
 }

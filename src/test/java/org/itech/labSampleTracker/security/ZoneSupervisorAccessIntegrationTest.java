@@ -49,7 +49,9 @@ import org.testcontainers.junit.jupiter.Testcontainers;
  *
  * <p>Région A : un site et un labo, l'échantillon PAT-ZONE-A. Région B : un
  * site, l'échantillon PAT-ZONE-B, et PAT-B-VERS-A collecté en B et déposé au
- * labo de A. Région C : des districts mais aucun site.
+ * labo de A. Région C : des districts mais aucun site. Un circuit par
+ * région (CIRC-ZONE-A, CIRC-ZONE-B) et un échantillon sans zone, ancien
+ * (hors de la période par défaut), antérieur à la contrainte de zone.
  */
 @Testcontainers(disabledWithoutDocker = true)
 @SpringBootTest(properties = {
@@ -74,6 +76,7 @@ class ZoneSupervisorAccessIntegrationTest {
 
 	private static final String PASSWORD = "Test@2026x";
 	private static final String A = "PAT-ZONE-A", B = "PAT-ZONE-B", B_TO_LAB_A = "PAT-B-VERS-A";
+	private static final String NO_ZONE = "PAT-SANS-ZONE";
 
 	@Autowired
 	private MockMvc mvc;
@@ -118,6 +121,22 @@ class ZoneSupervisorAccessIntegrationTest {
 		sampleA = sample(A, retrievingA, String.valueOf(labA));
 		sampleB = sample(B, retrievingB, "NULL");
 		sampleBToLabA = sample(B_TO_LAB_A, retrievingB, String.valueOf(labA));
+		for (int[] c : new int[][] { { siteA, 'A' }, { siteB, 'B' } }) {
+			int circuit = insertId("INSERT INTO circuit (circuit_number) VALUES ('CIRC-ZONE-" + (char) c[1]
+					+ "') RETURNING id");
+			jdbc.update("INSERT INTO circuit_site (circuit_id, site_id, is_active) VALUES (" + circuit + ", " + c[0]
+					+ ", true)", Map.of());
+		}
+		// Échantillon sans collecte ni site demandeur, antérieur à la contrainte
+		// ck_sample_collection_or_requester : on la retire le temps de l'insérer.
+		String check = jdbc.queryForObject("SELECT pg_get_constraintdef(oid) FROM pg_constraint "
+				+ "WHERE conname = 'ck_sample_collection_or_requester'", Map.of(), String.class);
+		jdbc.update("ALTER TABLE sample DROP CONSTRAINT ck_sample_collection_or_requester", Map.of());
+		jdbc.update("INSERT INTO sample (patient_identifier, collection_date, created_at, lastupdated_at, "
+				+ "sample_status_id, sample_type_id) VALUES ('" + NO_ZONE + "', CURRENT_DATE - 1000, now(), now(), "
+				+ "(SELECT id FROM sample_status WHERE status = 'ON_TRANSIT'), "
+				+ "(SELECT id FROM sample_type WHERE name = 'CV'))", Map.of());
+		jdbc.update("ALTER TABLE sample ADD CONSTRAINT ck_sample_collection_or_requester " + check, Map.of());
 
 		createAccount("supregion", "SUPERVISEUR_REGION", null, null, List.of(regionA), List.of());
 		createAccount("supdistrict", "SUPERVISEUR_DISTRICT", null, null, List.of(), List.of(districtA));
@@ -233,14 +252,17 @@ class ZoneSupervisorAccessIntegrationTest {
 				login + " fiche B déposé en A");
 	}
 
-	/** Valeurs proposées par une liste de filtre de la page. */
+	/** Zones proposées par une liste de filtre de la page (hors option « Tout », valeur 0). */
 	private static Set<Integer> options(String html, String selectId) {
 		Matcher block = Pattern.compile("id=\"" + selectId + "\"(.*?)</select>", Pattern.DOTALL).matcher(html);
 		assertTrue(block.find(), selectId);
 		Set<Integer> out = new TreeSet<>();
 		Matcher opt = Pattern.compile("<option[^>]*value=\"(\\d+)\"").matcher(block.group(1));
 		while (opt.find()) {
-			out.add(Integer.parseInt(opt.group(1)));
+			int id = Integer.parseInt(opt.group(1));
+			if (id != 0) {
+				out.add(id);
+			}
 		}
 		return out;
 	}
@@ -306,6 +328,50 @@ class ZoneSupervisorAccessIntegrationTest {
 	void unCompteSansAffectationExploitableNeVoitRien(String login) throws Exception {
 		// supvide : région affectée sans aucun site ; sansaffect : aucune affectation.
 		seesOnly(login, List.of());
+	}
+
+	@Test
+	void laCarteCircuitsDuSuperviseurResteDansSaZone() throws Exception {
+		String admin = read("admin", get("/dashboard/data/top-performers"));
+		assertTrue(admin.contains("\"circuit\":\"CIRC-ZONE-A\""), admin);
+		assertTrue(admin.contains("\"circuit\":\"CIRC-ZONE-B\""), admin);
+		for (String login : List.of("supregion", "supdistrict")) {
+			String body = read(login, get("/dashboard/data/top-performers"));
+			assertTrue(body.contains("\"circuit\":\"CIRC-ZONE-A\""), login + " : " + body);
+			assertFalse(body.contains("CIRC-ZONE-B"), login + " : " + body);
+			assertFalse(body.contains("\"kind\":\"unattached\""), login + " : " + body);
+		}
+	}
+
+	@Test
+	void laZoneNonRenseigneeNApparaitQuePourUnCompteNational() throws Exception {
+		String since = "?startDate=" + LocalDate.now().minusDays(1100);
+		// Ligne « Zone non renseignée » : la seule sans identifiant de zone.
+		for (String[] level : new String[][] { { "by-region", "region_id" }, { "by-district", "district_id" },
+				{ "by-site", "site_id" } }) {
+			String url = "/dashboard/data/" + level[0] + since;
+			String unknown = "\"" + level[1] + "\":null";
+			assertTrue(read("admin", get(url)).contains(unknown), "admin " + level[0]);
+			for (String login : List.of("supregion", "supdistrict")) {
+				assertFalse(read(login, get(url)).contains(unknown), login + " " + level[0]);
+			}
+		}
+		assertTrue(read("admin", get("/dashboard/data/top-performers" + since)).contains("\"kind\":\"unattached\""));
+		assertFalse(read("supregion", get("/dashboard/data/top-performers" + since)).contains("\"kind\":\"unattached\""));
+		assertEquals(1, dashboardTotal("supregion", since));
+	}
+
+	@Test
+	void laSaisieWebDUnEchantillonNExistePlus() throws Exception {
+		// POST /sample enregistrait un échantillon à partir des seuls paramètres de
+		// la requête, sans collecte : supprimé. Même un administrateur, avec son
+		// jeton CSRF, reçoit 404 ou 405, et rien n'est enregistré.
+		long before = jdbc.queryForObject("SELECT COUNT(*) FROM sample", Map.of(), Long.class);
+		int code = mvc.perform(post("/sample").with(as("admin")).with(csrf())
+				.param("patientIdentifier", "PAT-POST-SAMPLE").param("sampleTypeId", "1")
+				.param("sampleStatusId", "1")).andReturn().getResponse().getStatus();
+		assertTrue(code == 404 || code == 405, "statut " + code);
+		assertEquals(before, jdbc.queryForObject("SELECT COUNT(*) FROM sample", Map.of(), Long.class));
 	}
 
 	@Test

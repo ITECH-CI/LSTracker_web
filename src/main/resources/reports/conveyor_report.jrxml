@@ -116,7 +116,7 @@
 				<textElement>
 					<font size="11" isBold="true" isStrikeThrough="false"/>
 				</textElement>
-				<textFieldExpression><![CDATA["Période de rapportage : " + $P{startDate} + "  —  " + $P{endDate}]]></textFieldExpression>
+				<textFieldExpression><![CDATA["Période de rapportage : " + $P{startDate} + " au " + $P{endDate}]]></textFieldExpression>
 			</textField>
 			<textField>
 				<reportElement x="60" y="54" width="722" height="18" uuid="e1fa78ca-f658-45cf-93c7-f28937815712"/>

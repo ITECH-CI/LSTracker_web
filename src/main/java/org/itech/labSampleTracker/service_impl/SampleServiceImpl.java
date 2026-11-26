@@ -46,8 +46,28 @@ public class SampleServiceImpl implements SampleService {
 	@PersistenceContext
 	private EntityManager em;
 
+	/** Message du refus d'un échantillon sans zone (repris par l'écran de modification). */
+	public static final String NO_ZONE_MESSAGE = "Échantillon sans collecte ni site demandeur : "
+			+ "renseignez la collecte ou le site demandeur pour l'enregistrer.";
+
+	/**
+	 * Un échantillon a une zone : sa collecte (et son site), ou à défaut son
+	 * site demandeur. Sans l'un ni l'autre, il n'apparaîtrait dans aucune zone.
+	 * Même règle que la contrainte ck_sample_collection_or_requester de la base.
+	 */
+	static void requireZone(Sample d) {
+		if (d.getSampleRetrievingId() == null && d.getRequesterSiteId() == null) {
+			throw new IllegalArgumentException(NO_ZONE_MESSAGE);
+		}
+	}
+
+	/**
+	 * Enregistre un échantillon (création ou modification). Refuse, avant toute
+	 * écriture, un échantillon sans collecte ni site demandeur.
+	 */
 	@Override
 	public Sample create(Sample d) {
+		requireZone(d);
 
 		Sample entity;
 
@@ -748,109 +768,6 @@ public class SampleServiceImpl implements SampleService {
 		return response;
 	}
 
-	@Override
-	public Map<String, Map<String, Integer>> getSampleStatusBySampleType(Integer regionId, Integer districtId,
-			Integer siteId, Integer labId, LocalDate startDate, LocalDate endDate, List<Integer> accessibleSiteIds) {
-		// REFONTE complète (audit rapports) : on n'agrège plus par ss.status
-		// (qui est ÉCRASÉ à chaque transition) mais directement par dates
-		// persistantes via SUM(CASE WHEN date IS NOT NULL). Garantit que
-		// rejected ⊆ accepted ⊆ received pour chaque type d'échantillon
-		// et résout les divergences avec les cards du dashboard
-		// (DashboardNativeRepository.summary utilise déjà ce pattern).
-		StringBuffer sql = new StringBuffer();
-		sql.append("SELECT st.name AS sample_type, "
-				+ "  COUNT(*) AS sample_collected, "
-				+ "  SUM(CASE WHEN COALESCE(s.deliver_at_lab_date, s.deliver_at_hub_date) IS NOT NULL THEN 1 ELSE 0 END) AS sample_received, "
-				+ "  SUM(CASE WHEN COALESCE(s.accepted_at_lab_date, s.accepted_at_hub_date) IS NOT NULL THEN 1 ELSE 0 END) AS sample_accepted, "
-				+ "  SUM(CASE WHEN s.analysis_released_date IS NOT NULL THEN 1 ELSE 0 END) AS analysis_done, "
-				+ "  SUM(CASE WHEN s.result_collection_date IS NOT NULL THEN 1 ELSE 0 END) AS result_collected, "
-				+ "  SUM(CASE WHEN s.result_delivery_date IS NOT NULL THEN 1 ELSE 0 END) AS result_on_site, "
-				+ "  SUM(CASE WHEN ss2.status = 'NON_CONFORM' AND s.rejection_date IS NOT NULL THEN 1 ELSE 0 END) AS non_conform, "
-				+ "  SUM(CASE WHEN ss2.status = 'ANALYSIS_FAILED' AND s.analysis_completed_date IS NOT NULL THEN 1 ELSE 0 END) AS failed "
-				+ "FROM sample s "
-				+ "JOIN sample_type st ON st.id = s.sample_type_id "
-				+ "JOIN sample_status ss2 ON ss2.id = s.sample_status_id "
-				+ "JOIN sample_retrieving sr ON s.sample_retrieving_id = sr.id "
-				+ "JOIN site ON sr.site_id = site.id "
-				+ "JOIN district d ON d.id = site.district_id "
-				+ "WHERE true ");
-		if (ObjectUtils.isNotEmpty(regionId))
-			sql.append(" AND d.region_id = :regionId ");
-		if (ObjectUtils.isNotEmpty(districtId))
-			sql.append(" AND d.id = :districtId ");
-		if (ObjectUtils.isNotEmpty(siteId))
-			sql.append(" AND site.id = :siteId ");
-		if (ObjectUtils.isNotEmpty(labId))
-			sql.append(" AND s.destination_lab_id = :labId ");
-		// Scope user (non-admin) : restreint aux sites accessibles. Liste non
-		// vide ⇒ on applique le IN ; admin / global ⇒ accessibleSiteIds null
-		// ou vide, pas de filtre.
-		boolean scopeActive = accessibleSiteIds != null && !accessibleSiteIds.isEmpty();
-		if (scopeActive)
-			sql.append(" AND site.id IN (:accessibleSiteIds) ");
-		// CAST AS DATE plutôt que ::date : Hibernate parse `::` comme un
-		// paramètre nommé via em.createNativeQuery et casse la syntaxe.
-		// Filtre indexable (idx_sample_collection_date) : pas de CAST sur la colonne.
-		sql.append(" AND s.collection_date >= :startDate AND s.collection_date < CAST(:endDate AS DATE) + 1 ");
-		sql.append(" GROUP BY st.name");
-
-		// Réponse initialisée à 0 pour tous les types d'échantillons connus
-		// (l'UI attend ces clés même si la table sample_type n'en a pas).
-		Map<String, Map<String, Integer>> response = new LinkedHashMap<>();
-		for (String type : new String[] { "BI", "BS", "CV", "EID", "TB", "HPV", "PrEP", "IVSA", "Autre" }) {
-			Map<String, Integer> emptyItem = new LinkedHashMap<>();
-			emptyItem.put("SAMPLE_COLLECTED", 0);
-			emptyItem.put("SAMPLE_RECEIVED", 0);
-			emptyItem.put("NON_CONFORM", 0);
-			emptyItem.put("FAILED", 0);
-			emptyItem.put("SAMPLE_ACCEPTED", 0);
-			emptyItem.put("ANALYSIS_DONE", 0);
-			emptyItem.put("RESULT_COLLECTED", 0);
-			emptyItem.put("RESULT_ON_SITE", 0);
-			response.put(type, emptyItem);
-		}
-
-		try {
-			Query query = em.createNativeQuery(sql.toString());
-			if (ObjectUtils.isNotEmpty(regionId))
-				query.setParameter("regionId", regionId);
-			if (ObjectUtils.isNotEmpty(districtId))
-				query.setParameter("districtId", districtId);
-			if (ObjectUtils.isNotEmpty(siteId))
-				query.setParameter("siteId", siteId);
-			if (ObjectUtils.isNotEmpty(labId))
-				query.setParameter("labId", labId);
-			if (scopeActive)
-				query.setParameter("accessibleSiteIds", accessibleSiteIds);
-			query.setParameter("startDate", startDate);
-			query.setParameter("endDate", endDate);
-			@SuppressWarnings("unchecked")
-			List<Object[]> results = query.getResultList();
-			for (Object[] o : results) {
-				String type = o[0] != null ? o[0].toString() : "Autre";
-				Map<String, Integer> map = response.get(type);
-				if (map == null) {
-					// Type d'échantillon inattendu (donnée legacy) : on
-					// le rajoute dynamiquement plutôt que de l'ignorer.
-					map = new LinkedHashMap<>();
-					response.put(type, map);
-				}
-				map.put("SAMPLE_COLLECTED", toIntSafe(o[1]));
-				map.put("SAMPLE_RECEIVED", toIntSafe(o[2]));
-				map.put("SAMPLE_ACCEPTED", toIntSafe(o[3]));
-				map.put("ANALYSIS_DONE", toIntSafe(o[4]));
-				map.put("RESULT_COLLECTED", toIntSafe(o[5]));
-				map.put("RESULT_ON_SITE", toIntSafe(o[6]));
-				map.put("NON_CONFORM", toIntSafe(o[7]));
-				map.put("FAILED", toIntSafe(o[8]));
-			}
-		} catch (Exception ex) {
-			log.error("getSampleStatusBySampleType failed (regionId={}, districtId={}, siteId={}, labId={}, startDate={}, endDate={}): {}",
-					regionId, districtId, siteId, labId, startDate, endDate, ex.getMessage(), ex);
-		}
-		return response;
-	}
-
 	/** Convertit un Object SQL (BigInteger/Long/null) en int de manière défensive. */
 	private static int toIntSafe(Object v) {
 		if (v == null) return 0;
@@ -1175,7 +1092,7 @@ public class SampleServiceImpl implements SampleService {
 
 	@Override
 	public Page<Map<String, Object>> getSampleDetailsAdvanced(Pageable pageable,
-			Integer regionId, Integer districtId, Integer siteId, Integer labId,
+			Integer regionId, Integer districtId, Integer siteId, Integer labId, String labType,
 			Date startDate, Date endDate,
 			List<Integer> statusIds, List<Integer> typeIds,
 			List<String> natures,
@@ -1195,7 +1112,7 @@ public class SampleServiceImpl implements SampleService {
 		String dir = "asc".equalsIgnoreCase(sortDir) ? "asc" : "desc";
 
 		return sampleRepo.getSampleDetailsAdvanced(pageable,
-				regionId, districtId, siteId, labId, startDate, endDate,
+				regionId, districtId, siteId, labId, labType, startDate, endDate,
 				statusActive ? statusIds : Collections.singletonList(-1), statusActive,
 				typeActive ? typeIds : Collections.singletonList(-1), typeActive,
 				naturesActive ? natures : Collections.singletonList("__none__"), naturesActive,
@@ -1228,7 +1145,7 @@ public class SampleServiceImpl implements SampleService {
 	}
 
 	@Override
-	public List<Map<String, String>> getAll(Integer region, Integer district, Integer site, Integer lab, Date startDate,
+	public List<Map<String, String>> getAll(Integer region, Integer district, Integer site, Integer lab, String labType, Date startDate,
 			Date endDate, Integer status, Integer sampleType, String patientIdentifier, List<Integer> accessibleSiteIds) {
 		StringBuffer sql = new StringBuffer();
 		sql.append(" SELECT s.id,"
@@ -1257,14 +1174,14 @@ public class SampleServiceImpl implements SampleService {
 				// Délai global = TAT canonique (collecte → livraison du résultat), cf. TatSql.
 				+ "CAST(FLOOR(" + org.itech.labSampleTracker.dao.TatSql.DAYS + ") AS INTEGER) "
 				+ "FROM sample s JOIN sample_type st ON st.id = s.sample_type_id  "
-				+ "join sample_status ss2 ON ss2.id = s.sample_status_id JOIN "
-				+ "sample_retrieving sr ON s.sample_retrieving_id = sr.id JOIN "
-				+ "site ON sr.site_id = site.id JOIN district d ON d.id = site.district_id "
-				+ " JOIN region reg ON reg.id = d.region_id LEFT JOIN sample_rejection sr2 on sr2.sample_id = s.id "
+				+ "join sample_status ss2 ON ss2.id = s.sample_status_id LEFT JOIN "
+				+ "sample_retrieving sr ON s.sample_retrieving_id = sr.id LEFT JOIN "
+				+ "site ON site.id = COALESCE(sr.site_id, s.requester_site_id) LEFT JOIN district d ON d.id = site.district_id "
+				+ " LEFT JOIN region reg ON reg.id = d.region_id LEFT JOIN sample_rejection sr2 on sr2.sample_id = s.id "
 				+ " LEFT JOIN sample_rejection_type srt on srt.id = sr2.sample_rejection_type_id "
 				+ " LEFT JOIN lab ON lab.id = s.reference_lab_id LEFT JOIN lab hub ON hub.id = s.hub_id LEFT JOIN "
 				+ " lab destination_lab ON destination_lab.id = s.destination_lab_id  "
-				+ " join app_user au on au.id = sr.app_user_id where true ");
+				+ " LEFT JOIN app_user au on au.id = sr.app_user_id where true ");
 		// Périmètre de l'utilisateur (cahier V.3) : sans cette restriction, l'export
 		// renvoyait tous les échantillons du pays, identifiants patients compris.
 		boolean scoped = accessibleSiteIds != null && !accessibleSiteIds.isEmpty();
@@ -1278,6 +1195,8 @@ public class SampleServiceImpl implements SampleService {
 			sql.append(" AND site.id = :siteId ");
 		if (ObjectUtils.isNotEmpty(lab))
 			sql.append(" AND s.destination_lab_id = :labId ");
+		if (labType != null)
+			sql.append(" AND EXISTS (SELECT 1 FROM lab flt WHERE flt.id = s.destination_lab_id AND flt.lab_type = :labType) ");
 		if (ObjectUtils.isNotEmpty(status))
 			sql.append(" AND (:status IS NULL OR ss2.id = :status)");
 		if (ObjectUtils.isNotEmpty(sampleType))
@@ -1303,6 +1222,10 @@ public class SampleServiceImpl implements SampleService {
 				query.setParameter("labId", lab);
 			if (ObjectUtils.isNotEmpty(status))
 				query.setParameter("status", status);
+			if (ObjectUtils.isNotEmpty(sampleType))
+				query.setParameter("sampleType", sampleType);
+			if (labType != null)
+				query.setParameter("labType", labType);
 			query.setParameter("startDate", startDate);
 			query.setParameter("endDate", endDate);
 

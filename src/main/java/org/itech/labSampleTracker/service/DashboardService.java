@@ -1,43 +1,34 @@
 package org.itech.labSampleTracker.service;
 
-import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 
+import org.itech.labSampleTracker.dto.DashboardFilter;
 import org.itech.labSampleTracker.dto.DayCountDTO;
 import org.itech.labSampleTracker.dto.StepDurationDTO;
 
 public interface DashboardService {
 
-	public Map<String, Object> getSummary(LocalDate start, LocalDate end, Integer regionId, Integer districtId,
-			Integer siteId, Integer labId);
+	public Map<String, Object> getSummary(DashboardFilter filter);
 
-	public Map<String, Object> getSummary(LocalDate start, LocalDate end, Integer regionId, Integer districtId,
-			Integer siteId, Integer labId, List<Integer> accessibleSiteIds);
+	/**
+	 * Étapes atteintes par type d'échantillon (« Étapes des échantillons par
+	 * type ») : type → SAMPLE_COLLECTED, SAMPLE_RECEIVED, SAMPLE_ACCEPTED,
+	 * ANALYSIS_DONE, RESULT_COLLECTED, RESULT_ON_SITE, NON_CONFORM, FAILED.
+	 */
+	public Map<String, Map<String, Integer>> stepsByType(DashboardFilter filter);
 
-	public List<DayCountDTO> seriesCollected(LocalDate s, LocalDate e, Integer r, Integer d, Integer si, Integer labId);
+	public List<DayCountDTO> seriesCollected(DashboardFilter filter);
 
-	public List<DayCountDTO> seriesCollected(LocalDate s, LocalDate e, Integer r, Integer d, Integer si, Integer labId,
-			List<Integer> accessibleSiteIds);
+	public List<DayCountDTO> seriesDeposited(DashboardFilter filter);
 
-	public List<DayCountDTO> seriesDeposited(LocalDate s, LocalDate e, Integer r, Integer d, Integer si, Integer labId);
+	public List<DayCountDTO> seriesAnalysed(DashboardFilter filter);
 
-	public List<DayCountDTO> seriesDeposited(LocalDate s, LocalDate e, Integer r, Integer d, Integer si, Integer labId,
-			List<Integer> accessibleSiteIds);
+	public List<DayCountDTO> seriesDelivered(DashboardFilter filter);
 
-	public List<DayCountDTO> seriesAnalysed(LocalDate s, LocalDate e, Integer r, Integer d, Integer si, Integer labId);
+	public List<StepDurationDTO> stepDurations(DashboardFilter filter);
 
-	public List<DayCountDTO> seriesAnalysed(LocalDate s, LocalDate e, Integer r, Integer d, Integer si, Integer labId,
-			List<Integer> accessibleSiteIds);
-
-	public List<DayCountDTO> seriesDelivered(LocalDate s, LocalDate e, Integer r, Integer d, Integer si, Integer labId);
-
-	public List<DayCountDTO> seriesDelivered(LocalDate s, LocalDate e, Integer r, Integer d, Integer si, Integer labId,
-			List<Integer> accessibleSiteIds);
-
-	public List<StepDurationDTO> stepDurations(LocalDate s, LocalDate e, Integer r, Integer d, Integer si, Integer labId);
-
-	public List<StepDurationDTO> stepDurations(LocalDate s, LocalDate e, Integer r, Integer d, Integer si, Integer labId,
-			List<Integer> accessibleSiteIds);
+	/** Durée médiane de chaque étape, tous types confondus : step, n, median_days. */
+	public List<Map<String, Object>> stepMedians(DashboardFilter filter);
 
 }

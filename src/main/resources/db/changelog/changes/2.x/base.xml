@@ -34,6 +34,10 @@
 		relativeToChangelogFile="true" />
 	<include file="./add_supervisor_roles.xml"
 		relativeToChangelogFile="true" />
+	<include file="./rename_sample_status_labels.xml"
+		relativeToChangelogFile="true" />
+	<include file="./add_sample_zone_check.xml"
+		relativeToChangelogFile="true" />
 
 
 

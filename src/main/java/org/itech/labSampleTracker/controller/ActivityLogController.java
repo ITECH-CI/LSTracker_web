@@ -235,7 +235,7 @@ public class ActivityLogController {
 	/** Valeur lisible : nom de la référence, date au format français, oui/non. */
 	static String display(String field, Object v, Map<String, Map<String, String>> labels) {
 		if (v == null) {
-			return "—";
+			return "-";
 		}
 		if (ActivityLogService.MASKED.equals(v)) {
 			return "(masqué)";

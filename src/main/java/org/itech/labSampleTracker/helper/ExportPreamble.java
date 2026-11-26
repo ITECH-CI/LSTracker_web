@@ -36,12 +36,12 @@ public class ExportPreamble {
 	public List<String> lines(String title, String period, Integer region, Integer district, Integer site,
 			Integer lab, String filters) {
 		List<String> out = new ArrayList<>();
-		out.add("LSTracker — " + title);
+		out.add("LSTracker : " + title);
 		Authentication auth = SecurityContextHolder.getContext().getAuthentication();
 		out.add("Généré le " + new SimpleDateFormat("dd/MM/yyyy 'à' HH:mm").format(new Date())
 				+ (auth != null ? " par " + auth.getName() : ""));
 		out.add("Période : " + period);
-		out.add("Périmètre : " + zone(region, district, site, lab) + " — " + scopeLabel());
+		out.add("Périmètre : " + zone(region, district, site, lab) + " · " + scopeLabel());
 		if (filters != null && !filters.isBlank()) {
 			out.add("Filtres : " + filters);
 		}

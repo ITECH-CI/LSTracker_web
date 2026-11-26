@@ -1,6 +1,5 @@
 package org.itech.labSampleTracker.service_impl;
 
-import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -9,9 +8,9 @@ import java.util.Objects;
 
 import org.itech.labSampleTracker.dao.DashboardAdvancedRepository;
 import org.itech.labSampleTracker.dao.ReportJdbcRepository;
+import org.itech.labSampleTracker.dto.DashboardFilter;
 import org.itech.labSampleTracker.dto.DayCountDTO;
 import org.itech.labSampleTracker.service.DashboardService;
-import org.itech.labSampleTracker.service.SampleService;
 import org.springframework.stereotype.Service;
 
 /**
@@ -38,74 +37,77 @@ public class ConsistencyCheckService {
 	public record HierarchyGap(String level, String name, String indicator, long parent, long children) {
 	}
 
-	private static final String[] HIERARCHY_INDICATORS = { "total", "in_transit", "delivered", "non_conform",
-			"failed" };
-	private static final Map<String, String> HIERARCHY_LABELS = Map.of("total", "Collectés", "in_transit",
-			"En transit", "delivered", "Résultats livrés", "non_conform", "Non-conformités", "failed",
+	private static final String[] HIERARCHY_INDICATORS = { "total", "in_transit", "deposited", "delivered",
+			"non_conform", "failed" };
+	// Mêmes libellés que les colonnes de la répartition par zone géographique.
+	private static final Map<String, String> HIERARCHY_LABELS = Map.of("total", "Échantillons collectés",
+			"in_transit", "Échantillons en cours d'acheminement", "deposited", "Échantillons déposés au laboratoire",
+			"delivered", "Résultats rendus aux sites", "non_conform", "Échantillons non conformes", "failed",
 			"Échecs d'analyse");
 
 	private final DashboardAdvancedRepository dashboard;
 	private final DashboardService series;
-	private final SampleService samples;
 	private final ReportJdbcRepository reports;
 
 	public ConsistencyCheckService(DashboardAdvancedRepository dashboard, DashboardService series,
-			SampleService samples, ReportJdbcRepository reports) {
+			ReportJdbcRepository reports) {
 		this.dashboard = dashboard;
 		this.series = series;
-		this.samples = samples;
 		this.reports = reports;
 	}
 
-	public List<Check> indicators(LocalDate start, LocalDate end, Integer regionId) {
-		Map<String, Object> ref = dashboard.funnel(start, end, regionId, null, null, null, null);
+	public List<Check> indicators(DashboardFilter f) {
+		Map<String, Object> ref = dashboard.funnel(f);
 		long collected = num(ref.get("total"));
 		List<Check> out = new ArrayList<>();
 
-		out.add(new Check("Collectés", collected, "Répartition par région (somme)",
-				sum(dashboard.statsByRegion(start, end, regionId, null, null, null, null), "total")));
-		out.add(new Check("Collectés", collected, "Répartition par district (somme)",
-				sum(dashboard.statsByDistrict(start, end, regionId, null, null, null, null), "total")));
-		out.add(new Check("Collectés", collected, "Répartition par site (somme)",
-				sum(dashboard.statsBySite(start, end, regionId, null, null, null, null), "total")));
-		out.add(new Check("Collectés", collected, "Répartition par type (somme)",
-				sum(dashboard.typeBreakdown(start, end, regionId, null, null, null, null), "total")));
-		out.add(new Check("Collectés", collected, "Évolution dans le temps (somme)",
-				days(series.seriesCollected(start, end, regionId, null, null, null, null))));
-		out.add(new Check("Collectés", collected, "Parcours par type (somme)",
-				samples.getSampleStatusBySampleType(regionId, null, null, null, start, end, null).values().stream()
+		out.add(new Check("Échantillons collectés", collected, "Répartition par région (somme)",
+				sum(dashboard.statsByRegion(f), "total")));
+		out.add(new Check("Échantillons collectés", collected, "Répartition par district (somme)",
+				sum(dashboard.statsByDistrict(f), "total")));
+		out.add(new Check("Échantillons collectés", collected, "Répartition par site (somme)",
+				sum(dashboard.statsBySite(f), "total")));
+		out.add(new Check("Échantillons collectés", collected, "Échantillons collectés par type (somme)",
+				sum(dashboard.typeBreakdown(f), "total")));
+		out.add(new Check("Échantillons collectés", collected, "Évolution des échantillons dans le temps (somme)",
+				days(series.seriesCollected(f))));
+		out.add(new Check("Échantillons collectés", collected, "Étapes des échantillons par type (somme)",
+				series.stepsByType(f).values().stream()
 						.mapToLong(m -> m.getOrDefault("SAMPLE_COLLECTED", 0)).sum()));
-		out.add(new Check("Collectés", collected, "Rapport PDF (somme par type)",
-				sum(reports.collectedByType(start, end, regionId, null, null, null, null, null), "cnt")));
+		// Carte « Circuits » : chaque échantillon dans une seule ligne.
+		out.add(new Check("Échantillons collectés", collected, "Circuits (somme des lignes)",
+				sum(dashboard.circuits(f), "collected")));
+		out.add(new Check("Échantillons collectés", collected, "Rapport PDF (somme par type)",
+				sum(reports.collectedByType(f, null), "cnt")));
 
 		long atLab = num(ref.get("at_lab"));
-		out.add(new Check("Reçus au laboratoire", atLab, "Évolution dans le temps (somme)",
-				days(series.seriesDeposited(start, end, regionId, null, null, null, null))));
+		out.add(new Check("Échantillons déposés au laboratoire", atLab, "Évolution des échantillons dans le temps (somme)",
+				days(series.seriesDeposited(f))));
 
 		long analysed = num(ref.get("analysed"));
-		out.add(new Check("Analysés", analysed, "Évolution dans le temps (somme)",
-				days(series.seriesAnalysed(start, end, regionId, null, null, null, null))));
-		out.add(new Check("Analysés", analysed, "Rapport PDF (résultats prêts)",
-				sum(reports.resultReadyByType(start, end, regionId, null, null, null, null, null), "cnt")));
+		out.add(new Check("Échantillons analysés", analysed, "Évolution des échantillons dans le temps (somme)",
+				days(series.seriesAnalysed(f))));
+		out.add(new Check("Échantillons analysés", analysed, "Rapport PDF (résultats prêts)",
+				sum(reports.resultReadyByType(f, null), "cnt")));
 
 		long delivered = num(ref.get("delivered"));
-		out.add(new Check("Résultats livrés", delivered, "Évolution dans le temps (somme)",
-				days(series.seriesDelivered(start, end, regionId, null, null, null, null))));
-		out.add(new Check("Résultats livrés", delivered, "Rapport PDF (résultats remis)",
-				sum(reports.resultDeliveredByType(start, end, regionId, null, null, null, null, null), "cnt")));
+		out.add(new Check("Résultats rendus aux sites", delivered, "Évolution des échantillons dans le temps (somme)",
+				days(series.seriesDelivered(f))));
+		out.add(new Check("Résultats rendus aux sites", delivered, "Rapport PDF (résultats remis)",
+				sum(reports.resultDeliveredByType(f, null), "cnt")));
 
-		out.add(new Check("Non-conformités", num(ref.get("non_conform")), "Rapport PDF (rejetés)",
-				sum(reports.rejectedByType(start, end, regionId, null, null, null, null, null), "cnt")));
+		out.add(new Check("Échantillons non conformes", num(ref.get("non_conform")), "Rapport PDF (rejetés)",
+				sum(reports.rejectedByType(f, null), "cnt")));
 		out.add(new Check("Échecs d'analyse", num(ref.get("failed")), "Rapport PDF (échecs)",
-				sum(reports.failedByType(start, end, regionId, null, null, null, null, null), "cnt")));
+				sum(reports.failedByType(f, null), "cnt")));
 		return out;
 	}
 
 	/** Somme des sites = district, somme des districts = région (V.5). */
-	public List<HierarchyGap> hierarchy(LocalDate start, LocalDate end, Integer regionId) {
-		List<Map<String, Object>> regions = dashboard.statsByRegion(start, end, regionId, null, null, null, null);
-		List<Map<String, Object>> districts = dashboard.statsByDistrict(start, end, regionId, null, null, null, null);
-		List<Map<String, Object>> sites = dashboard.statsBySite(start, end, regionId, null, null, null, null);
+	public List<HierarchyGap> hierarchy(DashboardFilter f) {
+		List<Map<String, Object>> regions = dashboard.statsByRegion(f);
+		List<Map<String, Object>> districts = dashboard.statsByDistrict(f);
+		List<Map<String, Object>> sites = dashboard.statsBySite(f);
 		List<HierarchyGap> gaps = new ArrayList<>();
 		for (String ind : HIERARCHY_INDICATORS) {
 			Map<String, Long> byRegion = group(districts, ind, "region");

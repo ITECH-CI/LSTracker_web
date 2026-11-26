@@ -28,7 +28,7 @@ public interface SampleService {
 
 	List<Sample> getAll();
 
-	List<Map<String, String>> getAll(Integer region, Integer district, Integer site, Integer lab, Date startDate,
+	List<Map<String, String>> getAll(Integer region, Integer district, Integer site, Integer lab, String labType, Date startDate,
 			Date endDate, Integer status, Integer sampleType, String patientIdentifier, List<Integer> accessibleSiteIds);
 
 	long getTotal();
@@ -89,7 +89,7 @@ public interface SampleService {
 	 * type-inference issues with empty/null arrays.
 	 */
 	Page<Map<String, Object>> getSampleDetailsAdvanced(Pageable pageable,
-			Integer regionId, Integer districtId, Integer siteId, Integer labId,
+			Integer regionId, Integer districtId, Integer siteId, Integer labId, String labType,
 			Date startDate, Date endDate,
 			List<Integer> statusIds, List<Integer> typeIds,
 			List<String> natures,
@@ -103,7 +103,5 @@ public interface SampleService {
 
 	Map<String, Map<String, Integer>> getSampleStatusBySampleType();
 
-	Map<String, Map<String, Integer>> getSampleStatusBySampleType(Integer regionId, Integer districtId, Integer siteId,
-			Integer labId, LocalDate startDate, LocalDate endDate, List<Integer> accessibleSiteIds);
 
 }

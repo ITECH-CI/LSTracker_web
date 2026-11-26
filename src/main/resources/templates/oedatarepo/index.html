@@ -73,31 +73,31 @@ table#tab_eligible tbody td, table#tab_runs tbody td { vertical-align: middle; f
 				<div class="oe-cards mt-2" id="statePanel">
 					<div class="oe-card">
 						<div class="label">Intégration</div>
-						<div class="value"><span id="stEnabled" class="badge">—</span></div>
+						<div class="value"><span id="stEnabled" class="badge">-</span></div>
 					</div>
 					<div class="oe-card">
 						<div class="label">Connexion</div>
-						<div class="value"><span id="stConn" class="badge">—</span></div>
+						<div class="value"><span id="stConn" class="badge">-</span></div>
 					</div>
 					<div class="oe-card">
 						<div class="label">URL cible</div>
-						<div class="value small" id="stUrl">—</div>
+						<div class="value small" id="stUrl">-</div>
 					</div>
 					<div class="oe-card">
 						<div class="label">En cours</div>
-						<div class="value small" id="stRunning">—</div>
+						<div class="value small" id="stRunning">-</div>
 					</div>
 					<div class="oe-card">
 						<div class="label">Dernier passage</div>
-						<div class="value small" id="stLastRun">—</div>
+						<div class="value small" id="stLastRun">-</div>
 					</div>
 					<div class="oe-card">
 						<div class="label">Prochain passage (approx.)</div>
-						<div class="value small" id="stNextRun">—</div>
+						<div class="value small" id="stNextRun">-</div>
 					</div>
 					<div class="oe-card">
 						<div class="label">Lot / Intervalle / Max essais</div>
-						<div class="value small" id="stConfig">—</div>
+						<div class="value small" id="stConfig">-</div>
 					</div>
 				</div>
 
@@ -189,12 +189,12 @@ table#tab_eligible tbody td, table#tab_runs tbody td { vertical-align: middle; f
 
 		// ---------- Panneau État ----------
 		function fmtDate(ms) {
-			if (!ms) return '—';
+			if (!ms) return '-';
 			const d = new Date(ms);
 			return d.toLocaleString('fr-FR');
 		}
 		function fmtDuration(ms) {
-			if (ms == null) return '—';
+			if (ms == null) return '-';
 			if (ms < 1000) return ms + ' ms';
 			return (ms / 1000).toFixed(1) + ' s';
 		}
@@ -206,16 +206,16 @@ table#tab_eligible tbody td, table#tab_runs tbody td { vertical-align: middle; f
 				$('#stConn')
 					.toggleClass('badge-ok', !!s.connectionOk).toggleClass('badge-ko', !s.connectionOk)
 					.text(s.connectionOk ? 'OK' : 'KO');
-				$('#stUrl').text(s.baseUrl || '—');
+				$('#stUrl').text(s.baseUrl || '-');
 				$('#stRunning').text(s.running ? 'Oui' : 'Non');
 				if (s.lastRun) {
 					$('#stLastRun').text(fmtDate(s.lastRun.startedAt && new Date(s.lastRun.startedAt).getTime())
-						+ ' — ' + (s.lastRun.triggeredBy || '')
+						+ ' · ' + (s.lastRun.triggeredBy || '')
 						+ ' (' + s.lastRun.updated + '/' + s.lastRun.examined + ')');
 				} else {
 					$('#stLastRun').text('Jamais exécuté');
 				}
-				$('#stNextRun').text(s.nextRunApprox ? fmtDate(s.nextRunApprox) : '—');
+				$('#stNextRun').text(s.nextRunApprox ? fmtDate(s.nextRunApprox) : '-');
 				$('#stConfig').text(s.batchSize + ' / ' + Math.round(s.intervalMs / 60000) + ' min / ' + s.maxAttempts);
 				$('#btnRunNow').prop('disabled', !!s.running || !s.ready);
 			});
@@ -327,10 +327,10 @@ table#tab_eligible tbody td, table#tab_runs tbody td { vertical-align: middle; f
 			let rows = '<table class="table table-sm mb-0">';
 			rows += '<tr><th>N° labo</th><td>' + escapeHtml(p.labNumber) + '</td></tr>';
 			rows += '<tr><th>Résultat</th><td><span class="outcome-pill outcome-' + p.outcome + '">' + p.outcome + '</span></td></tr>';
-			rows += '<tr><th>Statut actuel (id)</th><td>' + (p.currentStatusId == null ? '—' : p.currentStatusId) + '</td></tr>';
+			rows += '<tr><th>Statut actuel (id)</th><td>' + (p.currentStatusId == null ? '-' : p.currentStatusId) + '</td></tr>';
 			rows += '<tr><th>Statut proposé</th><td>' + (p.proposedStatus
 				? escapeHtml(p.proposedStatus) + ' (' + p.proposedStatusId + ')'
-				+ (sameOrNull ? ' <span class="text-muted">— inchangé</span>' : ' <span class="text-success">— changement</span>')
+				+ (sameOrNull ? ' <span class="text-muted">(inchangé)</span>' : ' <span class="text-success">(changement)</span>')
 				: '<span class="text-muted">aucun (analyse en cours)</span>') + '</td></tr>';
 			rows += '<tr><th>Analyse terminée</th><td>' + fmtLocalDate(p.completedDate) + '</td></tr>';
 			rows += '<tr><th>Résultat validé</th><td>' + fmtLocalDate(p.releasedDate) + '</td></tr>';
@@ -360,19 +360,19 @@ table#tab_eligible tbody td, table#tab_runs tbody td { vertical-align: middle; f
 		$('#btnReloadRuns').on('click', loadRuns);
 
 		// ---------- Helpers ----------
-		function renderText(data) { return data ? escapeHtml(data) : '<span class="empty-cell">—</span>'; }
+		function renderText(data) { return data ? escapeHtml(data) : '<span class="empty-cell">-</span>'; }
 		function renderOutcome(data) {
-			if (!data) return '<span class="outcome-none">—</span>';
+			if (!data) return '<span class="outcome-none">-</span>';
 			return '<span class="outcome-pill outcome-' + data + '">' + data + '</span>';
 		}
 		function renderDate(data) {
-			if (!data) return '<span class="empty-cell">—</span>';
+			if (!data) return '<span class="empty-cell">-</span>';
 			const ms = (typeof data === 'number') ? data : new Date(data).getTime();
 			if (isNaN(ms)) return escapeHtml(String(data));
 			return new Date(ms).toLocaleString('fr-FR');
 		}
 		function fmtLocalDate(data) {
-			if (!data) return '<span class="empty-cell">—</span>';
+			if (!data) return '<span class="empty-cell">-</span>';
 			const ms = new Date(data).getTime();
 			return isNaN(ms) ? escapeHtml(String(data)) : new Date(ms).toLocaleDateString('fr-FR');
 		}
@@ -380,7 +380,7 @@ table#tab_eligible tbody td, table#tab_runs tbody td { vertical-align: middle; f
 			return {
 				processing: '<i class="fas fa-spinner fa-spin"></i> Chargement...',
 				lengthMenu: 'Afficher _MENU_',
-				info: '_START_–_END_ sur _TOTAL_',
+				info: '_START_ à _END_ sur _TOTAL_',
 				infoEmpty: 'Aucun ' + noun, zeroRecords: 'Aucun ' + noun + ' trouvé', emptyTable: 'Aucun ' + noun,
 				paginate: { first: '«', last: '»', next: '›', previous: '‹' }
 			};

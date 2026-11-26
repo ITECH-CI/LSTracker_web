@@ -1,9 +1,9 @@
 package org.itech.labSampleTracker.dao;
 
-import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 
+import org.itech.labSampleTracker.dto.DashboardFilter;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -18,8 +18,10 @@ import org.springframework.stereotype.Repository;
 @Repository
 public class DashboardAdvancedRepository {
 
+	/** Périmètre de l'utilisateur, type de labo et type d'échantillon. Alias requis : s, st. */
 	private static final String SCOPE_FILTER =
-			" AND (:accessibleSiteIdsActive = FALSE OR st.id IN (:accessibleSiteIds)) ";
+			" AND (:accessibleSiteIdsActive = FALSE OR st.id IN (:accessibleSiteIds)) "
+			+ DashboardFilter.SAMPLE_FILTER_SQL;
 
 	private final NamedParameterJdbcTemplate jdbc;
 
@@ -32,8 +34,7 @@ public class DashboardAdvancedRepository {
 	 * funnel. {@code tat_avg_days} is the average days between
 	 * {@code collection_date} and the latest known status date for each sample.
 	 */
-	public Map<String, Object> funnel(LocalDate startDate, LocalDate endDate, Integer regionId, Integer districtId,
-			Integer siteId, Integer labId, List<Integer> accessibleSiteIds) {
+	public Map<String, Object> funnel(DashboardFilter f) {
 		// Chaque étape filtre sur SON axe-date persistante (déf. "activité
 		// fenêtre", alignée sur summary + rapports) :
 		//   - total : cohorte collectée dans la période
@@ -70,7 +71,7 @@ public class DashboardAdvancedRepository {
 				+ "FROM sample s "
 				+ "JOIN sample_status ss ON ss.id = s.sample_status_id "
 				+ "LEFT JOIN sample_retrieving sr ON sr.id = s.sample_retrieving_id "
-				+ "LEFT JOIN site st ON st.id = sr.site_id "
+				+ "LEFT JOIN site st ON st.id = COALESCE(sr.site_id, s.requester_site_id) "
 				+ "LEFT JOIN district d ON d.id = st.district_id "
 				+ "WHERE 1=1 "
 				+ "AND (CAST(:labId AS INT) IS NULL OR s.destination_lab_id = CAST(:labId AS INT)) "
@@ -79,16 +80,14 @@ public class DashboardAdvancedRepository {
 				+ "AND (CAST(:regionId AS INT) IS NULL OR d.region_id = CAST(:regionId AS INT))"
 				+ SCOPE_FILTER;
 
-		return jdbc.queryForMap(sql, params(startDate, endDate, regionId, districtId, siteId, labId, accessibleSiteIds));
+		return jdbc.queryForMap(sql, f.params());
 	}
 
 	/**
 	 * List samples that have not moved for at least {@code stuckDays} days and
 	 * are not in a terminal state (RESULT_ON_SITE / NON_CONFORM / ANALYSIS_FAILED).
 	 */
-	public List<Map<String, Object>> stuckSamples(LocalDate startDate, LocalDate endDate,
-			Integer regionId, Integer districtId, Integer siteId, Integer labId,
-			List<Integer> accessibleSiteIds, int stuckDays, int limit) {
+	public List<Map<String, Object>> stuckSamples(DashboardFilter f, int stuckDays, int limit) {
 		final String sql = "SELECT s.id, s.sample_identifier, s.patient_identifier, "
 				+ "  st_type.name AS sample_type, st.name AS site, d.name AS district, reg.name AS region, "
 				+ "  ss.status AS status_code, ss.description AS status, "
@@ -115,9 +114,9 @@ public class DashboardAdvancedRepository {
 				+ "JOIN sample_status ss ON ss.id = s.sample_status_id "
 				+ "JOIN sample_type st_type ON st_type.id = s.sample_type_id "
 				+ "LEFT JOIN sample_retrieving sr ON sr.id = s.sample_retrieving_id "
-				+ "JOIN site st ON st.id = sr.site_id "
-				+ "JOIN district d ON d.id = st.district_id "
-				+ "JOIN region reg ON reg.id = d.region_id "
+				+ "LEFT JOIN site st ON st.id = COALESCE(sr.site_id, s.requester_site_id) "
+				+ "LEFT JOIN district d ON d.id = st.district_id "
+				+ "LEFT JOIN region reg ON reg.id = d.region_id "
 				+ "WHERE ss.status NOT IN ('RESULT_ON_SITE','NON_CONFORM','ANALYSIS_FAILED') "
 				+ "AND (CAST(:startDate AS DATE) IS NULL OR s.collection_date >= CAST(:startDate AS DATE)) "
 				+ "AND (CAST(:endDate AS DATE) IS NULL OR s.collection_date < CAST(:endDate AS DATE) + 1) "
@@ -136,7 +135,7 @@ public class DashboardAdvancedRepository {
 				+ "    COALESCE(s.result_delivery_date, s.collection_date)"
 				+ "))) / 86400) >= :stuckDays "
 				+ "ORDER BY days_idle DESC LIMIT :rowLimit";
-		MapSqlParameterSource p = params(startDate, endDate, regionId, districtId, siteId, labId, accessibleSiteIds);
+		MapSqlParameterSource p = f.params();
 		p.addValue("stuckDays", stuckDays);
 		p.addValue("rowLimit", limit);
 		return jdbc.queryForList(sql, p);
@@ -155,6 +154,9 @@ public class DashboardAdvancedRepository {
 				+ "  SELECT " + groupExpr + " AS gid, "
 				+ "    COUNT(*) AS total, "
 				+ "    SUM(CASE WHEN ss.status = 'ON_TRANSIT' THEN 1 ELSE 0 END) AS in_transit, "
+				// Déposés au laboratoire qui réalise l'analyse (même date
+				// que l'étape « Déposés au labo » du haut de page).
+				+ "    COUNT(s.deliver_at_lab_date) AS deposited, "
 				+ "    SUM(CASE WHEN ss.status = 'RESULT_ON_SITE' THEN 1 ELSE 0 END) AS delivered, "
 				// Non-conformités et échecs d'analyse : deux notions distinctes (cahier VI.3).
 				+ "    SUM(CASE WHEN ss.status = 'NON_CONFORM' THEN 1 ELSE 0 END) AS non_conform, "
@@ -163,9 +165,9 @@ public class DashboardAdvancedRepository {
 				+ "    " + TatSql.MEDIAN + " AS tat_avg_days "
 				+ "  FROM sample s "
 				+ "  JOIN sample_status ss ON ss.id = s.sample_status_id "
-				+ "  JOIN sample_retrieving sr ON sr.id = s.sample_retrieving_id "
-				+ "  JOIN site st ON st.id = sr.site_id "
-				+ "  JOIN district d ON d.id = st.district_id "
+				+ "  LEFT JOIN sample_retrieving sr ON sr.id = s.sample_retrieving_id "
+				+ "  LEFT JOIN site st ON st.id = COALESCE(sr.site_id, s.requester_site_id) "
+				+ "  LEFT JOIN district d ON d.id = st.district_id "
 				+ "  WHERE (CAST(:startDate AS DATE) IS NULL OR s.collection_date >= CAST(:startDate AS DATE)) "
 				+ "  AND (CAST(:endDate AS DATE) IS NULL OR s.collection_date < CAST(:endDate AS DATE) + 1) "
 				+ "  AND (CAST(:labId AS INT) IS NULL OR s.destination_lab_id = CAST(:labId AS INT)) "
@@ -174,23 +176,40 @@ public class DashboardAdvancedRepository {
 				+ "  AND (CAST(:regionId AS INT) IS NULL OR d.region_id = CAST(:regionId AS INT)) "
 				+ "  AND (CAST(:districtId AS INT) IS NULL OR d.id = CAST(:districtId AS INT)) "
 				+ "  AND (CAST(:siteId AS INT) IS NULL OR st.id = CAST(:siteId AS INT)) "
+				+ DashboardFilter.SAMPLE_FILTER_SQL
 				+ "  GROUP BY " + groupExpr + " ) ";
 	}
 
 	/** Colonnes de sortie de la répartition, à partir de l'agrégat {@code a}. */
 	private static final String DISTRIBUTION_COLUMNS = "COALESCE(a.total, 0) AS total, "
-			+ "COALESCE(a.in_transit, 0) AS in_transit, COALESCE(a.delivered, 0) AS delivered, "
+			+ "COALESCE(a.in_transit, 0) AS in_transit, COALESCE(a.deposited, 0) AS deposited, "
+			+ "COALESCE(a.delivered, 0) AS delivered, "
 			+ "COALESCE(a.non_conform, 0) AS non_conform, COALESCE(a.failed, 0) AS failed, "
 			+ "CAST(COALESCE(a.tat_avg_days, 0) AS NUMERIC(10,1)) AS tat_avg_days ";
 
+	/** Libellé de la ligne des échantillons sans zone exploitable (ni site de collecte, ni site demandeur). */
+	public static final String UNKNOWN_ZONE = "Zone non renseignée";
+
+	/**
+	 * Ligne « Zone non renseignée » de la répartition : échantillons de
+	 * l'agrégat sans zone ({@code gid} null). Elle n'existe que sans filtre
+	 * de zone ni périmètre restreint (ces filtres exigent une zone), pour que
+	 * le total de la répartition égale celui des cartes.
+	 */
+	private static String unknownZoneRow(String nullColumns) {
+		return "UNION ALL SELECT " + nullColumns + DISTRIBUTION_COLUMNS + "FROM agg a WHERE a.gid IS NULL ";
+	}
+
+	private static final String UNKNOWN = "'" + UNKNOWN_ZONE + "'";
+
 	/**
 	 * Répartition par région. Toutes les régions de la sélection sont renvoyées,
-	 * y compris sans activité (total = 0). Pour un utilisateur restreint : les
-	 * régions où il a au moins un site.
+	 * y compris sans activité (total = 0), puis la ligne « Zone non renseignée ».
+	 * Pour un utilisateur restreint : les régions où il a au moins un site.
 	 */
-	public List<Map<String, Object>> statsByRegion(LocalDate startDate, LocalDate endDate,
-			Integer regionId, Integer districtId, Integer siteId, Integer labId, List<Integer> accessibleSiteIds) {
+	public List<Map<String, Object>> statsByRegion(DashboardFilter f) {
 		final String sql = distributionAgg("d.region_id")
+				+ "SELECT * FROM ( "
 				+ "SELECT reg.id AS region_id, reg.name AS region, " + DISTRIBUTION_COLUMNS
 				+ "FROM region reg LEFT JOIN agg a ON a.gid = reg.id "
 				+ "WHERE (CAST(:regionId AS INT) IS NULL OR reg.id = CAST(:regionId AS INT)) "
@@ -200,8 +219,9 @@ public class DashboardAdvancedRepository {
 				+ "     WHERE fs.id = CAST(:siteId AS INT) AND fd.region_id = reg.id)) "
 				+ "AND (:accessibleSiteIdsActive = FALSE OR EXISTS (SELECT 1 FROM site fs JOIN district fd ON fd.id = fs.district_id "
 				+ "     WHERE fd.region_id = reg.id AND fs.id IN (:accessibleSiteIds))) "
-				+ "ORDER BY reg.name";
-		return jdbc.queryForList(sql, params(startDate, endDate, regionId, districtId, siteId, labId, accessibleSiteIds));
+				+ unknownZoneRow("CAST(NULL AS INT), " + UNKNOWN + ", ")
+				+ ") z ORDER BY (z.region_id IS NULL), z.region";
+		return jdbc.queryForList(sql, f.params());
 	}
 
 	/**
@@ -211,9 +231,9 @@ public class DashboardAdvancedRepository {
 	 * (vue à plat du sélecteur de niveau) ; renseigné = districts de cette
 	 * région seulement (cascade du tableau).</p>
 	 */
-	public List<Map<String, Object>> statsByDistrict(LocalDate startDate, LocalDate endDate,
-			Integer regionId, Integer districtId, Integer siteId, Integer labId, List<Integer> accessibleSiteIds) {
+	public List<Map<String, Object>> statsByDistrict(DashboardFilter f) {
 		final String sql = distributionAgg("d.id")
+				+ "SELECT * FROM ( "
 				+ "SELECT d.id AS district_id, d.name AS district, r.name AS region, " + DISTRIBUTION_COLUMNS
 				+ "FROM district d JOIN region r ON r.id = d.region_id LEFT JOIN agg a ON a.gid = d.id "
 				+ "WHERE (CAST(:regionId AS INT) IS NULL OR d.region_id = CAST(:regionId AS INT)) "
@@ -222,8 +242,9 @@ public class DashboardAdvancedRepository {
 				+ "     WHERE fs.id = CAST(:siteId AS INT) AND fs.district_id = d.id)) "
 				+ "AND (:accessibleSiteIdsActive = FALSE OR EXISTS (SELECT 1 FROM site fs "
 				+ "     WHERE fs.district_id = d.id AND fs.id IN (:accessibleSiteIds))) "
-				+ "ORDER BY r.name, d.name";
-		return jdbc.queryForList(sql, params(startDate, endDate, regionId, districtId, siteId, labId, accessibleSiteIds));
+				+ unknownZoneRow("CAST(NULL AS INT), " + UNKNOWN + ", " + UNKNOWN + ", ")
+				+ ") z ORDER BY (z.district_id IS NULL), z.region, z.district";
+		return jdbc.queryForList(sql, f.params());
 	}
 
 	/**
@@ -233,9 +254,9 @@ public class DashboardAdvancedRepository {
 	 * (vue à plat du sélecteur de niveau) ; renseigné = sites de ce district
 	 * seulement (cascade du tableau).</p>
 	 */
-	public List<Map<String, Object>> statsBySite(LocalDate startDate, LocalDate endDate,
-			Integer regionId, Integer districtId, Integer siteId, Integer labId, List<Integer> accessibleSiteIds) {
+	public List<Map<String, Object>> statsBySite(DashboardFilter f) {
 		final String sql = distributionAgg("st.id")
+				+ "SELECT * FROM ( "
 				+ "SELECT st.id AS site_id, st.name AS site, d.name AS district, r.name AS region, " + DISTRIBUTION_COLUMNS
 				+ "FROM site st JOIN district d ON d.id = st.district_id JOIN region r ON r.id = d.region_id "
 				+ "LEFT JOIN agg a ON a.gid = st.id "
@@ -243,8 +264,9 @@ public class DashboardAdvancedRepository {
 				+ "AND (CAST(:regionId AS INT) IS NULL OR d.region_id = CAST(:regionId AS INT)) "
 				+ "AND (CAST(:siteId AS INT) IS NULL OR st.id = CAST(:siteId AS INT)) "
 				+ "AND (:accessibleSiteIdsActive = FALSE OR st.id IN (:accessibleSiteIds)) "
-				+ "ORDER BY r.name, d.name, st.name";
-		return jdbc.queryForList(sql, params(startDate, endDate, regionId, districtId, siteId, labId, accessibleSiteIds));
+				+ unknownZoneRow("CAST(NULL AS INT), " + UNKNOWN + ", " + UNKNOWN + ", " + UNKNOWN + ", ")
+				+ ") z ORDER BY (z.site_id IS NULL), z.region, z.district, z.site";
+		return jdbc.queryForList(sql, f.params());
 	}
 
 	/**
@@ -258,7 +280,8 @@ public class DashboardAdvancedRepository {
 			+ "AND (CAST(:districtId AS INT) IS NULL OR st.district_id = CAST(:districtId AS INT)) "
 			+ "AND (CAST(:regionId AS INT) IS NULL OR EXISTS (SELECT 1 FROM district fd "
 			+ "     WHERE fd.id = st.district_id AND fd.region_id = CAST(:regionId AS INT))) "
-			+ "AND (CAST(:labId AS INT) IS NULL OR s.destination_lab_id = CAST(:labId AS INT)) ";
+			+ "AND (CAST(:labId AS INT) IS NULL OR s.destination_lab_id = CAST(:labId AS INT)) "
+			+ DashboardFilter.SAMPLE_FILTER_SQL;
 
 	/**
 	 * Taux de non-conformité par site (cahier VI.2) : échantillons NON_CONFORM ÷
@@ -267,9 +290,7 @@ public class DashboardAdvancedRepository {
 	 * non-conformités par type d'échantillon (« CV 8, EID 2 »). Seuil
 	 * {@code minSamples} collectés pour écarter les sites trop peu actifs.
 	 */
-	public List<Map<String, Object>> topRejectionSites(LocalDate startDate, LocalDate endDate,
-			Integer regionId, Integer districtId, Integer siteId, Integer labId,
-			List<Integer> accessibleSiteIds, int limit, int minSamples) {
+	public List<Map<String, Object>> topRejectionSites(DashboardFilter f, int limit, int minSamples) {
 		final String sql = "WITH base AS ( "
 				+ "  SELECT st.id AS site_id, st.name AS site, d.name AS district, reg.name AS region, "
 				+ "         COALESCE(typ.name, '?') AS sample_type, ss.status "
@@ -277,7 +298,7 @@ public class DashboardAdvancedRepository {
 				+ "  JOIN sample_status ss ON ss.id = s.sample_status_id "
 				+ "  LEFT JOIN sample_type typ ON typ.id = s.sample_type_id "
 				+ "  LEFT JOIN sample_retrieving sr ON sr.id = s.sample_retrieving_id "
-				+ "  JOIN site st ON st.id = sr.site_id "
+				+ "  JOIN site st ON st.id = COALESCE(sr.site_id, s.requester_site_id) "
 				+ "  JOIN district d ON d.id = st.district_id "
 				+ "  JOIN region reg ON reg.id = d.region_id "
 				+ "  WHERE (CAST(:startDate AS DATE) IS NULL OR s.collection_date >= CAST(:startDate AS DATE)) "
@@ -299,7 +320,7 @@ public class DashboardAdvancedRepository {
 				+ "GROUP BY b.site_id, b.site, b.district, b.region "
 				+ "HAVING COUNT(*) >= :minSamples AND SUM(CASE WHEN b.status = 'NON_CONFORM' THEN 1 ELSE 0 END) > 0 "
 				+ "ORDER BY non_conform_rate DESC, non_conform DESC, b.site LIMIT :rowLimit";
-		MapSqlParameterSource p = params(startDate, endDate, regionId, districtId, siteId, labId, accessibleSiteIds)
+		MapSqlParameterSource p = f.params()
 				.addValue("rowLimit", limit).addValue("minSamples", minSamples);
 		return jdbc.queryForList(sql, p);
 	}
@@ -307,9 +328,7 @@ public class DashboardAdvancedRepository {
 	/**
 	 * Slowest labs by average TAT (collection → analysis_released) over the period.
 	 */
-	public List<Map<String, Object>> slowestLabs(LocalDate startDate, LocalDate endDate,
-			Integer regionId, Integer districtId, Integer siteId, Integer labId,
-			List<Integer> accessibleSiteIds, int limit, int minSamples) {
+	public List<Map<String, Object>> slowestLabs(DashboardFilter f, int limit, int minSamples) {
 		// NB : indicateur SPÉCIFIQUE au segment labo (analysis_released - deliver_at_lab).
 		// Diffère volontairement du TAT canonique (result_delivery - collection)
 		// utilisé ailleurs, car ce widget benchmarke la performance pure du labo
@@ -323,7 +342,7 @@ public class DashboardAdvancedRepository {
 				+ "FROM sample s "
 				+ "JOIN lab ON lab.id = s.reference_lab_id "
 				+ "LEFT JOIN sample_retrieving sr ON sr.id = s.sample_retrieving_id "
-				+ "LEFT JOIN site st ON st.id = sr.site_id "
+				+ "LEFT JOIN site st ON st.id = COALESCE(sr.site_id, s.requester_site_id) "
 				+ "WHERE s.deliver_at_lab_date IS NOT NULL AND s.analysis_released_date IS NOT NULL "
 				+ "AND s.analysis_released_date > s.deliver_at_lab_date "
 				+ "AND (CAST(:startDate AS DATE) IS NULL OR s.collection_date >= CAST(:startDate AS DATE)) "
@@ -333,45 +352,114 @@ public class DashboardAdvancedRepository {
 				+ "GROUP BY lab.id, lab.lab_name "
 				+ "HAVING COUNT(s.id) >= :minSamples "
 				+ "ORDER BY avg_tat_days DESC, lab.lab_name LIMIT :rowLimit";
-		MapSqlParameterSource p = params(startDate, endDate, regionId, districtId, siteId, labId, accessibleSiteIds)
+		MapSqlParameterSource p = f.params()
 				.addValue("rowLimit", limit).addValue("minSamples", minSamples);
 		return jdbc.queryForList(sql, p);
 	}
 
+	/** Ligne d'un circuit de la carte « Circuits ». */
+	public static final String CIRCUIT_KIND = "circuit";
+	/** Ligne des échantillons dont le site appartient à plusieurs circuits actifs. */
+	public static final String SHARED_KIND = "shared";
+	/** Ligne des échantillons sans trajet dont le site n'est dans aucun circuit actif, ou sans site. */
+	public static final String UNATTACHED_KIND = "unattached";
+
 	/**
-	 * Classement des convoyeurs (cahier VI.2) : collectes et dépôts réalisés, et
-	 * délai médian d'acheminement (collecte → premier dépôt, au labo relais ou
-	 * au labo), en jours. Taux de non-conformité à titre indicatif. Trié par
-	 * nombre de collectes.
+	 * Circuits (tournées des convoyeurs) : échantillons collectés et déposés
+	 * sur la période, délai médian d'acheminement (collecte → premier dépôt, au
+	 * labo relais ou au labo) en jours, et nombre de sites desservis (sites
+	 * actifs du circuit, dans le périmètre de l'utilisateur). Trié par collectes.
+	 *
+	 * <p>Chaque échantillon compte une seule fois, la somme des lignes égale
+	 * le total collecté : circuit du trajet de la collecte s'il est actif ;
+	 * sinon le circuit du site de l'échantillon (collecte, à défaut site
+	 * demandeur) s'il n'appartient qu'à un seul circuit actif (appartenance et
+	 * circuit actifs) ; ligne {@link #SHARED_KIND} s'il appartient à plusieurs ;
+	 * ligne {@link #UNATTACHED_KIND} s'il n'appartient à aucun ou sans site.
+	 * Colonne {@code kind} : l'un de ces trois types.
 	 */
-	public List<Map<String, Object>> topConveyors(LocalDate startDate, LocalDate endDate,
-			Integer regionId, Integer districtId, Integer siteId, Integer labId,
-			List<Integer> accessibleSiteIds, int limit) {
-		final String sql = "SELECT u.id AS user_id, u.first_name, u.last_name, u.login, "
-				+ "  COUNT(s.id) AS samples_handled, "
-				+ "  COUNT(COALESCE(s.deliver_at_hub_date, s.deliver_at_lab_date)) AS deposits, "
+	public List<Map<String, Object>> circuits(DashboardFilter f) {
+		final String sql = "WITH base AS ( "
+				+ "  SELECT CASE WHEN rc.is_active THEN r.circuit_id END AS ride_circuit_id, st.id AS site_id, "
+				+ "         s.collection_date, COALESCE(s.deliver_at_hub_date, s.deliver_at_lab_date) AS first_deposit "
+				+ "  FROM sample s "
+				+ "  LEFT JOIN sample_retrieving sr ON sr.id = s.sample_retrieving_id "
+				+ "  LEFT JOIN ride r ON r.id = sr.ride_id "
+				+ "  LEFT JOIN circuit rc ON rc.id = r.circuit_id "
+				+ "  LEFT JOIN site st ON st.id = COALESCE(sr.site_id, s.requester_site_id) "
+				+ "  WHERE (CAST(:startDate AS DATE) IS NULL OR s.collection_date >= CAST(:startDate AS DATE)) "
+				+ "  AND (CAST(:endDate AS DATE) IS NULL OR s.collection_date < CAST(:endDate AS DATE) + 1) "
+				+ "  AND (:accessibleSiteIdsActive = FALSE OR st.id IN (:accessibleSiteIds)) "
+				+ "  " + RANKING_FILTER
+				+ "), site_circuits AS ( "
+				// Circuits actifs de chaque site (appartenance et circuit actifs).
+				+ "  SELECT cs.site_id, COUNT(DISTINCT cs.circuit_id) AS n, MIN(cs.circuit_id) AS circuit_id "
+				+ "  FROM circuit_site cs JOIN circuit c ON c.id = cs.circuit_id AND c.is_active "
+				+ "  WHERE cs.is_active GROUP BY cs.site_id "
+				+ "), attached AS ( "
+				+ "  SELECT CASE WHEN b.ride_circuit_id IS NOT NULL THEN b.ride_circuit_id "
+				+ "              WHEN sc.n = 1 THEN sc.circuit_id END AS circuit_id, "
+				+ "         CASE WHEN b.ride_circuit_id IS NOT NULL OR sc.n = 1 THEN '" + CIRCUIT_KIND + "' "
+				+ "              WHEN sc.n > 1 THEN '" + SHARED_KIND + "' ELSE '" + UNATTACHED_KIND + "' END AS kind, "
+				+ "         b.collection_date, b.first_deposit "
+				+ "  FROM base b LEFT JOIN site_circuits sc ON sc.site_id = b.site_id "
+				+ ") "
+				+ "SELECT a.kind, a.circuit_id, c.circuit_number AS circuit, "
+				+ "  COUNT(*) AS collected, COUNT(a.first_deposit) AS deposited, "
 				+ "  CAST(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY "
-				+ "    EXTRACT(EPOCH FROM (COALESCE(s.deliver_at_hub_date, s.deliver_at_lab_date) - s.collection_date)) / 86400.0 "
-				+ "  ) FILTER (WHERE COALESCE(s.deliver_at_hub_date, s.deliver_at_lab_date) >= s.collection_date) "
-				+ "  AS NUMERIC(10,1)) AS median_transport_days, "
-				+ "  SUM(CASE WHEN ss.status = 'NON_CONFORM' THEN 1 ELSE 0 END) AS non_conform, "
-				+ "  CAST(ROUND(100.0 * SUM(CASE WHEN ss.status = 'NON_CONFORM' THEN 1 ELSE 0 END) "
-				+ "    / NULLIF(COUNT(s.id), 0), 1) AS NUMERIC(5,1)) AS non_conform_rate "
-				+ "FROM sample s "
-				+ "JOIN sample_status ss ON ss.id = s.sample_status_id "
-				+ "JOIN sample_retrieving sr ON sr.id = s.sample_retrieving_id "
-				+ "JOIN app_user u ON u.id = sr.app_user_id "
-				+ "LEFT JOIN site st ON st.id = sr.site_id "
-				+ "WHERE (CAST(:startDate AS DATE) IS NULL OR s.collection_date >= CAST(:startDate AS DATE)) "
-				+ "AND (CAST(:endDate AS DATE) IS NULL OR s.collection_date < CAST(:endDate AS DATE) + 1) "
-				+ "AND (:accessibleSiteIdsActive = FALSE OR st.id IN (:accessibleSiteIds)) "
-				+ RANKING_FILTER
-				+ "GROUP BY u.id, u.first_name, u.last_name, u.login "
-				+ "ORDER BY samples_handled DESC, u.login LIMIT :rowLimit";
-		MapSqlParameterSource p = params(startDate, endDate, regionId, districtId, siteId, labId, accessibleSiteIds)
-				.addValue("rowLimit", limit);
-		return jdbc.queryForList(sql, p);
+				+ "    EXTRACT(EPOCH FROM (a.first_deposit - a.collection_date)) / 86400.0 "
+				+ "  ) FILTER (WHERE a.first_deposit >= a.collection_date) AS NUMERIC(10,1)) AS median_transport_days, "
+				+ "  (SELECT COUNT(*) FROM circuit_site cs WHERE cs.circuit_id = a.circuit_id AND cs.is_active "
+				+ "     AND (:accessibleSiteIdsActive = FALSE OR cs.site_id IN (:accessibleSiteIds))) AS sites_served "
+				+ "FROM attached a LEFT JOIN circuit c ON c.id = a.circuit_id "
+				+ "GROUP BY a.kind, a.circuit_id, c.circuit_number "
+				+ "ORDER BY collected DESC, c.circuit_number";
+		return jdbc.queryForList(sql, f.params());
 	}
+
+	/**
+	 * Détail d'une zone du tableau de répartition, par type d'échantillon :
+	 * mêmes échantillons et mêmes définitions que la ligne de la zone.
+	 */
+	public List<Map<String, Object>> zoneByType(DashboardFilter f) {
+		final String sql = "SELECT COALESCE(typ.name, '?') AS sample_type, COUNT(*) AS total, "
+				+ "  SUM(CASE WHEN ss.status = 'ON_TRANSIT' THEN 1 ELSE 0 END) AS in_transit, "
+				+ "  COUNT(s.deliver_at_lab_date) AS deposited, "
+				+ "  SUM(CASE WHEN ss.status = 'NON_CONFORM' THEN 1 ELSE 0 END) AS non_conform, "
+				+ "  SUM(CASE WHEN ss.status = 'RESULT_ON_SITE' THEN 1 ELSE 0 END) AS delivered "
+				+ ZONE_FROM + ZONE_WHERE
+				+ "GROUP BY typ.name ORDER BY total DESC, typ.name";
+		return jdbc.queryForList(sql, f.params());
+	}
+
+	/** Non-conformités d'une zone par motif de rejet. */
+	public List<Map<String, Object>> zoneNonConformReasons(DashboardFilter f) {
+		final String sql = "SELECT COALESCE(srt.rejection_type, 'Motif non renseigné') AS reason, "
+				+ "  COUNT(DISTINCT s.id) AS n "
+				+ ZONE_FROM
+				+ "LEFT JOIN sample_rejection rj ON rj.sample_id = s.id "
+				+ "LEFT JOIN sample_rejection_type srt ON srt.id = rj.sample_rejection_type_id "
+				+ ZONE_WHERE
+				+ "AND ss.status = 'NON_CONFORM' "
+				+ "GROUP BY srt.rejection_type ORDER BY n DESC, reason";
+		return jdbc.queryForList(sql, f.params());
+	}
+
+	/** Échantillons d'une zone : même cohorte et mêmes filtres que la répartition. */
+	private static final String ZONE_FROM = " FROM sample s "
+			+ "JOIN sample_status ss ON ss.id = s.sample_status_id "
+			+ "LEFT JOIN sample_type typ ON typ.id = s.sample_type_id "
+			+ "LEFT JOIN sample_retrieving sr ON sr.id = s.sample_retrieving_id "
+			+ "LEFT JOIN site st ON st.id = COALESCE(sr.site_id, s.requester_site_id) "
+			+ "LEFT JOIN district d ON d.id = st.district_id ";
+
+	private static final String ZONE_WHERE = "WHERE (CAST(:startDate AS DATE) IS NULL OR s.collection_date >= CAST(:startDate AS DATE)) "
+			+ "AND (CAST(:endDate AS DATE) IS NULL OR s.collection_date < CAST(:endDate AS DATE) + 1) "
+			+ "AND (CAST(:labId AS INT) IS NULL OR s.destination_lab_id = CAST(:labId AS INT)) "
+			+ "AND (CAST(:regionId AS INT) IS NULL OR d.region_id = CAST(:regionId AS INT)) "
+			+ "AND (CAST(:districtId AS INT) IS NULL OR d.id = CAST(:districtId AS INT)) "
+			+ "AND (CAST(:siteId AS INT) IS NULL OR st.id = CAST(:siteId AS INT)) "
+			+ SCOPE_FILTER;
 
 	/** Au-delà, un trajet (relevé départ → arrivée) est considéré comme une erreur de saisie. */
 	static final int MAX_TRIP_KM = 1000;
@@ -386,8 +474,7 @@ public class DashboardAdvancedRepository {
 		return "(" + start + " > 0 AND " + end + " > " + start + " AND " + end + " - " + start + " <= " + MAX_TRIP_KM + ")";
 	}
 
-	public Map<String, Object> coverage(LocalDate startDate, LocalDate endDate, Integer regionId, Integer districtId,
-			Integer siteId, Integer labId, List<Integer> accessibleSiteIds) {
+	public Map<String, Object> coverage(DashboardFilter f) {
 		final String sql = "WITH scope_samples AS ("
 				+ "  SELECT s.id, s.collection_start_mileage, s.collection_end_mileage, "
 				+ "         s.result_start_mileage, s.result_end_mileage, "
@@ -396,7 +483,7 @@ public class DashboardAdvancedRepository {
 				+ "         s.destination_lab_id, s.reference_lab_id, s.hub_id "
 				+ "  FROM sample s "
 				+ "  LEFT JOIN sample_retrieving sr ON sr.id = s.sample_retrieving_id "
-				+ "  LEFT JOIN site st ON st.id = sr.site_id "
+				+ "  LEFT JOIN site st ON st.id = COALESCE(sr.site_id, s.requester_site_id) "
 				+ "  LEFT JOIN district d ON d.id = st.district_id "
 				+ "  WHERE (CAST(:startDate AS DATE) IS NULL OR s.collection_date >= CAST(:startDate AS DATE)) "
 				+ "  AND (CAST(:endDate AS DATE) IS NULL OR s.collection_date < CAST(:endDate AS DATE) + 1) "
@@ -405,6 +492,7 @@ public class DashboardAdvancedRepository {
 				+ "  AND (CAST(:districtId AS INT) IS NULL OR st.district_id = CAST(:districtId AS INT)) "
 				+ "  AND (CAST(:regionId AS INT) IS NULL OR d.region_id = CAST(:regionId AS INT)) "
 				+ "  AND (:accessibleSiteIdsActive = FALSE OR st.id IN (:accessibleSiteIds)) "
+				+ DashboardFilter.SAMPLE_FILTER_SQL
 				+ "), "
 				// Trajets (« legs ») : relevés de compteur départ / arrivée, pour la
 				// collecte et pour la restitution des résultats. Voir validLeg().
@@ -451,7 +539,7 @@ public class DashboardAdvancedRepository {
 				+ "       AND NOT COALESCE(" + validLeg("result_start_mileage", "result_end_mileage") + ", FALSE)"
 				+ "  ) AS samples_without_mileage";
 		Map<String, Object> base = jdbc.queryForMap(sql,
-				params(startDate, endDate, regionId, districtId, siteId, labId, accessibleSiteIds));
+				f.params());
 
 		// Derived: km moyen par échantillon.
 		// Le dénominateur reste le TOTAL des échantillons du périmètre (et non
@@ -472,14 +560,12 @@ public class DashboardAdvancedRepository {
 	 * Sample type breakdown for the period — used for the type repartition
 	 * mini-chart on the dashboard coverage section.
 	 */
-	public List<Map<String, Object>> typeBreakdown(LocalDate startDate, LocalDate endDate,
-			Integer regionId, Integer districtId, Integer siteId, Integer labId,
-			List<Integer> accessibleSiteIds) {
-		final String sql = "SELECT st_type.name AS sample_type, COUNT(s.id) AS total "
+	public List<Map<String, Object>> typeBreakdown(DashboardFilter f) {
+		final String sql = "SELECT COALESCE(st_type.name, 'Autre') AS sample_type, COUNT(s.id) AS total "
 				+ "FROM sample s "
-				+ "JOIN sample_type st_type ON st_type.id = s.sample_type_id "
+				+ "LEFT JOIN sample_type st_type ON st_type.id = s.sample_type_id "
 				+ "LEFT JOIN sample_retrieving sr ON sr.id = s.sample_retrieving_id "
-				+ "LEFT JOIN site st ON st.id = sr.site_id "
+				+ "LEFT JOIN site st ON st.id = COALESCE(sr.site_id, s.requester_site_id) "
 				+ "LEFT JOIN district d ON d.id = st.district_id "
 				+ "WHERE (CAST(:startDate AS DATE) IS NULL OR s.collection_date >= CAST(:startDate AS DATE)) "
 				+ "AND (CAST(:endDate AS DATE) IS NULL OR s.collection_date < CAST(:endDate AS DATE) + 1) "
@@ -489,24 +575,12 @@ public class DashboardAdvancedRepository {
 				+ "AND (CAST(:regionId AS INT) IS NULL OR d.region_id = CAST(:regionId AS INT)) "
 				+ SCOPE_FILTER
 				+ "GROUP BY st_type.name ORDER BY total DESC";
-		return jdbc.queryForList(sql, params(startDate, endDate, regionId, districtId, siteId, labId, accessibleSiteIds));
+		return jdbc.queryForList(sql, f.params());
 	}
 
 	private static long toLong(Object v) {
 		if (v == null) return 0L;
 		if (v instanceof Number n) return n.longValue();
 		try { return Long.parseLong(v.toString()); } catch (Exception e) { return 0L; }
-	}
-
-	private MapSqlParameterSource params(LocalDate startDate, LocalDate endDate, Integer regionId, Integer districtId,
-			Integer siteId, Integer labId, List<Integer> accessibleSiteIds) {
-		MapSqlParameterSource p = new MapSqlParameterSource()
-				.addValue("startDate", startDate).addValue("endDate", endDate)
-				.addValue("regionId", regionId).addValue("districtId", districtId)
-				.addValue("siteId", siteId).addValue("labId", labId);
-		boolean active = accessibleSiteIds != null && !accessibleSiteIds.isEmpty();
-		p.addValue("accessibleSiteIdsActive", active);
-		p.addValue("accessibleSiteIds", active ? accessibleSiteIds : List.of(-1));
-		return p;
 	}
 }
