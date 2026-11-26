@@ -233,14 +233,17 @@ class ZoneSupervisorAccessIntegrationTest {
 				login + " fiche B déposé en A");
 	}
 
-	/** Valeurs proposées par une liste de filtre de la page. */
+	/** Zones proposées par une liste de filtre de la page (hors option « Tout », valeur 0). */
 	private static Set<Integer> options(String html, String selectId) {
 		Matcher block = Pattern.compile("id=\"" + selectId + "\"(.*?)</select>", Pattern.DOTALL).matcher(html);
 		assertTrue(block.find(), selectId);
 		Set<Integer> out = new TreeSet<>();
 		Matcher opt = Pattern.compile("<option[^>]*value=\"(\\d+)\"").matcher(block.group(1));
 		while (opt.find()) {
-			out.add(Integer.parseInt(opt.group(1)));
+			int id = Integer.parseInt(opt.group(1));
+			if (id != 0) {
+				out.add(id);
+			}
 		}
 		return out;
 	}
