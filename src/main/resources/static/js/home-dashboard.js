@@ -1021,17 +1021,20 @@
 				};
 			});
 			renderRanking('#topCircuits', resp.circuits, function(r) {
-				const attached = r.circuit_id != null;
+				const kind = r.kind || 'circuit';
 				const sites = num(r.sites_served);
+				const name = kind === 'shared' ? 'Sites partagés entre plusieurs circuits'
+					: kind === 'unattached' ? 'Non rattaché'
+					: (r.circuit || 'Circuit ' + r.circuit_id);
 				return {
-					name: attached ? (r.circuit || 'Circuit ' + r.circuit_id) : 'Non rattaché',
+					name: name,
 					sub: formatNumber(r.deposited) + ' déposés'
 						+ (r.median_transport_days != null ? ' · acheminement ' + formatDuration(r.median_transport_days) : '')
-						+ (attached ? ' · ' + formatNumber(sites) + (sites > 1 ? ' sites desservis' : ' site desservi')
-							: ' · site hors circuit'),
+						+ (kind === 'circuit' ? ' · ' + formatNumber(sites) + (sites > 1 ? ' sites desservis' : ' site desservi')
+							: kind === 'unattached' ? ' · site hors circuit' : ''),
 					metric: formatNumber(r.collected) + ' coll.',
 					value: r.collected,
-					unranked: !attached
+					unranked: kind !== 'circuit'
 				};
 			});
 		});

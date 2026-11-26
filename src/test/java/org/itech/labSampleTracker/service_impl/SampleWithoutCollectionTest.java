@@ -206,7 +206,7 @@ class SampleWithoutCollectionTest {
 		for (DashboardFilter f : List.of(filter(null, null), filter(regionA, null), filter(regionB, null),
 				filter(null, List.of(siteA)))) {
 			List<ConsistencyCheckService.Check> all = checks.indicators(f);
-			assertEquals(14, all.size());
+			assertEquals(15, all.size());
 			List<ConsistencyCheckService.Check> failed = all.stream().filter(c -> !c.ok()).toList();
 			assertTrue(failed.isEmpty(), f + " : " + failed);
 			assertTrue(checks.hierarchy(f).isEmpty(), f + " : " + checks.hierarchy(f));
@@ -238,29 +238,36 @@ class SampleWithoutCollectionTest {
 	}
 
 	@Test
-	void circuitsDuTrajetSinonDuSiteNonRattacheSinon() {
+	void chaqueEchantillonDansUneSeuleLigneDesCircuits() {
 		DashboardFilter nov = new DashboardFilter(LocalDate.of(2025, 11, 1), LocalDate.of(2025, 11, 30), null, null,
 				null, null, null, null, null);
+		List<Map<String, Object>> rows = dashboard.circuits(nov);
 		Map<Object, Map<String, Object>> byCircuit = new java.util.HashMap<>();
-		for (Map<String, Object> r : dashboard.circuits(nov)) {
-			byCircuit.put(r.get("circuit_id"), r);
+		Map<Object, Map<String, Object>> byKind = new java.util.HashMap<>();
+		for (Map<String, Object> r : rows) {
+			if (DashboardAdvancedRepository.CIRCUIT_KIND.equals(r.get("kind"))) {
+				byCircuit.put(r.get("circuit_id"), r);
+			} else {
+				byKind.put(r.get("kind"), r);
+			}
 		}
-		// Site A partagé par deux circuits : compté dans chacun. Site B : demandeur.
-		assertEquals(1, num(byCircuit.get(circuitA).get("collected")));
-		assertEquals(2, num(byCircuit.get(circuitAB).get("collected")));
-		// Trajet : son circuit seulement, même si le site est dans d'autres circuits.
+		// Site A dans deux circuits actifs (A et AB ; le circuit fermé ne compte pas) :
+		// « Sites partagés », et dans aucun des deux circuits.
+		assertEquals(1, num(byKind.get(DashboardAdvancedRepository.SHARED_KIND).get("collected")));
+		assertTrue(!byCircuit.containsKey(circuitA));
+		// Site B (demandeur) : un seul circuit actif, AB (l'appartenance au circuit inactif ne compte pas).
+		assertEquals(1, num(byCircuit.get(circuitAB).get("collected")));
+		assertEquals(2, num(byCircuit.get(circuitAB).get("sites_served")));
+		// Trajet : son circuit, même si le site est partagé.
 		assertEquals(1, num(byCircuit.get(circuitRide).get("collected")));
-		// Appartenance inactive : non comptée.
+		// Circuits inactifs : rien.
 		assertTrue(!byCircuit.containsKey(circuitInactive));
-		// Circuit inactif : aucun échantillon, même avec des appartenances actives.
 		assertTrue(!byCircuit.containsKey(circuitClosed));
 		// Sans zone et site hors circuit.
-		assertEquals(2, num(byCircuit.get(null).get("collected")));
-		assertEquals(1, num(byCircuit.get(circuitA).get("sites_served")));
-		assertEquals(2, num(byCircuit.get(circuitAB).get("sites_served")));
-		// Les lignes ne s'additionnent pas : 6 rattachements pour 5 échantillons.
+		assertEquals(2, num(byKind.get(DashboardAdvancedRepository.UNATTACHED_KIND).get("collected")));
+		// Chaque échantillon une seule fois : la somme des lignes égale le total collecté.
 		assertEquals(5, num(dashboard.funnel(nov).get("total")));
-		assertEquals(6, byCircuit.values().stream().mapToInt(r -> num(r.get("collected"))).sum());
+		assertEquals(5, ConsistencyCheckService.sum(rows, "collected"));
 	}
 
 	@Test

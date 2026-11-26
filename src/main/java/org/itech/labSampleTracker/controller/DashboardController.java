@@ -322,18 +322,26 @@ public class DashboardController {
 	}
 
 	/**
-	 * Les {@code limit} circuits les plus actifs, suivis de la ligne « Non
-	 * rattaché » (collectes sans trajet) quand il y en a, quel que soit son rang.
+	 * Les {@code limit} circuits les plus actifs, suivis des lignes « Sites
+	 * partagés entre plusieurs circuits » et « Non rattaché » quand elles
+	 * existent, quel que soit leur rang.
 	 */
 	static List<Map<String, Object>> topCircuits(List<Map<String, Object>> rows, int limit) {
 		List<Map<String, Object>> out = new ArrayList<>();
+		Map<String, Object> shared = null;
 		Map<String, Object> unattached = null;
 		for (Map<String, Object> r : rows) {
-			if (r.get("circuit_id") == null) {
+			Object kind = r.get("kind");
+			if (DashboardAdvancedRepository.SHARED_KIND.equals(kind)) {
+				shared = r;
+			} else if (DashboardAdvancedRepository.UNATTACHED_KIND.equals(kind)) {
 				unattached = r;
 			} else if (out.size() < limit) {
 				out.add(r);
 			}
+		}
+		if (shared != null) {
+			out.add(shared);
 		}
 		if (unattached != null) {
 			out.add(unattached);

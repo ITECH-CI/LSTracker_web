@@ -357,24 +357,31 @@ public class DashboardAdvancedRepository {
 		return jdbc.queryForList(sql, p);
 	}
 
+	/** Ligne d'un circuit de la carte « Circuits ». */
+	public static final String CIRCUIT_KIND = "circuit";
+	/** Ligne des échantillons dont le site appartient à plusieurs circuits actifs. */
+	public static final String SHARED_KIND = "shared";
+	/** Ligne des échantillons sans trajet dont le site n'est dans aucun circuit actif, ou sans site. */
+	public static final String UNATTACHED_KIND = "unattached";
+
 	/**
 	 * Circuits (tournées des convoyeurs) : échantillons collectés et déposés
 	 * sur la période, délai médian d'acheminement (collecte → premier dépôt, au
 	 * labo relais ou au labo) en jours, et nombre de sites desservis (sites
 	 * actifs du circuit, dans le périmètre de l'utilisateur). Trié par collectes.
 	 *
-	 * <p>Rattachement : le circuit du trajet de la collecte quand il existe ;
-	 * sinon les circuits dont le site de l'échantillon (collecte, à défaut site
-	 * demandeur) est membre actif. Seuls les circuits actifs reçoivent des
-	 * échantillons : un trajet sur un circuit inactif est ignoré. Un
-	 * échantillon d'un site partagé compte dans chacun de ses circuits : les
-	 * lignes ne s'additionnent pas. La ligne {@code circuit_id} null (« Non
-	 * rattaché ») garde les échantillons sans circuit actif, ou sans site.
+	 * <p>Chaque échantillon compte une seule fois, la somme des lignes égale
+	 * le total collecté : circuit du trajet de la collecte s'il est actif ;
+	 * sinon le circuit du site de l'échantillon (collecte, à défaut site
+	 * demandeur) s'il n'appartient qu'à un seul circuit actif (appartenance et
+	 * circuit actifs) ; ligne {@link #SHARED_KIND} s'il appartient à plusieurs ;
+	 * ligne {@link #UNATTACHED_KIND} s'il n'appartient à aucun ou sans site.
+	 * Colonne {@code kind} : l'un de ces trois types.
 	 */
 	public List<Map<String, Object>> circuits(DashboardFilter f) {
 		final String sql = "WITH base AS ( "
-				+ "  SELECT CASE WHEN rc.is_active THEN r.circuit_id END AS ride_circuit_id, st.id AS site_id, s.collection_date, "
-				+ "         COALESCE(s.deliver_at_hub_date, s.deliver_at_lab_date) AS first_deposit "
+				+ "  SELECT CASE WHEN rc.is_active THEN r.circuit_id END AS ride_circuit_id, st.id AS site_id, "
+				+ "         s.collection_date, COALESCE(s.deliver_at_hub_date, s.deliver_at_lab_date) AS first_deposit "
 				+ "  FROM sample s "
 				+ "  LEFT JOIN sample_retrieving sr ON sr.id = s.sample_retrieving_id "
 				+ "  LEFT JOIN ride r ON r.id = sr.ride_id "
@@ -384,26 +391,20 @@ public class DashboardAdvancedRepository {
 				+ "  AND (CAST(:endDate AS DATE) IS NULL OR s.collection_date < CAST(:endDate AS DATE) + 1) "
 				+ "  AND (:accessibleSiteIdsActive = FALSE OR st.id IN (:accessibleSiteIds)) "
 				+ "  " + RANKING_FILTER
-				+ "), site_circuit AS ( "
-				// Appartenances actives à un circuit actif.
-				+ "  SELECT cs.site_id, cs.circuit_id FROM circuit_site cs "
-				+ "  JOIN circuit c ON c.id = cs.circuit_id AND c.is_active WHERE cs.is_active "
+				+ "), site_circuits AS ( "
+				// Circuits actifs de chaque site (appartenance et circuit actifs).
+				+ "  SELECT cs.site_id, COUNT(DISTINCT cs.circuit_id) AS n, MIN(cs.circuit_id) AS circuit_id "
+				+ "  FROM circuit_site cs JOIN circuit c ON c.id = cs.circuit_id AND c.is_active "
+				+ "  WHERE cs.is_active GROUP BY cs.site_id "
 				+ "), attached AS ( "
-				// 1) Circuit du trajet.
-				+ "  SELECT b.ride_circuit_id AS circuit_id, b.collection_date, b.first_deposit "
-				+ "  FROM base b WHERE b.ride_circuit_id IS NOT NULL "
-				+ "  UNION ALL "
-				// 2) Sans trajet : chaque circuit actif dont le site est membre actif.
-				+ "  SELECT sc.circuit_id, b.collection_date, b.first_deposit "
-				+ "  FROM base b JOIN site_circuit sc ON sc.site_id = b.site_id "
-				+ "  WHERE b.ride_circuit_id IS NULL "
-				+ "  UNION ALL "
-				// 3) Sans trajet ni circuit pour le site : « Non rattaché ».
-				+ "  SELECT CAST(NULL AS INT), b.collection_date, b.first_deposit "
-				+ "  FROM base b WHERE b.ride_circuit_id IS NULL AND NOT EXISTS ( "
-				+ "    SELECT 1 FROM site_circuit sc WHERE sc.site_id = b.site_id) "
+				+ "  SELECT CASE WHEN b.ride_circuit_id IS NOT NULL THEN b.ride_circuit_id "
+				+ "              WHEN sc.n = 1 THEN sc.circuit_id END AS circuit_id, "
+				+ "         CASE WHEN b.ride_circuit_id IS NOT NULL OR sc.n = 1 THEN '" + CIRCUIT_KIND + "' "
+				+ "              WHEN sc.n > 1 THEN '" + SHARED_KIND + "' ELSE '" + UNATTACHED_KIND + "' END AS kind, "
+				+ "         b.collection_date, b.first_deposit "
+				+ "  FROM base b LEFT JOIN site_circuits sc ON sc.site_id = b.site_id "
 				+ ") "
-				+ "SELECT a.circuit_id, c.circuit_number AS circuit, "
+				+ "SELECT a.kind, a.circuit_id, c.circuit_number AS circuit, "
 				+ "  COUNT(*) AS collected, COUNT(a.first_deposit) AS deposited, "
 				+ "  CAST(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY "
 				+ "    EXTRACT(EPOCH FROM (a.first_deposit - a.collection_date)) / 86400.0 "
@@ -411,7 +412,7 @@ public class DashboardAdvancedRepository {
 				+ "  (SELECT COUNT(*) FROM circuit_site cs WHERE cs.circuit_id = a.circuit_id AND cs.is_active "
 				+ "     AND (:accessibleSiteIdsActive = FALSE OR cs.site_id IN (:accessibleSiteIds))) AS sites_served "
 				+ "FROM attached a LEFT JOIN circuit c ON c.id = a.circuit_id "
-				+ "GROUP BY a.circuit_id, c.circuit_number "
+				+ "GROUP BY a.kind, a.circuit_id, c.circuit_number "
 				+ "ORDER BY collected DESC, c.circuit_number";
 		return jdbc.queryForList(sql, f.params());
 	}

@@ -74,6 +74,9 @@ public class ConsistencyCheckService {
 		out.add(new Check("Échantillons collectés", collected, "Étapes des échantillons par type (somme)",
 				series.stepsByType(f).values().stream()
 						.mapToLong(m -> m.getOrDefault("SAMPLE_COLLECTED", 0)).sum()));
+		// Carte « Circuits » : chaque échantillon dans une seule ligne.
+		out.add(new Check("Échantillons collectés", collected, "Circuits (somme des lignes)",
+				sum(dashboard.circuits(f), "collected")));
 		out.add(new Check("Échantillons collectés", collected, "Rapport PDF (somme par type)",
 				sum(reports.collectedByType(f, null), "cnt")));
 
