@@ -1,5 +1,71 @@
 # Changelog — LabSampleTracker (web + backend)
 
+La version 2.2.3 regroupe les trois sections datées du 2026-09-23, du 2026-09-24 et du 2026-11-26. Elle s'accompagne de l'application mobile 2.2.3 (build 10), dont le détail figure dans le CHANGELOG du dépôt mobile.
+
+## 2026-11-26 — Habilitations, filtres et indicateurs du tableau de bord (v2.2.3)
+
+### Profils superviseur régional et superviseur de district
+
+- Administration centralisée : seuls l'administrateur national (ADMIN) et l'administrateur système (SUPER_ADMIN) écrivent dans l'administration (comptes, maillage, référentiels). Aucun rôle d'administration n'est délégué aux régions ni aux districts.
+- Deux rôles nouveaux, ajoutés par changeset Liquibase : **SUPERVISEUR_REGION** et **SUPERVISEUR_DISTRICT**. Consultation et export limités aux régions ou aux districts affectés, sur le tableau de bord, la liste, la fiche, l'export, les rapports et l'API mobile ; ni accès par le laboratoire destinataire, ni écran d'administration (refus en 403 côté serveur).
+- Formulaire de compte : libellés des profils (« Administrateur national », « Administrateur système », « Pilotage national (consultation) », « Superviseur régional », « Superviseur de district », « Technicien ou superviseur de laboratoire », « Convoyeur », « Utilisateur (consultation) ») ; un superviseur doit être affecté à au moins une zone de son niveau, son niveau et son type sont fixés par le rôle. Seul un administrateur système attribue ou retire le rôle Administrateur système. L'écran d'affectation s'intitule « Affecter les zones ».
+- Les profils de consultation ne saisissent plus d'échantillon : la saisie web est réservée aux administrateurs, l'API mobile la refuse. À la connexion mobile, ils reçoivent le rôle de consultation et ouvrent le tableau de bord de consultation au lieu de « Rôle non reconnu ».
+- Le bouton de suppression de compte, sans point d'accès, est retiré : un compte se désactive.
+
+### Sécurité du périmètre
+
+- Refus par défaut : un compte non national affecté à une région ou à un district sans site voyait toutes les données (une liste de sites vide valait « aucune restriction »). Ce cas renvoie désormais un résultat vide. SUPER_ADMIN rejoint les rôles nationaux.
+- Listes Région, District, Site et Laboratoire du tableau de bord et de la liste des échantillons limitées au périmètre du compte, cascade comprise.
+- `GET /sample/update/{id}` hors périmètre : refus (403) avant la construction du formulaire, même réponse que pour un échantillon inconnu.
+- Accès à un échantillon sans collecte par son site demandeur, selon la même règle de zone que la liste et le tableau de bord.
+- Points d'accès retirés : `GET /sample/{id}` (vue vide, erreur 500, non appelé) et `POST /sample` (enregistrement sans collecte ni contrôle de périmètre, non utilisé).
+
+### Connexion et mots de passe
+
+- Messages avant blocage : à partir du 3e échec consécutif, la page de connexion et `/api_v2/auth/login` indiquent le nombre de tentatives restantes ; au 5e, « Compte bloqué après 5 tentatives. Contactez l'administration centrale. » Le compteur et les messages valent pour tout identifiant saisi, existant ou non, pour ne pas révéler quels comptes existent ; seul un compte réel est verrouillé en base. Le déverrouillage par un administrateur remet le compteur à zéro.
+- Mot de passe temporaire : la réinitialisation fixait l'expiration à l'instant même et rendait le compte inutilisable. Le mot de passe temporaire permet de se connecter, puis chaque page renvoie vers le changement de mot de passe jusqu'au choix d'un nouveau. Changer son mot de passe ferme les autres sessions du compte, et non plus la session en cours.
+- `/api_v2/auth/login` renvoie l'indicateur `password_reset` ; l'API n'impose pas encore le changement.
+- Jeton anti-falsification (CSRF) des appels en arrière-plan chargé sur toutes les pages : les actions de l'administration des comptes (désactiver, verrouiller, réinitialiser un mot de passe) ne reçoivent plus de 403.
+
+### Filtres du tableau de bord
+
+- Option « Tout » (valeur 0) en tête de chaque liste de filtre, sélectionnée par défaut.
+- Filtre « Type de labo » (valeurs de `lab.lab_type`, libellés lisibles), qui restreint aussi la liste des laboratoires, et filtre « Type d'échantillon ».
+- Les filtres passent par un objet unique (`DashboardFilter`) appliqué par toutes les requêtes du tableau de bord, des rapports et du contrôle de cohérence, en plus du périmètre de l'utilisateur. L'en-tête de l'export CSV les mentionne. `DashboardRepository`, inutilisé, est supprimé.
+- Liste des échantillons : filtre « Type de labo » (laboratoire de destination), date de fin incluant toute la journée, comptage appliquant le filtre « nature », export CSV corrigé pour le type d'échantillon.
+
+### Présentation et indicateurs
+
+- Retrait de la comparaison avec la période précédente : bandeau « Comparée à », tendances des cartes, mentions dans les infobulles. Le point d'accès `funnel-previous` reste disponible.
+- Tableau « Répartition par zone géographique » : niveau courant dans le sous-titre et le fil d'Ariane ; colonnes « Rang » et « Écart moy. » retirées ; en-têtes explicites (« Échantillons collectés », « Échantillons en cours d'acheminement », « Échantillons déposés au laboratoire », « Échantillons non conformes », « Échecs d'analyse », « Résultats rendus aux sites », « TAT médian ») ; colonne « Détails » ouvrant une ligne dépliable (types d'échantillon, durée médiane par étape, non-conformités par motif, lien vers la liste filtrée, qui donne le même nombre).
+- Carte « Circuits » à la place de « Convoyeurs les plus actifs » : collectes, dépôts, délai médian d'acheminement (collecte au premier dépôt) et sites desservis. Rattachement : circuit du trajet s'il existe ; sinon circuit du site (collecte, à défaut site demandeur) s'il n'appartient qu'à un seul circuit actif ; ligne « Sites partagés entre plusieurs circuits » s'il en a plusieurs ; « Non rattaché » s'il n'en a aucun. Seuls les circuits actifs reçoivent des échantillons. Chaque échantillon est compté une fois : la somme des lignes égale le total collecté, ce que vérifie le contrôle de cohérence. La mini-carte « Convoyeurs actifs » est conservée.
+- « En transit » devient « En cours d'acheminement » : tableau de bord, export CSV, contrôle de cohérence, libellé du statut ON_TRANSIT (changeset Liquibase).
+- Le TAT s'affiche sans coloration (les seuils de 3 et 7 jours ne correspondaient à aucune cible).
+
+### Libellés
+
+- Tableau de bord : « Étapes de l'échantillon », « Étapes des échantillons par type », « Évolution des échantillons dans le temps », « Échantillons collectés par type », « Durée médiane par étape, en jours (échantillons de la période) », « en cours d'acheminement actuellement », « Résultats récupérés au laboratoire », « Résultats rendus aux sites », « Laboratoires les plus lents (délai au laboratoire) », « Échantillons non conformes par site (taux) ». Infobulles et contrôle de cohérence alignés.
+- Statut RESULT_COLLECTED : libellé « RESULTATS RECUPERES » (changeset Liquibase ; un libellé modifié depuis l'administration est conservé). Les deux changements de libellé de statut sont regroupés dans `rename_sample_status_labels.xml`.
+- Textes affichés sans tiret cadratin ni demi-cadratin : valeur absente « - », pagination « 1 à 25 sur 120 », période des rapports PDF « X au Y ». Rapports Jasper recompilés (même version de JasperReports).
+
+### Échantillons sans collecte
+
+- La zone d'un échantillon est celle de son site de collecte, à défaut celle de son site demandeur, dans toutes les requêtes d'indicateurs, les rapports et la liste. Les répartitions ajoutent à chaque niveau une ligne « Zone non renseignée » (comptes nationaux seulement) : leurs totaux égalent ceux des cartes.
+- Création et modification refusées pour un échantillon sans collecte ni site demandeur, avec un message affiché par l'écran de modification ; la fiche d'un tel échantillon ne plante plus.
+- Contrainte `ck_sample_collection_or_requester` posée en `NOT VALID` (changeset Liquibase) : les lignes existantes ne sont pas vérifiées, toute insertion ou modification doit la respecter. Sa validation fera l'objet d'un changeset distinct, une fois les échantillons concernés rattachés ou supprimés.
+- L'échec d'enregistrement d'une collecte remonte avec sa cause au lieu de renvoyer null.
+
+### Tests et intégration continue
+
+- Tests d'intégration sur PostgreSQL (Testcontainers 1.21.4, schéma créé par Liquibase) : cloisonnement des superviseurs sur toutes les surfaces, compte sans affectation, actions d'administration avec jeton CSRF, mot de passe temporaire, carte Circuits, échantillons sans zone.
+- CI : `actions/checkout` et `actions/setup-java` en v5.
+
+### Mise à jour
+
+- Quatre changesets Liquibase s'appliquent au démarrage : rôles des superviseurs (`add_supervisor_roles.xml`), libellés des statuts ON_TRANSIT et RESULT_COLLECTED (`rename_sample_status_labels.xml`), contrainte `ck_sample_collection_or_requester` non validée (`add_sample_zone_check.xml`).
+- Comptes de consultation régionaux ou de district : à reprendre avec les nouveaux profils et une affectation de zone ; un compte non national sans site exploitable ne voit plus aucune donnée.
+- Avant la migration de la production : vérifications de `docs/DOSSIER_DAP_2.2.3.md` (sites sans circuit ou partagés, échantillons sans collecte, années aberrantes, région de test).
+
 ## 2026-09-24 — Qualité des dates, connexions et journal d'activité (v2.2.3)
 
 ### Correctif : utilisateurs de niveau central sans données
