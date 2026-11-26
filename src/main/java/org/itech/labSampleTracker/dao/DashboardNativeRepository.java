@@ -165,47 +165,59 @@ public class DashboardNativeRepository {
 		return jdbc.queryForList(sql, f.params());
 	}
 
-	public List<Map<String, Object>> stepDurationsDays(DashboardFilter f) {
+	/**
+	 * Durées entre étapes successives des échantillons collectés dans la
+	 * période (CTE {@code durations} : step, sample_type_id, days).
+	 */
+	private static final String DURATIONS_CTE = "WITH base AS (SELECT s.*, "
+			+ "         COALESCE(s.deliver_at_lab_date, s.deliver_at_hub_date)  AS deposit_dt, "
+			+ "         COALESCE(s.accepted_at_lab_date, s.accepted_at_hub_date) AS accepted_dt "
+			+ "  FROM sample s  LEFT JOIN sample_retrieving sr ON sr.id = s.sample_retrieving_id "
+			+ "  LEFT JOIN site st ON st.id  = sr.site_id LEFT JOIN district dis ON dis.id = st.district_id "
+			+ "  WHERE (CAST(:startDate AS DATE) IS NULL OR s.collection_date >= CAST(:startDate AS DATE)) "
+			+ "    AND (CAST(:endDate AS DATE) IS NULL OR s.collection_date < CAST(:endDate AS DATE) + 1) "
+			+ "    AND (CAST(:labId AS INT) IS NULL OR s.destination_lab_id = CAST(:labId AS INT)) "
+			+ "    AND (CAST(:siteId AS INT) IS NULL OR st.id = CAST(:siteId AS INT)) "
+			+ "    AND (CAST(:districtId AS INT) IS NULL OR st.district_id = CAST(:districtId AS INT)) "
+			+ "    AND (CAST(:regionId AS INT) IS NULL OR dis.region_id = CAST(:regionId AS INT)) "
+			+ "    AND (:accessibleSiteIdsActive = FALSE OR st.id IN (:accessibleSiteIds)) "
+			+ DashboardFilter.SAMPLE_FILTER_SQL
+			+ "), durations AS ( "
+			+ "  SELECT 'collecte→dépôt' AS step, sample_type_id, "
+			+ "         EXTRACT(EPOCH FROM (b.deposit_dt - COALESCE(b.pickup_date, b.created_at))) / 86400.0 AS days "
+			+ "  FROM base b "
+			+ "  WHERE b.deposit_dt IS NOT NULL AND COALESCE(b.pickup_date, b.created_at) IS NOT NULL AND b.deposit_dt >= COALESCE(b.pickup_date, b.created_at) "
+			+ "  UNION ALL "
+			+ "  SELECT 'dépôt→réception' AS step, sample_type_id, EXTRACT(EPOCH FROM (b.accepted_dt - b.deposit_dt)) / 86400.0 AS days "
+			+ "  FROM base b WHERE b.accepted_dt IS NOT NULL AND b.deposit_dt IS NOT NULL AND b.accepted_dt >= b.deposit_dt "
+			+ "  UNION ALL "
+			+ "  SELECT 'réception→analyse' AS step, sample_type_id, EXTRACT(EPOCH FROM (b.analysis_completed_date - b.accepted_dt)) / 86400.0 AS days "
+			+ "  FROM base b WHERE b.analysis_completed_date IS NOT NULL AND b.accepted_dt IS NOT NULL AND b.analysis_completed_date >= b.accepted_dt "
+			+ "  UNION ALL "
+			+ "  SELECT 'analyse→résultat prêt' AS step, sample_type_id, EXTRACT(EPOCH FROM (b.analysis_released_date - b.analysis_completed_date)) / 86400.0 AS days "
+			+ "  FROM base b WHERE b.analysis_released_date IS NOT NULL AND b.analysis_completed_date IS NOT NULL AND b.analysis_released_date >= b.analysis_completed_date "
+			+ "  UNION ALL "
+			+ "  SELECT 'résultat prêt→collecte résultat' AS step, sample_type_id, EXTRACT(EPOCH FROM (b.result_collection_date - b.analysis_released_date)) / 86400.0 AS days "
+			+ "  FROM base b WHERE b.result_collection_date IS NOT NULL AND b.analysis_released_date IS NOT NULL AND b.result_collection_date >= b.analysis_released_date "
+			+ "  UNION ALL "
+			+ "  SELECT 'collecte résultat→dépôt résultat' AS step, sample_type_id, EXTRACT(EPOCH FROM (b.result_delivery_date - b.result_collection_date)) / 86400.0 AS days "
+			+ "  FROM base b WHERE b.result_delivery_date IS NOT NULL AND b.result_collection_date IS NOT NULL AND b.result_delivery_date >= b.result_collection_date ";
 
-		final String sql = "WITH base AS (SELECT s.*, "
-				+ "         COALESCE(s.deliver_at_lab_date, s.deliver_at_hub_date)  AS deposit_dt, "
-				+ "         COALESCE(s.accepted_at_lab_date, s.accepted_at_hub_date) AS accepted_dt "
-				+ "  FROM sample s  LEFT JOIN sample_retrieving sr ON sr.id = s.sample_retrieving_id "
-				+ "  LEFT JOIN site st ON st.id  = sr.site_id LEFT JOIN district dis ON dis.id = st.district_id "
-				+ "  WHERE (CAST(:startDate AS DATE) IS NULL OR s.collection_date >= CAST(:startDate AS DATE)) "
-				+ "    AND (CAST(:endDate AS DATE) IS NULL OR s.collection_date < CAST(:endDate AS DATE) + 1) "
-				+ "    AND (CAST(:labId AS INT) IS NULL OR s.destination_lab_id = CAST(:labId AS INT)) "
-				+ "    AND (CAST(:siteId AS INT) IS NULL OR st.id = CAST(:siteId AS INT)) "
-				+ "    AND (CAST(:districtId AS INT) IS NULL OR st.district_id = CAST(:districtId AS INT)) "
-				+ "    AND (CAST(:regionId AS INT) IS NULL OR dis.region_id = CAST(:regionId AS INT)) "
-				+ "    AND (:accessibleSiteIdsActive = FALSE OR st.id IN (:accessibleSiteIds)) "
-				+ DashboardFilter.SAMPLE_FILTER_SQL
-				+ "), durations AS ( "
-				+ "  SELECT 'collecte→dépôt' AS step, sample_type_id, "
-				+ "         EXTRACT(EPOCH FROM (b.deposit_dt - COALESCE(b.pickup_date, b.created_at))) / 86400.0 AS days "
-				+ "  FROM base b "
-				+ "  WHERE b.deposit_dt IS NOT NULL AND COALESCE(b.pickup_date, b.created_at) IS NOT NULL AND b.deposit_dt >= COALESCE(b.pickup_date, b.created_at) "
-				+ "  UNION ALL "
-				+ "  SELECT 'dépôt→réception' AS step, sample_type_id, EXTRACT(EPOCH FROM (b.accepted_dt - b.deposit_dt)) / 86400.0 AS days "
-				+ "  FROM base b WHERE b.accepted_dt IS NOT NULL AND b.deposit_dt IS NOT NULL AND b.accepted_dt >= b.deposit_dt "
-				+ "  UNION ALL "
-				+ "  SELECT 'réception→analyse' AS step, sample_type_id, EXTRACT(EPOCH FROM (b.analysis_completed_date - b.accepted_dt)) / 86400.0 AS days "
-				+ "  FROM base b WHERE b.analysis_completed_date IS NOT NULL AND b.accepted_dt IS NOT NULL AND b.analysis_completed_date >= b.accepted_dt "
-				+ "  UNION ALL "
-				+ "  SELECT 'analyse→résultat prêt' AS step, sample_type_id, EXTRACT(EPOCH FROM (b.analysis_released_date - b.analysis_completed_date)) / 86400.0 AS days "
-				+ "  FROM base b WHERE b.analysis_released_date IS NOT NULL AND b.analysis_completed_date IS NOT NULL AND b.analysis_released_date >= b.analysis_completed_date "
-				+ "  UNION ALL "
-				+ "  SELECT 'résultat prêt→collecte résultat' AS step, sample_type_id, EXTRACT(EPOCH FROM (b.result_collection_date - b.analysis_released_date)) / 86400.0 AS days "
-				+ "  FROM base b WHERE b.result_collection_date IS NOT NULL AND b.analysis_released_date IS NOT NULL AND b.result_collection_date >= b.analysis_released_date "
-				+ "  UNION ALL "
-				+ "  SELECT 'collecte résultat→dépôt résultat' AS step, sample_type_id, EXTRACT(EPOCH FROM (b.result_delivery_date - b.result_collection_date)) / 86400.0 AS days "
-				+ "  FROM base b WHERE b.result_delivery_date IS NOT NULL AND b.result_collection_date IS NOT NULL AND b.result_delivery_date >= b.result_collection_date "
+	public List<Map<String, Object>> stepDurationsDays(DashboardFilter f) {
+		final String sql = DURATIONS_CTE
 				+ ") SELECT st.name AS sample_type, step, COUNT(*) AS n, CEIL(AVG(days)) AS avg_days, "
 				+ "       CEIL(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY days)) AS median_days, "
 				+ "       CEIL(MIN(days)) AS min_days,   CEIL(MAX(days)) AS max_days "
 				+ "FROM durations du JOIN sample_type st ON st.id = du.sample_type_id GROUP BY st.name, step "
 				+ "ORDER BY st.name, step";
+		return jdbc.queryForList(sql, f.params());
+	}
 
+	/** Durée médiane de chaque étape, tous types d'échantillon confondus (même arrondi que par type). */
+	public List<Map<String, Object>> stepMedians(DashboardFilter f) {
+		final String sql = DURATIONS_CTE
+				+ ") SELECT step, COUNT(*) AS n, CEIL(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY days)) AS median_days "
+				+ "FROM durations GROUP BY step";
 		return jdbc.queryForList(sql, f.params());
 	}
 

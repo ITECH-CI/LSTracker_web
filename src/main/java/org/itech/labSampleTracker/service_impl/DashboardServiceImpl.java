@@ -109,6 +109,11 @@ public class DashboardServiceImpl implements DashboardService {
 		}).collect(Collectors.toList());
 	}
 
+	@Override
+	public List<Map<String, Object>> stepMedians(DashboardFilter filter) {
+		return repo.stepMedians(filter);
+	}
+
 	private List<DayCountDTO> mapDayCount(List<Map<String, Object>> rows) {
 		List<DayCountDTO> out = new ArrayList<>(rows.size());
 		for (Map<String, Object> m : rows) {

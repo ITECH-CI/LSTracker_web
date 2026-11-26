@@ -38,11 +38,11 @@ public class ConsistencyCheckService {
 	public record HierarchyGap(String level, String name, String indicator, long parent, long children) {
 	}
 
-	private static final String[] HIERARCHY_INDICATORS = { "total", "in_transit", "delivered", "non_conform",
-			"failed" };
+	private static final String[] HIERARCHY_INDICATORS = { "total", "in_transit", "deposited", "delivered",
+			"non_conform", "failed" };
 	private static final Map<String, String> HIERARCHY_LABELS = Map.of("total", "Collectés", "in_transit",
-			"En transit", "delivered", "Résultats livrés", "non_conform", "Non-conformités", "failed",
-			"Échecs d'analyse");
+			"En cours d'acheminement", "deposited", "Livrés au laboratoire", "delivered", "Résultats rendus",
+			"non_conform", "Non-conformités", "failed", "Échecs d'analyse");
 
 	private final DashboardAdvancedRepository dashboard;
 	private final DashboardService series;

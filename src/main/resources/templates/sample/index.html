@@ -611,6 +611,7 @@
                       <input
                         type="text"
                         id="startDate"
+                        th:value="${selectedStartDate}"
                         class="form-control date-input"
                         placeholder="jj/mm/aaaa"
                         autocomplete="off"
@@ -619,6 +620,7 @@
                       <input
                         type="text"
                         id="endDate"
+                        th:value="${selectedEndDate}"
                         class="form-control date-input"
                         placeholder="jj/mm/aaaa"
                         autocomplete="off"
@@ -682,6 +684,7 @@
                         th:each="r : ${regions}"
                         th:value="${r.id}"
                         th:text="${r.name}"
+                        th:selected="${selectedRegion != null and r.id == selectedRegion}"
                       ></option>
                     </select>
                   </div>
@@ -700,6 +703,7 @@
                         th:each="d : ${districts}"
                         th:value="${d.id}"
                         th:text="${d.name}"
+                        th:selected="${selectedDistrict != null and d.id == selectedDistrict}"
                       ></option>
                     </select>
                   </div>
@@ -718,6 +722,7 @@
                         th:each="s : ${sites}"
                         th:value="${s.id}"
                         th:text="${s.name}"
+                        th:selected="${selectedSite != null and s.id == selectedSite}"
                       ></option>
                     </select>
                   </div>
@@ -736,6 +741,7 @@
                         th:each="l : ${labs}"
                         th:value="${l.id}"
                         th:text="${l.name}"
+                        th:selected="${selectedLab != null and l.id == selectedLab}"
                       ></option>
                     </select>
                   </div>
@@ -776,6 +782,7 @@
                         th:each="t : ${sampleTypeList}"
                         th:value="${t.id}"
                         th:text="${t.name}"
+                        th:selected="${selectedSampleType != null and t.id == selectedSampleType}"
                       ></option>
                     </select>
                   </div>

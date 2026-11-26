@@ -50,13 +50,13 @@
 						<!-- Presets -->
 						<div class="filter-group filter-presets">
 							<div class="date-presets">
-								<!-- Périodes calendaires en cours, comparées à la précédente (obs. 1.5) -->
-								<button type="button" class="btn btn-outline-secondary" data-preset="today" title="Aujourd'hui, comparé à hier">Auj.</button>
-								<button type="button" class="btn btn-outline-secondary" data-preset="week" title="Semaine en cours, comparée à la précédente">Semaine</button>
-								<button type="button" class="btn btn-outline-secondary" data-preset="month" title="Mois en cours, comparé au précédent">Mois</button>
-								<button type="button" class="btn btn-outline-secondary" data-preset="quarter" title="Trimestre en cours, comparé au précédent">Trimestre</button>
-								<button type="button" class="btn btn-outline-secondary" data-preset="semester" title="Semestre en cours, comparé au précédent">Semestre</button>
-								<button type="button" class="btn btn-outline-secondary" data-preset="year" title="Année en cours, comparée à la précédente">Année</button>
+								<!-- Périodes calendaires en cours -->
+								<button type="button" class="btn btn-outline-secondary" data-preset="today" title="Aujourd'hui">Auj.</button>
+								<button type="button" class="btn btn-outline-secondary" data-preset="week" title="Semaine en cours">Semaine</button>
+								<button type="button" class="btn btn-outline-secondary" data-preset="month" title="Mois en cours">Mois</button>
+								<button type="button" class="btn btn-outline-secondary" data-preset="quarter" title="Trimestre en cours">Trimestre</button>
+								<button type="button" class="btn btn-outline-secondary" data-preset="semester" title="Semestre en cours">Semestre</button>
+								<button type="button" class="btn btn-outline-secondary" data-preset="year" title="Année en cours">Année</button>
 							</div>
 						</div>
 
@@ -145,15 +145,11 @@
 					</div>
 				</aside>
 
-				<!-- Période analysée et période de comparaison, toujours visibles
-				     (remplies par home-dashboard.js). -->
+				<!-- Période analysée, toujours visible (remplie par home-dashboard.js). -->
 				<div class="period-banner" id="periodBanner">
 					<span class="period-main"><i class="far fa-calendar-alt"></i>
 						<span class="period-label" data-period-name>Période</span>
 						<strong data-period-range>—</strong></span>
-					<span class="period-prev"><i class="fas fa-history"></i> Comparée à
-						<strong data-period-prev>—</strong>
-						<span class="period-hint" data-period-rule></span></span>
 				</div>
 
 				<!-- ============ PARCOURS DE L'ÉCHANTILLON ============ -->
@@ -170,7 +166,7 @@
 						</div>
 						<div class="flow-live" title="Snapshot temps réel, non lié à la période">
 							<span class="live-dot"></span>
-							<strong data-kpi="in_transit">0</strong> en transit maintenant
+							<strong data-kpi="in_transit">0</strong> en cours d'acheminement maintenant
 							<span class="help-tip" data-tip="Échantillons collectés mais pas encore déposés au laboratoire, à cet instant. Ce chiffre ne dépend pas de la période choisie : il ne se compare donc pas aux étapes ci-dessous.">i</span>
 						</div>
 					</div>
@@ -178,32 +174,27 @@
 						<div class="flow-step step-1">
 							<div class="flow-label"><i class="fas fa-vials"></i> Collectés<span class="help-tip" data-tip="Échantillons dont la date de collecte (prélèvement) tombe dans la période.">i</span></div>
 							<div class="flow-value" data-kpi="total">0</div>
-							<div class="trend" data-trend="total"></div>
 						</div>
 						<div class="flow-arrow" aria-hidden="true"><i class="fas fa-chevron-right"></i></div>
 						<div class="flow-step step-2">
 							<div class="flow-label"><i class="fas fa-flask"></i> Déposés au labo<span class="help-tip" data-tip="Échantillons déposés pendant la période au laboratoire qui réalise l'analyse. En dessous : ceux déposés dans un laboratoire relais (hub), qui les transmet ensuite.">i</span></div>
 							<div class="flow-value" data-kpi="at_lab">0</div>
-							<div class="trend" data-trend="at_lab"></div>
 							<div class="flow-detail"><i class="fas fa-warehouse"></i> Labo relais : <strong data-kpi="at_hub">0</strong></div>
 						</div>
 						<div class="flow-arrow" aria-hidden="true"><i class="fas fa-chevron-right"></i></div>
 						<div class="flow-step step-3">
 							<div class="flow-label"><i class="fas fa-microscope"></i> Analysés<span class="help-tip" data-tip="Échantillons dont le résultat a été validé par le biologiste pendant la période (date de validation biologique).">i</span></div>
 							<div class="flow-value" data-kpi="analysed">0</div>
-							<div class="trend" data-trend="analysed"></div>
 						</div>
 						<div class="flow-arrow" aria-hidden="true"><i class="fas fa-chevron-right"></i></div>
 						<div class="flow-step step-4">
 							<div class="flow-label"><i class="fas fa-clipboard-check"></i> Résultats collectés<span class="help-tip" data-tip="Résultats récupérés au laboratoire par un convoyeur pendant la période.">i</span></div>
 							<div class="flow-value" data-kpi="result_collected">0</div>
-							<div class="trend" data-trend="result_collected"></div>
 						</div>
 						<div class="flow-arrow" aria-hidden="true"><i class="fas fa-chevron-right"></i></div>
 						<div class="flow-step step-5">
 							<div class="flow-label"><i class="fas fa-check-circle"></i> Résultats livrés<span class="help-tip" data-tip="Résultats remis au site de collecte pendant la période.">i</span></div>
 							<div class="flow-value" data-kpi="delivered">0</div>
-							<div class="trend" data-trend="delivered"></div>
 						</div>
 					</div>
 				</div>
@@ -219,7 +210,6 @@
 								<div class="stat-icon"><i class="fas fa-ban"></i></div>
 								<div class="stat-text">
 									<div class="stat-label">Non-conformités<span class="help-tip" data-tip="Échantillons refusés par le laboratoire à la réception (prélèvement non conforme) pendant la période.">i</span></div>
-									<div class="trend" data-trend="non_conform"></div>
 								</div>
 								<div class="stat-value" data-kpi="non_conform">0</div>
 							</div>
@@ -227,7 +217,6 @@
 								<div class="stat-icon"><i class="fas fa-exclamation-triangle"></i></div>
 								<div class="stat-text">
 									<div class="stat-label">Échecs d'analyse<span class="help-tip" data-tip="Analyses qui n'ont pas pu aboutir pendant la période (échec technique), distinctes des non-conformités.">i</span></div>
-									<div class="trend" data-trend="failed"></div>
 								</div>
 								<div class="stat-value" data-kpi="failed">0</div>
 							</div>
@@ -235,7 +224,6 @@
 								<div class="stat-icon"><i class="fas fa-stopwatch"></i></div>
 								<div class="stat-text">
 									<div class="stat-label">TAT médian<span class="help-tip" data-tip="Délai de traitement complet : de la collecte de l'échantillon à la remise du résultat au site. Médiane en jours (la moitié des échantillons est traitée plus vite), sur les échantillons collectés dans la période dont le résultat a été remis.">i</span></div>
-									<div class="trend" data-trend="tat_avg_days"></div>
 								</div>
 								<div class="stat-value"><span data-kpi="tat_avg_days">0</span><small> j</small></div>
 							</div>
@@ -347,8 +335,9 @@
 				<div class="section">
 					<div class="section-header">
 						<div>
-							<h3><i class="fas fa-sitemap"></i> <span data-drill-title>Répartition par région sanitaire</span></h3>
-							<div class="section-sub">Échantillons collectés sur la période, par zone de collecte. En transit, Livrés, Non conf. et Échecs : état actuel de ces échantillons.</div>
+							<h3><i class="fas fa-sitemap"></i> Répartition par zone géographique</h3>
+							<div class="section-sub">Niveau : <strong data-drill-level-name>régions sanitaires</strong>. Échantillons collectés sur la période, par zone de collecte ; les autres colonnes donnent l'état actuel de ces échantillons.</div>
+							<div class="drill-crumbs" data-drill-crumbs aria-label="Fil d'Ariane"></div>
 						</div>
 						<div class="d-flex align-items-center gap-3 flex-wrap">
 							<div class="btn-group btn-group-sm drill-level" role="group" aria-label="Niveau géographique">
@@ -379,14 +368,14 @@
 								<tr>
 									<th class="num sortable" style="width:70px;" data-sort="id">ID</th>
 									<th class="sortable" data-sort="name"><span data-drill-col>Région / District / Site</span></th>
-									<th class="num">Rang<span class="help-tip" data-tip="Classement par nombre d'échantillons collectés (1 = le plus actif), parmi les lignes du même niveau.">i</span></th>
-									<th class="num sortable" data-sort="total">Total</th>
-									<th class="num">Écart moy.<span class="help-tip" data-tip="Écart du nombre d'échantillons à la moyenne des lignes du même niveau : +50 % = moitié plus que la moyenne.">i</span></th>
-									<th class="num sortable" data-sort="in_transit">En transit<span class="help-tip" data-tip="Parmi les échantillons collectés sur la période : ceux encore en transit aujourd'hui.">i</span></th>
-									<th class="num sortable" data-sort="delivered">Livrés<span class="help-tip" data-tip="Parmi les échantillons collectés sur la période : ceux dont le résultat a été remis au site.">i</span></th>
-									<th class="num sortable" data-sort="non_conform">Non conf.<span class="help-tip" data-tip="Non-conformités : échantillons refusés par le laboratoire à la réception.">i</span></th>
-									<th class="num sortable" data-sort="failed">Échecs<span class="help-tip" data-tip="Échecs d'analyse : analyses qui n'ont pas pu aboutir.">i</span></th>
-									<th class="num sortable" data-sort="tat_avg_days">TAT médian<span class="help-tip" data-tip="Délai médian de la collecte à la remise du résultat au site, en jours. Vert : moins de 3 j, orange : moins de 7 j, rouge : 7 j et plus.">i</span></th>
+									<th class="num sortable" data-sort="total">Échantillons collectés<span class="help-tip" data-tip="Échantillons dont la date de collecte tombe dans la période.">i</span></th>
+									<th class="num sortable" data-sort="in_transit">Échantillons en cours d'acheminement<span class="help-tip" data-tip="Parmi les échantillons collectés sur la période : ceux encore en cours d'acheminement vers le laboratoire aujourd'hui.">i</span></th>
+									<th class="num sortable" data-sort="deposited">Échantillons livrés<span class="help-tip" data-tip="Parmi les échantillons collectés sur la période : ceux déposés au laboratoire qui réalise l'analyse.">i</span></th>
+									<th class="num sortable" data-sort="non_conform">Échantillons non conformes<span class="help-tip" data-tip="Parmi les échantillons collectés sur la période : ceux refusés par le laboratoire à la réception.">i</span></th>
+									<th class="num sortable" data-sort="failed">Échecs d'analyse<span class="help-tip" data-tip="Parmi les échantillons collectés sur la période : ceux dont l'analyse n'a pas pu aboutir.">i</span></th>
+									<th class="num sortable" data-sort="delivered">Résultats rendus<span class="help-tip" data-tip="Parmi les échantillons collectés sur la période : ceux dont le résultat a été remis au site de collecte.">i</span></th>
+									<th class="num sortable" data-sort="tat_avg_days">TAT médian<span class="help-tip" data-tip="Délai médian de la collecte à la remise du résultat au site, en jours.">i</span></th>
+									<th class="num">Détails</th>
 								</tr>
 							</thead>
 							<tbody id="drillTableBody">
@@ -428,8 +417,8 @@
 								<ol id="slowestLabs"><li class="text-muted-sm">Chargement...</li></ol>
 							</div>
 							<div class="top-card">
-								<div class="top-card-header"><i class="fas fa-trophy text-success"></i> Convoyeurs les plus actifs<span class="help-tip" data-tip="Collectes réalisées sur la période, dépôts effectués (labo relais ou labo) et délai médian d'acheminement : de la collecte au premier dépôt.">i</span></div>
-								<ol id="topConveyors"><li class="text-muted-sm">Chargement...</li></ol>
+								<div class="top-card-header"><i class="fas fa-route text-success"></i> Circuits<span class="help-tip" data-tip="Par circuit (tournée du convoyeur) : échantillons collectés et déposés sur la période, délai médian d'acheminement de la collecte au premier dépôt (labo relais ou labo), et nombre de sites desservis. Les collectes faites hors trajet sont regroupées sur la ligne « Non rattaché ».">i</span></div>
+								<ol id="topCircuits"><li class="text-muted-sm">Chargement...</li></ol>
 							</div>
 						</div>
 					</div>

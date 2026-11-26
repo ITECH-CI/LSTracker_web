@@ -63,6 +63,21 @@ class DashboardFiltersTest {
 	}
 
 	@Test
+	void circuitsLesPlusActifsPuisNonRattache() {
+		java.util.Map<String, Object> none = new java.util.HashMap<>();
+		none.put("circuit_id", null);
+		none.put("collected", 40);
+		List<Map<String, Object>> rows = List.of(none, Map.of("circuit_id", 1, "collected", 30),
+				Map.of("circuit_id", 2, "collected", 20), Map.of("circuit_id", 3, "collected", 10));
+		List<Map<String, Object>> top = DashboardController.topCircuits(rows, 2);
+		assertEquals(3, top.size());
+		assertEquals(1, top.get(0).get("circuit_id"));
+		assertEquals(2, top.get(1).get("circuit_id"));
+		assertNull(top.get(2).get("circuit_id"));
+		assertEquals(2, DashboardController.topCircuits(rows.subList(1, 4), 2).size());
+	}
+
+	@Test
 	void libellesDesTypesDeLabo() {
 		assertEquals("Laboratoire régional", LabType.label("REGION"));
 		assertEquals("Hub", LabType.label("HUB"));

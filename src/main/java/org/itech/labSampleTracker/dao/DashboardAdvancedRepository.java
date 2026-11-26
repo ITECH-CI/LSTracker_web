@@ -154,6 +154,9 @@ public class DashboardAdvancedRepository {
 				+ "  SELECT " + groupExpr + " AS gid, "
 				+ "    COUNT(*) AS total, "
 				+ "    SUM(CASE WHEN ss.status = 'ON_TRANSIT' THEN 1 ELSE 0 END) AS in_transit, "
+				// Livrés : déposés au laboratoire qui réalise l'analyse (même date
+				// que l'étape « Déposés au labo » du haut de page).
+				+ "    COUNT(s.deliver_at_lab_date) AS deposited, "
 				+ "    SUM(CASE WHEN ss.status = 'RESULT_ON_SITE' THEN 1 ELSE 0 END) AS delivered, "
 				// Non-conformités et échecs d'analyse : deux notions distinctes (cahier VI.3).
 				+ "    SUM(CASE WHEN ss.status = 'NON_CONFORM' THEN 1 ELSE 0 END) AS non_conform, "
@@ -179,7 +182,8 @@ public class DashboardAdvancedRepository {
 
 	/** Colonnes de sortie de la répartition, à partir de l'agrégat {@code a}. */
 	private static final String DISTRIBUTION_COLUMNS = "COALESCE(a.total, 0) AS total, "
-			+ "COALESCE(a.in_transit, 0) AS in_transit, COALESCE(a.delivered, 0) AS delivered, "
+			+ "COALESCE(a.in_transit, 0) AS in_transit, COALESCE(a.deposited, 0) AS deposited, "
+			+ "COALESCE(a.delivered, 0) AS delivered, "
 			+ "COALESCE(a.non_conform, 0) AS non_conform, COALESCE(a.failed, 0) AS failed, "
 			+ "CAST(COALESCE(a.tat_avg_days, 0) AS NUMERIC(10,1)) AS tat_avg_days ";
 
@@ -333,37 +337,82 @@ public class DashboardAdvancedRepository {
 	}
 
 	/**
-	 * Classement des convoyeurs (cahier VI.2) : collectes et dépôts réalisés, et
-	 * délai médian d'acheminement (collecte → premier dépôt, au labo relais ou
-	 * au labo), en jours. Taux de non-conformité à titre indicatif. Trié par
-	 * nombre de collectes.
+	 * Circuits (tournées des convoyeurs) : échantillons collectés et déposés
+	 * sur la période, délai médian d'acheminement (collecte → premier dépôt, au
+	 * labo relais ou au labo) en jours, et nombre de sites desservis (sites
+	 * actifs du circuit, dans le périmètre de l'utilisateur). Rattachement :
+	 * collecte → trajet → circuit ; une collecte sans trajet donne la ligne
+	 * {@code circuit_id} null (« Non rattaché »). Trié par collectes.
 	 */
-	public List<Map<String, Object>> topConveyors(DashboardFilter f, int limit) {
-		final String sql = "SELECT u.id AS user_id, u.first_name, u.last_name, u.login, "
-				+ "  COUNT(s.id) AS samples_handled, "
-				+ "  COUNT(COALESCE(s.deliver_at_hub_date, s.deliver_at_lab_date)) AS deposits, "
+	public List<Map<String, Object>> circuits(DashboardFilter f) {
+		final String sql = "WITH base AS ( "
+				+ "  SELECT r.circuit_id, s.collection_date, "
+				+ "         COALESCE(s.deliver_at_hub_date, s.deliver_at_lab_date) AS first_deposit "
+				+ "  FROM sample s "
+				+ "  JOIN sample_retrieving sr ON sr.id = s.sample_retrieving_id "
+				+ "  LEFT JOIN ride r ON r.id = sr.ride_id "
+				+ "  LEFT JOIN site st ON st.id = sr.site_id "
+				+ "  WHERE (CAST(:startDate AS DATE) IS NULL OR s.collection_date >= CAST(:startDate AS DATE)) "
+				+ "  AND (CAST(:endDate AS DATE) IS NULL OR s.collection_date < CAST(:endDate AS DATE) + 1) "
+				+ "  AND (:accessibleSiteIdsActive = FALSE OR st.id IN (:accessibleSiteIds)) "
+				+ "  " + RANKING_FILTER
+				+ ") "
+				+ "SELECT b.circuit_id, c.circuit_number AS circuit, "
+				+ "  COUNT(*) AS collected, COUNT(b.first_deposit) AS deposited, "
 				+ "  CAST(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY "
-				+ "    EXTRACT(EPOCH FROM (COALESCE(s.deliver_at_hub_date, s.deliver_at_lab_date) - s.collection_date)) / 86400.0 "
-				+ "  ) FILTER (WHERE COALESCE(s.deliver_at_hub_date, s.deliver_at_lab_date) >= s.collection_date) "
-				+ "  AS NUMERIC(10,1)) AS median_transport_days, "
-				+ "  SUM(CASE WHEN ss.status = 'NON_CONFORM' THEN 1 ELSE 0 END) AS non_conform, "
-				+ "  CAST(ROUND(100.0 * SUM(CASE WHEN ss.status = 'NON_CONFORM' THEN 1 ELSE 0 END) "
-				+ "    / NULLIF(COUNT(s.id), 0), 1) AS NUMERIC(5,1)) AS non_conform_rate "
-				+ "FROM sample s "
-				+ "JOIN sample_status ss ON ss.id = s.sample_status_id "
-				+ "JOIN sample_retrieving sr ON sr.id = s.sample_retrieving_id "
-				+ "JOIN app_user u ON u.id = sr.app_user_id "
-				+ "LEFT JOIN site st ON st.id = sr.site_id "
-				+ "WHERE (CAST(:startDate AS DATE) IS NULL OR s.collection_date >= CAST(:startDate AS DATE)) "
-				+ "AND (CAST(:endDate AS DATE) IS NULL OR s.collection_date < CAST(:endDate AS DATE) + 1) "
-				+ "AND (:accessibleSiteIdsActive = FALSE OR st.id IN (:accessibleSiteIds)) "
-				+ RANKING_FILTER
-				+ "GROUP BY u.id, u.first_name, u.last_name, u.login "
-				+ "ORDER BY samples_handled DESC, u.login LIMIT :rowLimit";
-		MapSqlParameterSource p = f.params()
-				.addValue("rowLimit", limit);
-		return jdbc.queryForList(sql, p);
+				+ "    EXTRACT(EPOCH FROM (b.first_deposit - b.collection_date)) / 86400.0 "
+				+ "  ) FILTER (WHERE b.first_deposit >= b.collection_date) AS NUMERIC(10,1)) AS median_transport_days, "
+				+ "  (SELECT COUNT(*) FROM circuit_site cs WHERE cs.circuit_id = b.circuit_id AND cs.is_active "
+				+ "     AND (:accessibleSiteIdsActive = FALSE OR cs.site_id IN (:accessibleSiteIds))) AS sites_served "
+				+ "FROM base b LEFT JOIN circuit c ON c.id = b.circuit_id "
+				+ "GROUP BY b.circuit_id, c.circuit_number "
+				+ "ORDER BY collected DESC, c.circuit_number";
+		return jdbc.queryForList(sql, f.params());
 	}
+
+	/**
+	 * Détail d'une zone du tableau de répartition, par type d'échantillon :
+	 * mêmes échantillons et mêmes définitions que la ligne de la zone.
+	 */
+	public List<Map<String, Object>> zoneByType(DashboardFilter f) {
+		final String sql = "SELECT COALESCE(typ.name, '?') AS sample_type, COUNT(*) AS total, "
+				+ "  SUM(CASE WHEN ss.status = 'ON_TRANSIT' THEN 1 ELSE 0 END) AS in_transit, "
+				+ "  COUNT(s.deliver_at_lab_date) AS deposited, "
+				+ "  SUM(CASE WHEN ss.status = 'NON_CONFORM' THEN 1 ELSE 0 END) AS non_conform, "
+				+ "  SUM(CASE WHEN ss.status = 'RESULT_ON_SITE' THEN 1 ELSE 0 END) AS delivered "
+				+ ZONE_FROM + ZONE_WHERE
+				+ "GROUP BY typ.name ORDER BY total DESC, typ.name";
+		return jdbc.queryForList(sql, f.params());
+	}
+
+	/** Non-conformités d'une zone par motif de rejet. */
+	public List<Map<String, Object>> zoneNonConformReasons(DashboardFilter f) {
+		final String sql = "SELECT COALESCE(srt.rejection_type, 'Motif non renseigné') AS reason, "
+				+ "  COUNT(DISTINCT s.id) AS n "
+				+ ZONE_FROM
+				+ "LEFT JOIN sample_rejection rj ON rj.sample_id = s.id "
+				+ "LEFT JOIN sample_rejection_type srt ON srt.id = rj.sample_rejection_type_id "
+				+ ZONE_WHERE
+				+ "AND ss.status = 'NON_CONFORM' "
+				+ "GROUP BY srt.rejection_type ORDER BY n DESC, reason";
+		return jdbc.queryForList(sql, f.params());
+	}
+
+	/** Échantillons d'une zone : même cohorte et mêmes filtres que la répartition. */
+	private static final String ZONE_FROM = " FROM sample s "
+			+ "JOIN sample_status ss ON ss.id = s.sample_status_id "
+			+ "LEFT JOIN sample_type typ ON typ.id = s.sample_type_id "
+			+ "JOIN sample_retrieving sr ON sr.id = s.sample_retrieving_id "
+			+ "JOIN site st ON st.id = sr.site_id "
+			+ "JOIN district d ON d.id = st.district_id ";
+
+	private static final String ZONE_WHERE = "WHERE (CAST(:startDate AS DATE) IS NULL OR s.collection_date >= CAST(:startDate AS DATE)) "
+			+ "AND (CAST(:endDate AS DATE) IS NULL OR s.collection_date < CAST(:endDate AS DATE) + 1) "
+			+ "AND (CAST(:labId AS INT) IS NULL OR s.destination_lab_id = CAST(:labId AS INT)) "
+			+ "AND (CAST(:regionId AS INT) IS NULL OR d.region_id = CAST(:regionId AS INT)) "
+			+ "AND (CAST(:districtId AS INT) IS NULL OR d.id = CAST(:districtId AS INT)) "
+			+ "AND (CAST(:siteId AS INT) IS NULL OR st.id = CAST(:siteId AS INT)) "
+			+ SCOPE_FILTER;
 
 	/** Au-delà, un trajet (relevé départ → arrivée) est considéré comme une erreur de saisie. */
 	static final int MAX_TRIP_KM = 1000;

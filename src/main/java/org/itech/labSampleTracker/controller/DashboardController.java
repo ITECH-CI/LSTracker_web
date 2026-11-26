@@ -303,9 +303,9 @@ public class DashboardController {
 	}
 
 	/**
-	 * Top performers / laggards: rejection-prone sites, slowest labs and
-	 * most active conveyors. Three separate lists in one response so the
-	 * dashboard does a single round-trip.
+	 * Indicateurs de performance : sites au taux de non-conformité le plus
+	 * élevé, laboratoires les plus lents et circuits. Trois listes en une
+	 * réponse, pour un seul aller-retour.
 	 */
 	@GetMapping(value = "/data/top-performers", produces = "application/json")
 	@ResponseBody
@@ -314,13 +314,54 @@ public class DashboardController {
 			@RequestParam(name = "min_samples", defaultValue = "5") int minSamples) {
 		Optional<DashboardFilter> scoped = scoped(q);
 		if (scoped.isEmpty()) {
-			return Map.of("rejection_sites", List.of(), "slowest_labs", List.of(), "top_conveyors", List.of());
+			return Map.of("rejection_sites", List.of(), "slowest_labs", List.of(), "circuits", List.of());
 		}
 		DashboardFilter f = scoped.get();
 		Map<String, Object> out = new LinkedHashMap<>();
 		out.put("rejection_sites", advancedRepo.topRejectionSites(f, limit, minSamples));
 		out.put("slowest_labs", advancedRepo.slowestLabs(f, limit, minSamples));
-		out.put("top_conveyors", advancedRepo.topConveyors(f, limit));
+		out.put("circuits", topCircuits(advancedRepo.circuits(f), limit));
+		return out;
+	}
+
+	/**
+	 * Les {@code limit} circuits les plus actifs, suivis de la ligne « Non
+	 * rattaché » (collectes sans trajet) quand il y en a, quel que soit son rang.
+	 */
+	static List<Map<String, Object>> topCircuits(List<Map<String, Object>> rows, int limit) {
+		List<Map<String, Object>> out = new ArrayList<>();
+		Map<String, Object> unattached = null;
+		for (Map<String, Object> r : rows) {
+			if (r.get("circuit_id") == null) {
+				unattached = r;
+			} else if (out.size() < limit) {
+				out.add(r);
+			}
+		}
+		if (unattached != null) {
+			out.add(unattached);
+		}
+		return out;
+	}
+
+	/**
+	 * Détail d'une zone du tableau de répartition (ligne dépliable) : la zone
+	 * est passée comme filtre (region, district ou site), avec les autres
+	 * filtres de l'écran. Répartition par type d'échantillon, durée médiane de
+	 * chaque étape et non-conformités par motif.
+	 */
+	@GetMapping(value = "/data/zone-details", produces = "application/json")
+	@ResponseBody
+	public Map<String, Object> zoneDetails(DashboardQuery q) {
+		Optional<DashboardFilter> scoped = scoped(q);
+		if (scoped.isEmpty()) {
+			return Map.of("by_type", List.of(), "durations", List.of(), "non_conform_reasons", List.of());
+		}
+		DashboardFilter f = scoped.get();
+		Map<String, Object> out = new LinkedHashMap<>();
+		out.put("by_type", advancedRepo.zoneByType(f));
+		out.put("durations", service.stepMedians(f));
+		out.put("non_conform_reasons", advancedRepo.zoneNonConformReasons(f));
 		return out;
 	}
 }

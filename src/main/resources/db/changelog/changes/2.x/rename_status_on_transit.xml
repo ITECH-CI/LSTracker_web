@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+	xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.1.xsd">
+
+	<!--
+		Libellé du statut ON_TRANSIT : « EN TRANSIT » devient « EN COURS
+		D'ACHEMINEMENT », comme sur le tableau de bord. Le libellé s'affiche
+		dans la liste des échantillons, ses filtres et son export CSV.
+		Seul le libellé d'origine est remplacé : un libellé déjà modifié
+		depuis l'administration des statuts est conservé.
+	-->
+	<changeSet id="rename-status-on-transit" author="lstracker">
+		<preConditions onFail="MARK_RAN" onFailMessage="sample_status table missing">
+			<tableExists tableName="sample_status" schemaName="sample_tracker"/>
+		</preConditions>
+		<update schemaName="sample_tracker" tableName="sample_status">
+			<column name="description" value="EN COURS D'ACHEMINEMENT"/>
+			<where>status = 'ON_TRANSIT' AND description = 'EN TRANSIT'</where>
+		</update>
+		<rollback>
+			<update schemaName="sample_tracker" tableName="sample_status">
+				<column name="description" value="EN TRANSIT"/>
+				<where>status = 'ON_TRANSIT' AND description = 'EN COURS D''ACHEMINEMENT'</where>
+			</update>
+		</rollback>
+	</changeSet>
+</databaseChangeLog>

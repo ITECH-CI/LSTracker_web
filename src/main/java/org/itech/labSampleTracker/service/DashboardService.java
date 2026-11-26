@@ -21,4 +21,7 @@ public interface DashboardService {
 
 	public List<StepDurationDTO> stepDurations(DashboardFilter filter);
 
+	/** Durée médiane de chaque étape, tous types confondus : step, n, median_days. */
+	public List<Map<String, Object>> stepMedians(DashboardFilter filter);
+
 }

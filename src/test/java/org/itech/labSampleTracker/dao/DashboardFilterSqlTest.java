@@ -78,10 +78,12 @@ class DashboardFilterSqlTest {
 		repo.statsBySite(F);
 		repo.topRejectionSites(F, 5, 5);
 		repo.slowestLabs(F, 5, 5);
-		repo.topConveyors(F, 5);
+		repo.circuits(F);
 		repo.coverage(F);
 		repo.typeBreakdown(F);
-		assertAllFiltered(jdbc, 10);
+		repo.zoneByType(F);
+		repo.zoneNonConformReasons(F);
+		assertAllFiltered(jdbc, 12);
 	}
 
 	@Test
@@ -94,7 +96,8 @@ class DashboardFilterSqlTest {
 		repo.tsAnalysed(F);
 		repo.tsDelivered(F);
 		repo.stepDurationsDays(F);
-		assertAllFiltered(jdbc, 6);
+		repo.stepMedians(F);
+		assertAllFiltered(jdbc, 7);
 	}
 
 	@Test
