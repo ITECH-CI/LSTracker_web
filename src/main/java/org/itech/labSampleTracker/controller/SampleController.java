@@ -15,6 +15,7 @@ import org.itech.labSampleTracker.entities.SampleRejection;
 import org.itech.labSampleTracker.entities.SampleStatus;
 import org.itech.labSampleTracker.enums.ESampleStatus;
 import org.itech.labSampleTracker.exception.ResourceNotFoundException;
+import org.springframework.security.access.AccessDeniedException;
 import org.itech.labSampleTracker.helper.ExportUtils;
 import org.itech.labSampleTracker.helper.SampleDateValidator;
 import org.itech.labSampleTracker.security.ActivityLogService;
@@ -305,13 +306,15 @@ public class SampleController {
 
 	@GetMapping(value = "/update/{id}")
 	public String updateSample(@PathVariable("id") Integer id, Model model) {
+		// Hors périmètre ou inconnu : refus avant de construire le formulaire
+		// (même réponse dans les deux cas, pour ne rien révéler de l'échantillon).
+		Sample found = sampleService.getOne(id);
+		if (ObjectUtils.isEmpty(found) || !canAccess(found)) {
+			throw new AccessDeniedException("Échantillon hors de votre périmètre");
+		}
 		SampleUpdateDTO sampleToUpdate = new SampleUpdateDTO();
-		Sample sample = new Sample();
+		Sample sample = found;
 		try {
-			sample = sampleService.getOne(id);
-			if (ObjectUtils.isEmpty(sample) || !canAccess(sample)) {
-				throw new ResourceNotFoundException("Impossible de retrouver les données de cet échantillon ");
-			}
 
 			BeanUtils.copyProperties(sample, sampleToUpdate);
 			SampleRejection rejection = sampleRejectionService.getOneBySampleId(id);
