@@ -287,7 +287,11 @@
 .heatmap-legend .scale { width: 140px; height: 8px; border-radius: 4px; background: linear-gradient(90deg, #fff1e6, #c2410c); }
 
 .chart-toggle .btn { font-size: .72rem; padding: .15rem .55rem; }
-#drillTable th.sortable { cursor: pointer; user-select: none; white-space: nowrap; }
+#drillTable th.sortable { cursor: pointer; user-select: none; }
+/* En-têtes sur deux lignes plutôt qu'abrégés : le tableau tient sans
+   défilement horizontal sur un écran de 1 366 px. */
+#drillTable thead th { white-space: normal; vertical-align: bottom; line-height: 1.25; }
+#drillTable thead th .th-label { display: inline-block; max-width: 8.5rem; }
 #drillTable th.sortable:hover { color: #4f46e5; }
 #drillTable th .sort-arrow { margin-left: .3rem; font-size: .65rem; color: #cbd5e1; }
 #drillTable th.sorted .sort-arrow { color: #4f46e5; }
@@ -467,8 +471,10 @@
 	border-radius: 4px;
 }
 .drill-table .expander:hover { color: #1f2937; background: #f3f4f6; }
-.drill-table .expander.placeholder { cursor: default; }
-.drill-table .expander.placeholder:hover { background: none; color: #6b7280; }
+/* Ligne sans dépliage : repère neutre. Pas de classe « placeholder », qui
+   est celle des squelettes de chargement de Bootstrap (fond gris). */
+.drill-table .expander.expander-none { cursor: default; }
+.drill-table .expander.expander-none:hover { background: none; color: #6b7280; }
 .drill-table .num { text-align: right; font-variant-numeric: tabular-nums; }
 
 /* Fil d'Ariane du tableau de répartition. */
@@ -478,10 +484,26 @@
 
 /* Ligne dépliable « Détails » d'une zone. */
 .drill-table .btn-details { font-size: .7rem; padding: .1rem .45rem; white-space: nowrap; }
-.drill-table tr.drill-details > td { background: #f8fafc; padding: .75rem 1rem; }
-.zone-details { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr)); gap: 1rem; }
+.drill-table tr.drill-details > td { background: #f8fafc; padding: 0; }
+/* Le détail reste calé sur la partie visible du tableau, quel que soit son
+   défilement horizontal (--drill-visible-width : largeur visible, tenue à
+   jour par home-dashboard.js). */
+.zone-details-wrap {
+	position: sticky; left: 0; box-sizing: border-box;
+	width: var(--drill-visible-width, 100%); padding: .75rem 1rem;
+}
+/* Trois blocs côte à côte sur grand écran, empilés sur écran étroit ; chaque
+   bloc a une largeur minimale et défile seul si son contenu déborde. */
+.zone-details { display: grid; grid-template-columns: minmax(22rem, 2fr) minmax(15rem, 1fr) minmax(15rem, 1fr); gap: 1rem; }
+@media (max-width: 991.98px) { .zone-details { grid-template-columns: minmax(0, 1fr); } }
+.zone-details .zone-block { min-width: 0; overflow-x: auto; }
 .zone-details h4 { font-size: .74rem; font-weight: 600; color: #374151; margin: 0 0 .35rem; }
 .zone-details table { width: 100%; font-size: .76rem; }
+.zone-details th { white-space: normal; vertical-align: bottom; }
+.zone-details td.num { white-space: nowrap; }
+/* Tableau par type : cinq colonnes, défile dans son bloc plutôt que de s'écraser. */
+.zone-details .zone-block-types table { min-width: 20rem; }
+.zone-details .zone-block-types td:first-child { white-space: nowrap; }
 .zone-details td, .zone-details th { padding: .15rem .3rem; border-bottom: 1px solid #eef1f6; }
 .zone-details th { font-weight: 600; color: #6b7280; font-size: .7rem; }
 .zone-details .num { text-align: right; font-variant-numeric: tabular-nums; }
@@ -547,7 +569,7 @@
 .top-card .rank-bar span { display: block; height: 100%; border-radius: 2px; background: var(--rank-color); }
 #topRejectionSites { --rank-color: #dc2626; }
 #slowestLabs       { --rank-color: #ea580c; }
-#topConveyors      { --rank-color: #5048e0; }
+#topCircuits       { --rank-color: #5048e0; }
 
 .text-muted-sm { font-size: .75rem; color: #9ca3af; }
 .empty-state {

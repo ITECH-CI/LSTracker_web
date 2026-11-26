@@ -809,7 +809,7 @@
 		// Ligne « Zone non renseignée » : pas de zone à déplier ni à détailler.
 		const unknown = id == null;
 		const expander = (level === 'site' || flat || unknown)
-			? '<span class="expander placeholder">·</span>'
+			? '<span class="expander expander-none">·</span>'
 			: '<span class="expander" data-toggle="' + level + '" data-id="' + id + '" onclick="toggleDrill(this)">▶</span>';
 		const indentCls = indent === 1 ? 'indent-1' : (indent === 2 ? 'indent-2' : '');
 		return '<tr class="' + cls + '" data-row-id="' + level + '-' + id + '">'
@@ -931,6 +931,17 @@
 		});
 	}
 
+	// Largeur visible du tableau de répartition, pour caler la ligne de détail
+	// sur la partie affichée quand le tableau défile horizontalement.
+	(function trackDrillWidth() {
+		const scroller = document.querySelector('.drill-scroll');
+		if (!scroller) return;
+		const sync = () => scroller.style.setProperty('--drill-visible-width', scroller.clientWidth + 'px');
+		sync();
+		if (window.ResizeObserver) new ResizeObserver(sync).observe(scroller);
+		else $(window).on('resize', sync);
+	})();
+
 	// --- Ligne dépliable « Détails » d'une zone ---
 	// La zone est passée comme filtre, avec les autres filtres de l'écran.
 	$(document).on('click', '#drillTable .btn-details', function() {
@@ -967,7 +978,7 @@
 			+ '<td class="num">' + formatNumber(r.deposited) + '</td>'
 			+ '<td class="num">' + formatNumber(r.non_conform) + '</td>'
 			+ '<td class="num">' + formatNumber(r.delivered) + '</td></tr>').join('');
-		const types = '<div><h4>Par type d\'échantillon</h4>' + (byType.length
+		const types = '<div class="zone-block zone-block-types"><h4>Par type d\'échantillon</h4>' + (byType.length
 			? '<table><thead><tr><th>Type</th><th class="num">Collectés</th><th class="num">Déposés au laboratoire</th>'
 				+ '<th class="num">Non conformes</th><th class="num">Résultats rendus aux sites</th></tr></thead><tbody>'
 				+ typeRows + '</tbody></table>'
@@ -978,17 +989,17 @@
 		const stepRows = STEP_ORDER.map(st => '<tr><td>' + escapeHtml((STEP_DEFS[st] || {}).label || st) + '</td>'
 			+ '<td class="num">' + (medians[st] == null ? '<span class="text-muted-sm">-</span>' : formatNumber(medians[st]) + ' j')
 			+ '</td></tr>').join('');
-		const durations = '<div><h4>Durée médiane par étape</h4><table><tbody>' + stepRows + '</tbody></table></div>';
+		const durations = '<div class="zone-block"><h4>Durée médiane par étape</h4><table><tbody>' + stepRows + '</tbody></table></div>';
 
 		const reasons = d.non_conform_reasons || [];
-		const nc = '<div><h4>Non-conformités par motif</h4>' + (reasons.length
+		const nc = '<div class="zone-block"><h4>Non-conformités par motif</h4>' + (reasons.length
 			? '<table><tbody>' + reasons.map(r => '<tr><td>' + escapeHtml(r.reason) + '</td><td class="num">'
 				+ formatNumber(r.n) + '</td></tr>').join('') + '</tbody></table>'
 			: '<span class="text-muted-sm">Aucune non-conformité.</span>') + '</div>';
 
 		const link = '<div class="zone-link"><a href="' + escapeHtml(sampleListUrl(params)) + '">'
 			+ '<i class="fas fa-list"></i> Voir la liste des échantillons de cette zone</a></div>';
-		return '<div class="zone-details">' + types + durations + nc + link + '</div>';
+		return '<div class="zone-details-wrap"><div class="zone-details">' + types + durations + nc + link + '</div></div>';
 	}
 
 	// Liste des échantillons avec les mêmes filtres (période de collecte, zone,
