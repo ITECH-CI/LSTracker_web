@@ -25,18 +25,14 @@ public class SampleRetrievingServiceImpl implements SampleRetrievingService {
 @Autowired
 private SampleRetrievingRepository sampleretrievingRepo;
 
+ /**
+  * Enregistre une collecte. Une erreur (site absent, convoyeur absent…)
+  * remonte à l'appelant : sans collecte, l'échantillon qui en dépend ne doit
+  * pas être enregistré.
+  */
  @Override
     public SampleRetrieving create(SampleRetrieving d) {
-
-       SampleRetrieving entity;
-
-        try {
-            entity = sampleretrievingRepo.save(d);
-
-        } catch (Exception ex) {
-            return null;
-        }
-        return entity;
+        return sampleretrievingRepo.save(d);
     }
 
     
