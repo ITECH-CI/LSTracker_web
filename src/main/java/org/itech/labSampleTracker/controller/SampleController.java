@@ -60,7 +60,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
-import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 
 @Controller
@@ -115,22 +114,6 @@ public class SampleController {
 		SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm");
 		dateFormat.setLenient(false);
 		binder.registerCustomEditor(Date.class, new CustomDateEditor(dateFormat, true));
-	}
-
-	// Saisie web des échantillons : administrateurs seulement, comme le bouton
-	// « Modifier » de la liste (canEditSamples). La saisie de terrain passe par
-	// le mobile (SampleWrite).
-	@PostMapping(value = "")
-	@AdminWrite
-	public String createSample(@Valid Sample model) {
-
-		SampleDateValidator.validate(model);
-		Sample data = sampleService.create(model);
-		if (data != null) {
-			return "";
-		} else {
-			return "";
-		}
 	}
 
 	@GetMapping(value = "")

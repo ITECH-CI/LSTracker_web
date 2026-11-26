@@ -362,6 +362,19 @@ class ZoneSupervisorAccessIntegrationTest {
 	}
 
 	@Test
+	void laSaisieWebDUnEchantillonNExistePlus() throws Exception {
+		// POST /sample enregistrait un échantillon à partir des seuls paramètres de
+		// la requête, sans collecte : supprimé. Même un administrateur, avec son
+		// jeton CSRF, reçoit 404 ou 405, et rien n'est enregistré.
+		long before = jdbc.queryForObject("SELECT COUNT(*) FROM sample", Map.of(), Long.class);
+		int code = mvc.perform(post("/sample").with(as("admin")).with(csrf())
+				.param("patientIdentifier", "PAT-POST-SAMPLE").param("sampleTypeId", "1")
+				.param("sampleStatusId", "1")).andReturn().getResponse().getStatus();
+		assertTrue(code == 404 || code == 405, "statut " + code);
+		assertEquals(before, jdbc.queryForObject("SELECT COUNT(*) FROM sample", Map.of(), Long.class));
+	}
+
+	@Test
 	void uneFicheDeModificationHorsPerimetreEstRefusee() throws Exception {
 		mvc.perform(get("/sample/update/" + sampleB).with(as("supregion"))).andExpect(status().isForbidden());
 		mvc.perform(get("/sample/update/999999").with(as("supregion"))).andExpect(status().isForbidden());

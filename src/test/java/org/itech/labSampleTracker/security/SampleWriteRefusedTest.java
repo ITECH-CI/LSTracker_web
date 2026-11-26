@@ -35,7 +35,8 @@ class SampleWriteRefusedTest {
 
 	@Test
 	void tousLesPointsDeSaisieSontTrouves() {
-		assertEquals(3, webWrites().size(), "web : création, modification, suppression");
+		// Pas de création web : la saisie des échantillons passe par le mobile.
+		assertEquals(2, webWrites().size(), "web : modification, suppression");
 		assertEquals(14, apiWrites().size(), "API : synchronisation mobile et API historique");
 	}
 
