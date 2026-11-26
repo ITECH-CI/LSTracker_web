@@ -56,6 +56,7 @@ class SampleWithoutCollectionTest {
 	private static DashboardServiceImpl series;
 	private static ConsistencyCheckService checks;
 	private static int regionA, regionB, siteA, siteB;
+	private static int circuitA, circuitAB, circuitRide, circuitInactive;
 
 	@BeforeAll
 	static void schemaAndData() throws Exception {
@@ -96,7 +97,43 @@ class SampleWithoutCollectionTest {
 		insertSample("P-SANS-ZONE", "'2025-09-26'", "NULL", "NULL");
 		insertSample("P-DEMANDEUR", "'2025-09-27'", "NULL", String.valueOf(siteB));
 		insertSample("P-HORS-PERIODE", "'2025-10-02'", "NULL", "NULL");
+		insertSample("N-SANS-ZONE", "'2025-11-08'", "NULL", "NULL");
 		jdbc.update("ALTER TABLE sample ADD CONSTRAINT " + CHECK + " " + check, Map.of());
+
+		// Circuits (novembre 2025) : A ne dessert que le site A ; AB dessert A et
+		// B ; le circuit du trajet ne dessert aucun site ; B est membre inactif
+		// du dernier.
+		circuitA = insertCircuit("CIRC-A", siteA, true);
+		circuitAB = insertCircuit("CIRC-AB", siteA, true);
+		jdbc.update("INSERT INTO circuit_site (circuit_id, site_id, is_active) VALUES (" + circuitAB + ", " + siteB
+				+ ", true)", Map.of());
+		circuitRide = insertCircuit("CIRC-TRAJET", null, true);
+		circuitInactive = insertCircuit("CIRC-INACTIF", siteB, false);
+		int siteC = insertSite("Site C", districtA);
+		int ride = jdbc.queryForObject("INSERT INTO ride (app_user_id, circuit_id, start_date) VALUES (" + user
+				+ ", " + circuitRide + ", '2025-11-06') RETURNING id", Map.of(), Integer.class);
+		insertSample("N-SITE-PARTAGE", "'2025-11-05'", String.valueOf(insertRetrieving(user, siteA, "NULL")), "NULL");
+		insertSample("N-TRAJET", "'2025-11-06'", String.valueOf(insertRetrieving(user, siteA, String.valueOf(ride))),
+				"NULL");
+		insertSample("N-DEMANDEUR", "'2025-11-07'", "NULL", String.valueOf(siteB));
+		insertSample("N-SITE-HORS-CIRCUIT", "'2025-11-09'", String.valueOf(insertRetrieving(user, siteC, "NULL")),
+				"NULL");
+	}
+
+	private static int insertCircuit(String number, Integer site, boolean active) {
+		int id = jdbc.queryForObject("INSERT INTO circuit (circuit_number) VALUES ('" + number + "') RETURNING id",
+				Map.of(), Integer.class);
+		if (site != null) {
+			jdbc.update("INSERT INTO circuit_site (circuit_id, site_id, is_active) VALUES (" + id + ", " + site + ", "
+					+ active + ")", Map.of());
+		}
+		return id;
+	}
+
+	private static int insertRetrieving(int user, int site, String ride) {
+		return jdbc.queryForObject("INSERT INTO sample_retrieving (app_user_id, site_id, entered_date, "
+				+ "sample_retrieve_date, ride_id) VALUES (" + user + ", " + site + ", now(), now(), " + ride
+				+ ") RETURNING id", Map.of(), Integer.class);
 	}
 
 	private static final String CHECK = "ck_sample_collection_or_requester";
@@ -195,6 +232,30 @@ class SampleWithoutCollectionTest {
 	void laListeDesEchantillonsLesMontreAussi() throws Exception {
 		assertEquals(3, sampleListCount(null));
 		assertEquals(1, sampleListCount(regionB));
+	}
+
+	@Test
+	void circuitsDuTrajetSinonDuSiteNonRattacheSinon() {
+		DashboardFilter nov = new DashboardFilter(LocalDate.of(2025, 11, 1), LocalDate.of(2025, 11, 30), null, null,
+				null, null, null, null, null);
+		Map<Object, Map<String, Object>> byCircuit = new java.util.HashMap<>();
+		for (Map<String, Object> r : dashboard.circuits(nov)) {
+			byCircuit.put(r.get("circuit_id"), r);
+		}
+		// Site A partagé par deux circuits : compté dans chacun. Site B : demandeur.
+		assertEquals(1, num(byCircuit.get(circuitA).get("collected")));
+		assertEquals(2, num(byCircuit.get(circuitAB).get("collected")));
+		// Trajet : son circuit seulement, même si le site est dans d'autres circuits.
+		assertEquals(1, num(byCircuit.get(circuitRide).get("collected")));
+		// Appartenance inactive : non comptée.
+		assertTrue(!byCircuit.containsKey(circuitInactive));
+		// Sans zone et site hors circuit.
+		assertEquals(2, num(byCircuit.get(null).get("collected")));
+		assertEquals(1, num(byCircuit.get(circuitA).get("sites_served")));
+		assertEquals(2, num(byCircuit.get(circuitAB).get("sites_served")));
+		// Les lignes ne s'additionnent pas : 6 rattachements pour 5 échantillons.
+		assertEquals(5, num(dashboard.funnel(nov).get("total")));
+		assertEquals(6, byCircuit.values().stream().mapToInt(r -> num(r.get("collected"))).sum());
 	}
 
 	@Test

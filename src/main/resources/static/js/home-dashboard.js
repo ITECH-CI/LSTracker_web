@@ -1028,7 +1028,7 @@
 					sub: formatNumber(r.deposited) + ' déposés'
 						+ (r.median_transport_days != null ? ' · acheminement ' + formatDuration(r.median_transport_days) : '')
 						+ (attached ? ' · ' + formatNumber(sites) + (sites > 1 ? ' sites desservis' : ' site desservi')
-							: ' · collectes hors trajet'),
+							: ' · site hors circuit'),
 					metric: formatNumber(r.collected) + ' coll.',
 					value: r.collected,
 					unranked: !attached

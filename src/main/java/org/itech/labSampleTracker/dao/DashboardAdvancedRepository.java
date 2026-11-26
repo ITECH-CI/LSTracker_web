@@ -361,13 +361,18 @@ public class DashboardAdvancedRepository {
 	 * Circuits (tournées des convoyeurs) : échantillons collectés et déposés
 	 * sur la période, délai médian d'acheminement (collecte → premier dépôt, au
 	 * labo relais ou au labo) en jours, et nombre de sites desservis (sites
-	 * actifs du circuit, dans le périmètre de l'utilisateur). Rattachement :
-	 * collecte → trajet → circuit ; une collecte sans trajet donne la ligne
-	 * {@code circuit_id} null (« Non rattaché »). Trié par collectes.
+	 * actifs du circuit, dans le périmètre de l'utilisateur). Trié par collectes.
+	 *
+	 * <p>Rattachement : le circuit du trajet de la collecte quand il existe ;
+	 * sinon les circuits dont le site de l'échantillon (collecte, à défaut site
+	 * demandeur) est membre actif. Un échantillon d'un site partagé compte dans
+	 * chacun de ses circuits : les lignes ne s'additionnent pas. La ligne
+	 * {@code circuit_id} null (« Non rattaché ») garde les échantillons sans
+	 * trajet dont le site n'est dans aucun circuit, ou sans site.
 	 */
 	public List<Map<String, Object>> circuits(DashboardFilter f) {
 		final String sql = "WITH base AS ( "
-				+ "  SELECT r.circuit_id, s.collection_date, "
+				+ "  SELECT r.circuit_id AS ride_circuit_id, st.id AS site_id, s.collection_date, "
 				+ "         COALESCE(s.deliver_at_hub_date, s.deliver_at_lab_date) AS first_deposit "
 				+ "  FROM sample s "
 				+ "  LEFT JOIN sample_retrieving sr ON sr.id = s.sample_retrieving_id "
@@ -377,16 +382,30 @@ public class DashboardAdvancedRepository {
 				+ "  AND (CAST(:endDate AS DATE) IS NULL OR s.collection_date < CAST(:endDate AS DATE) + 1) "
 				+ "  AND (:accessibleSiteIdsActive = FALSE OR st.id IN (:accessibleSiteIds)) "
 				+ "  " + RANKING_FILTER
+				+ "), attached AS ( "
+				// 1) Circuit du trajet.
+				+ "  SELECT b.ride_circuit_id AS circuit_id, b.collection_date, b.first_deposit "
+				+ "  FROM base b WHERE b.ride_circuit_id IS NOT NULL "
+				+ "  UNION ALL "
+				// 2) Sans trajet : chaque circuit dont le site est membre actif.
+				+ "  SELECT cs.circuit_id, b.collection_date, b.first_deposit "
+				+ "  FROM base b JOIN circuit_site cs ON cs.site_id = b.site_id AND cs.is_active "
+				+ "  WHERE b.ride_circuit_id IS NULL "
+				+ "  UNION ALL "
+				// 3) Sans trajet ni circuit pour le site : « Non rattaché ».
+				+ "  SELECT CAST(NULL AS INT), b.collection_date, b.first_deposit "
+				+ "  FROM base b WHERE b.ride_circuit_id IS NULL AND NOT EXISTS ( "
+				+ "    SELECT 1 FROM circuit_site cs WHERE cs.site_id = b.site_id AND cs.is_active) "
 				+ ") "
-				+ "SELECT b.circuit_id, c.circuit_number AS circuit, "
-				+ "  COUNT(*) AS collected, COUNT(b.first_deposit) AS deposited, "
+				+ "SELECT a.circuit_id, c.circuit_number AS circuit, "
+				+ "  COUNT(*) AS collected, COUNT(a.first_deposit) AS deposited, "
 				+ "  CAST(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY "
-				+ "    EXTRACT(EPOCH FROM (b.first_deposit - b.collection_date)) / 86400.0 "
-				+ "  ) FILTER (WHERE b.first_deposit >= b.collection_date) AS NUMERIC(10,1)) AS median_transport_days, "
-				+ "  (SELECT COUNT(*) FROM circuit_site cs WHERE cs.circuit_id = b.circuit_id AND cs.is_active "
+				+ "    EXTRACT(EPOCH FROM (a.first_deposit - a.collection_date)) / 86400.0 "
+				+ "  ) FILTER (WHERE a.first_deposit >= a.collection_date) AS NUMERIC(10,1)) AS median_transport_days, "
+				+ "  (SELECT COUNT(*) FROM circuit_site cs WHERE cs.circuit_id = a.circuit_id AND cs.is_active "
 				+ "     AND (:accessibleSiteIdsActive = FALSE OR cs.site_id IN (:accessibleSiteIds))) AS sites_served "
-				+ "FROM base b LEFT JOIN circuit c ON c.id = b.circuit_id "
-				+ "GROUP BY b.circuit_id, c.circuit_number "
+				+ "FROM attached a LEFT JOIN circuit c ON c.id = a.circuit_id "
+				+ "GROUP BY a.circuit_id, c.circuit_number "
 				+ "ORDER BY collected DESC, c.circuit_number";
 		return jdbc.queryForList(sql, f.params());
 	}
