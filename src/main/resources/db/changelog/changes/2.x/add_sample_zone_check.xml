@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+	xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.1.xsd">
+
+	<!--
+		Un échantillon a une zone : sa collecte (sample_retrieving_id) ou, à
+		défaut, son site demandeur (requester_site_id). Même règle que
+		SampleServiceImpl.create.
+
+		Posée en NOT VALID : les lignes existantes ne sont pas vérifiées, mais
+		toute insertion ou modification d'un échantillon doit la respecter. Un
+		échantillon existant sans zone ne peut donc plus être modifié tant que
+		sa collecte ou son site demandeur n'est pas renseigné. La validation
+		des lignes existantes (VALIDATE CONSTRAINT) fera l'objet d'un changeset
+		distinct, une fois ces échantillons rattachés ou supprimés.
+	-->
+	<changeSet id="add-sample-collection-or-requester-check" author="lstracker">
+		<preConditions onFail="MARK_RAN" onFailMessage="contrainte déjà présente">
+			<tableExists tableName="sample" schemaName="sample_tracker"/>
+			<sqlCheck expectedResult="0">
+				SELECT COUNT(*) FROM pg_constraint WHERE conname = 'ck_sample_collection_or_requester'
+			</sqlCheck>
+		</preConditions>
+		<sql dbms="postgresql">
+			ALTER TABLE sample_tracker.sample
+				ADD CONSTRAINT ck_sample_collection_or_requester
+				CHECK (sample_retrieving_id IS NOT NULL OR requester_site_id IS NOT NULL) NOT VALID;
+		</sql>
+		<rollback>
+			<sql dbms="postgresql">
+				ALTER TABLE sample_tracker.sample DROP CONSTRAINT IF EXISTS ck_sample_collection_or_requester;
+			</sql>
+		</rollback>
+	</changeSet>
+</databaseChangeLog>

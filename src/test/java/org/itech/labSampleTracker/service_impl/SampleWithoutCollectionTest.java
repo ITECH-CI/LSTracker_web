@@ -37,6 +37,10 @@ import liquibase.resource.ClassLoaderResourceAccessor;
  * type, rapports. À défaut de collecte, le site demandeur donne la zone. Avec
  * un filtre de zone ou un périmètre restreint, l'échantillon sans zone est
  * exclu. Base PostgreSQL réelle, schéma créé par le changelog Liquibase.
+ *
+ * <p>La contrainte ck_sample_collection_or_requester (NOT VALID) interdit
+ * désormais d'en créer : les échantillons sans zone du jeu de test sont
+ * insérés comme des lignes antérieures à la contrainte.
  */
 @Testcontainers(disabledWithoutDocker = true)
 class SampleWithoutCollectionTest {
@@ -83,11 +87,19 @@ class SampleWithoutCollectionTest {
 				+ "sample_retrieve_date) VALUES (" + user + ", " + siteA + ", now(), '2025-09-25') RETURNING id",
 				Map.of(), Integer.class);
 
+		// Échantillons sans zone antérieurs à la contrainte : on la retire le
+		// temps de les insérer, puis on la repose telle que Liquibase l'a définie.
+		String check = jdbc.queryForObject("SELECT pg_get_constraintdef(oid) FROM pg_constraint "
+				+ "WHERE conname = '" + CHECK + "'", Map.of(), String.class);
+		jdbc.update("ALTER TABLE sample DROP CONSTRAINT " + CHECK, Map.of());
 		insertSample("P-COLLECTE", "'2025-09-25'", String.valueOf(retrieving), "NULL");
 		insertSample("P-SANS-ZONE", "'2025-09-26'", "NULL", "NULL");
 		insertSample("P-DEMANDEUR", "'2025-09-27'", "NULL", String.valueOf(siteB));
 		insertSample("P-HORS-PERIODE", "'2025-10-02'", "NULL", "NULL");
+		jdbc.update("ALTER TABLE sample ADD CONSTRAINT " + CHECK + " " + check, Map.of());
 	}
+
+	private static final String CHECK = "ck_sample_collection_or_requester";
 
 	private static int insertSite(String name, int district) {
 		return jdbc.queryForObject("INSERT INTO site (name, dhis_code, district_id) VALUES ('" + name + "', '"
@@ -183,6 +195,29 @@ class SampleWithoutCollectionTest {
 	void laListeDesEchantillonsLesMontreAussi() throws Exception {
 		assertEquals(3, sampleListCount(null));
 		assertEquals(1, sampleListCount(regionB));
+	}
+
+	@Test
+	void laContrainteEstPoseeSansValiderLesLignesExistantes() {
+		assertEquals(Boolean.FALSE, jdbc.queryForObject(
+				"SELECT convalidated FROM pg_constraint WHERE conname = '" + CHECK + "'", Map.of(), Boolean.class));
+	}
+
+	@Test
+	void unNouvelEchantillonSansZoneEstRefuseParLaBase() {
+		org.springframework.dao.DataIntegrityViolationException ex = org.junit.jupiter.api.Assertions.assertThrows(
+				org.springframework.dao.DataIntegrityViolationException.class,
+				() -> insertSample("P-NOUVEAU-SANS-ZONE", "'2025-09-28'", "NULL", "NULL"));
+		assertTrue(ex.getMessage().contains(CHECK), ex.getMessage());
+	}
+
+	@Test
+	void unEchantillonExistantSansZoneNeSeModifieQuEnLuiDonnantUneZone() {
+		String status = "UPDATE sample SET sample_status_id = (SELECT id FROM sample_status WHERE status = 'RESULT_ON_SITE') ";
+		org.junit.jupiter.api.Assertions.assertThrows(org.springframework.dao.DataIntegrityViolationException.class,
+				() -> jdbc.update(status + "WHERE patient_identifier = 'P-HORS-PERIODE'", Map.of()));
+		assertEquals(1, jdbc.update(status + ", requester_site_id = " + siteA
+				+ " WHERE patient_identifier = 'P-HORS-PERIODE'", Map.of()));
 	}
 
 	@Test
