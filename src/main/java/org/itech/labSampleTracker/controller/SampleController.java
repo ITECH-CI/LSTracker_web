@@ -304,7 +304,9 @@ public class SampleController {
 	 * l'existence.
 	 */
 	private boolean canAccess(Sample s) {
-		Integer siteId = s.getSampleRetrieving() != null ? s.getSampleRetrieving().getSiteId() : null;
+		// Même zone que la liste et le tableau de bord : site de la collecte, à
+		// défaut site demandeur.
+		Integer siteId = displayedSiteId(s);
 		return userScopeService.canAccessSample(siteId, s.getDestinationLabId(), s.getLabId(), s.getHubId());
 	}
 
