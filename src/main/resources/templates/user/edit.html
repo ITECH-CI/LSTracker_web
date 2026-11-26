@@ -209,7 +209,7 @@
 						<a th:if="${userDTO?.userLevel != null and userDTO.userLevel.name() != 'CENTRAL_LEVEL'}"
 							th:href="@{'/appuser/edit_org/' + ${userDTO?.id}}"
 							class="btn btn-sm btn-outline-info">
-							<i class="fas fa-hospital-user me-1"></i> Gérer les zones
+							<i class="fas fa-hospital-user me-1"></i> Affecter les zones
 						</a>
 						<!-- Pas de suppression de compte (traçabilité) : un compte se désactive. -->
 					</div>
