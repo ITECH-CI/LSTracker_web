@@ -1,17 +1,25 @@
 
 // =====================================================
-// CSRF setup — Spring Security publishes the token via a
-// non-HttpOnly cookie (XSRF-TOKEN). We attach it to every
-// state-changing jQuery AJAX request as X-XSRF-TOKEN so it
-// passes CSRF validation. Forms submitted via th:action
-// already get the token injected by Spring's
-// RequestDataValueProcessor — nothing to do for them.
+// Jeton CSRF des requêtes jQuery qui modifient des données ($.post,
+// $.ajax POST, PUT, PATCH, DELETE) : Spring Security le publie dans le
+// cookie XSRF-TOKEN (non HttpOnly) et l'attend en retour dans l'en-tête
+// X-XSRF-TOKEN, sinon il répond 403. Les formulaires Thymeleaf reçoivent
+// déjà le champ _csrf.
+//
+// Ce fichier est chargé dans l'en-tête commun (fragments/header :: head),
+// avant jQuery, qui est chargé en bas de page : l'installation attend la
+// fin du chargement du document. Elle a lieu une seule fois par page (un
+// en-tête envoyé deux fois serait refusé). Aucun code de ce fichier ne
+// doit utiliser jQuery au chargement.
 // =====================================================
 function getCsrfTokenFromCookie() {
 	const m = document.cookie.match(/(?:^|;\s*)XSRF-TOKEN=([^;]+)/);
 	return m ? decodeURIComponent(m[1]) : null;
 }
-if (window.jQuery) {
+
+function installCsrfPrefilter() {
+	if (!window.jQuery || window.LST_CSRF_PREFILTER) return;
+	window.LST_CSRF_PREFILTER = true;
 	jQuery.ajaxPrefilter(function(options, originalOptions, jqXHR) {
 		const method = (options.type || options.method || 'GET').toUpperCase();
 		if (method === 'GET' || method === 'HEAD' || method === 'OPTIONS') return;
@@ -20,12 +28,17 @@ if (window.jQuery) {
 	});
 }
 
-$(document).ready(function() {
-	var table = $('#datatablesSimple').DataTable({
-		dom: 'Bfrtip',
-		buttons: ['csv', 'excel', 'pdf']
-	})
-})
+// Enregistré avant le chargement de jQuery : passe avant les $(function () {...})
+// des pages, donc avant leurs premiers appels AJAX.
+document.addEventListener('DOMContentLoaded', function() {
+	installCsrfPrefilter();
+	if (window.jQuery && jQuery.fn.DataTable && document.getElementById('datatablesSimple')) {
+		jQuery('#datatablesSimple').DataTable({
+			dom: 'Bfrtip',
+			buttons: ['csv', 'excel', 'pdf']
+		});
+	}
+});
 
 
 setPage = function(num) {
