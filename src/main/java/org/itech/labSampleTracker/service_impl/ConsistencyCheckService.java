@@ -68,28 +68,28 @@ public class ConsistencyCheckService {
 				sum(dashboard.statsByDistrict(f), "total")));
 		out.add(new Check("Collectés", collected, "Répartition par site (somme)",
 				sum(dashboard.statsBySite(f), "total")));
-		out.add(new Check("Collectés", collected, "Répartition par type (somme)",
+		out.add(new Check("Collectés", collected, "Échantillons collectés par type (somme)",
 				sum(dashboard.typeBreakdown(f), "total")));
-		out.add(new Check("Collectés", collected, "Évolution dans le temps (somme)",
+		out.add(new Check("Collectés", collected, "Évolution des échantillons dans le temps (somme)",
 				days(series.seriesCollected(f))));
-		out.add(new Check("Collectés", collected, "Parcours par type (somme)",
+		out.add(new Check("Collectés", collected, "Étapes des échantillons par type (somme)",
 				samples.getSampleStatusBySampleType(f).values().stream()
 						.mapToLong(m -> m.getOrDefault("SAMPLE_COLLECTED", 0)).sum()));
 		out.add(new Check("Collectés", collected, "Rapport PDF (somme par type)",
 				sum(reports.collectedByType(f, null), "cnt")));
 
 		long atLab = num(ref.get("at_lab"));
-		out.add(new Check("Reçus au laboratoire", atLab, "Évolution dans le temps (somme)",
+		out.add(new Check("Reçus au laboratoire", atLab, "Évolution des échantillons dans le temps (somme)",
 				days(series.seriesDeposited(f))));
 
 		long analysed = num(ref.get("analysed"));
-		out.add(new Check("Analysés", analysed, "Évolution dans le temps (somme)",
+		out.add(new Check("Analysés", analysed, "Évolution des échantillons dans le temps (somme)",
 				days(series.seriesAnalysed(f))));
 		out.add(new Check("Analysés", analysed, "Rapport PDF (résultats prêts)",
 				sum(reports.resultReadyByType(f, null), "cnt")));
 
 		long delivered = num(ref.get("delivered"));
-		out.add(new Check("Résultats livrés", delivered, "Évolution dans le temps (somme)",
+		out.add(new Check("Résultats livrés", delivered, "Évolution des échantillons dans le temps (somme)",
 				days(series.seriesDelivered(f))));
 		out.add(new Check("Résultats livrés", delivered, "Rapport PDF (résultats remis)",
 				sum(reports.resultDeliveredByType(f, null), "cnt")));

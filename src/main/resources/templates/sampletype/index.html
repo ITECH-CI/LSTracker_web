@@ -225,7 +225,7 @@ table#tab_sampletypes tbody tr:hover { background: #fafcff; }
 			language: {
 				processing: '<i class="fas fa-spinner fa-spin"></i> Chargement...',
 				lengthMenu: 'Afficher _MENU_',
-				info: '_START_–_END_ sur _TOTAL_',
+				info: '_START_ à _END_ sur _TOTAL_',
 				infoEmpty: 'Aucun type d\'échantillon',
 				zeroRecords: 'Aucun type d\'échantillon trouvé',
 				emptyTable: 'Aucun type d\'échantillon',
@@ -244,7 +244,7 @@ table#tab_sampletypes tbody tr:hover { background: #fafcff; }
 	});
 
 	function renderText(data) {
-		return data ? escapeHtml(data) : '<span class="empty-cell">—</span>';
+		return data ? escapeHtml(data) : '<span class="empty-cell">-</span>';
 	}
 	function renderCount(data) {
 		const v = data == null ? 0 : data;

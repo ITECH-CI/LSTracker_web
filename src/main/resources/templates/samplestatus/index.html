@@ -96,7 +96,7 @@
 										<span th:if="${st['description'] != null and !#strings.isEmpty(st['description'])}"
 											th:text="${st['description']}">Libellé</span>
 										<span th:unless="${st['description'] != null and !#strings.isEmpty(st['description'])}"
-											class="empty-cell">—</span>
+											class="empty-cell">-</span>
 									</td>
 									<td><span class="count-pill" th:text="${st['sample_count']}">0</span></td>
 									<td>

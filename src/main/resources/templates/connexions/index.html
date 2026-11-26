@@ -124,7 +124,7 @@
 									<tr th:each="o : ${online}">
 										<td><span th:text="${o.name != null} ? ${o.name} : ${o.login}">Nom</span>
 											<div class="cx-muted small" th:if="${o.name != null}" th:text="${o.login}">login</div></td>
-										<td><span th:text="${o.userType != null} ? ${userTypes.getOrDefault(o.userType, o.userType)} : '—'">Convoyeur</span>
+										<td><span th:text="${o.userType != null} ? ${userTypes.getOrDefault(o.userType, o.userType)} : '-'">Convoyeur</span>
 											<span class="cx-muted" th:if="${o.userLevel != null}"
 												th:text="'· ' + ${userLevels.getOrDefault(o.userLevel, o.userLevel)}">· circuit</span></td>
 										<td><span class="chan" th:classappend="'chan-' + ${o.channel}" th:text="${o.channel}">web</span></td>
@@ -155,7 +155,7 @@
 							<tbody>
 								<tr th:each="r : ${profiles}">
 									<td th:text="${userTypes.getOrDefault(r.user_type, r.user_type)}">Convoyeur</td>
-									<td th:text="${r.user_level != null} ? ${userLevels.getOrDefault(r.user_level, r.user_level)} : '—'">circuit</td>
+									<td th:text="${r.user_level != null} ? ${userLevels.getOrDefault(r.user_level, r.user_level)} : '-'">circuit</td>
 									<td class="num" th:text="${r.accounts}">17</td>
 									<td class="num">
 										<div class="rate" th:with="pct=${r.accounts > 0} ? ${100.0 * r.active / r.accounts} : 0">
@@ -265,7 +265,7 @@
 									<td><span th:text="${c.login}">login</span>
 										<div class="cx-muted small" th:if="${c.first_name != null or c.last_name != null}"
 											th:text="${#strings.trim((c.first_name ?: '') + ' ' + (c.last_name ?: ''))}">Nom</div></td>
-									<td th:text="${c.user_type != null} ? ${userTypes.getOrDefault(c.user_type, c.user_type)} : '—'">Convoyeur</td>
+									<td th:text="${c.user_type != null} ? ${userTypes.getOrDefault(c.user_type, c.user_type)} : '-'">Convoyeur</td>
 									<td><span class="chan" th:classappend="'chan-' + ${c.channel}" th:text="${c.channel}">web</span></td>
 									<td><span class="res" th:classappend="${c.outcome == 'SUCCESS'} ? 'res-ok' : 'res-ko'"
 										th:text="${outcomes.getOrDefault(c.outcome, c.outcome)}">Réussie</span></td>

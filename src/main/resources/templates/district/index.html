@@ -200,7 +200,7 @@ table#tab_districts tbody tr:hover { background: #fafcff; }
 
 	<script th:inline="none">
 	$(function () {
-		$('.select2-single').select2({ width: '100%', allowClear: true, placeholder: '— Tous —' });
+		$('.select2-single').select2({ width: '100%', allowClear: true, placeholder: 'Tous' });
 
 		const table = $('#tab_districts').DataTable({
 			processing: true,
@@ -237,7 +237,7 @@ table#tab_districts tbody tr:hover { background: #fafcff; }
 			language: {
 				processing: '<i class="fas fa-spinner fa-spin"></i> Chargement...',
 				lengthMenu: 'Afficher _MENU_',
-				info: '_START_–_END_ sur _TOTAL_',
+				info: '_START_ à _END_ sur _TOTAL_',
 				infoEmpty: 'Aucun district',
 				zeroRecords: 'Aucun district trouvé',
 				emptyTable: 'Aucun district',
@@ -258,7 +258,7 @@ table#tab_districts tbody tr:hover { background: #fafcff; }
 	});
 
 	function renderText(data) {
-		return data ? escapeHtml(data) : '<span class="empty-cell">—</span>';
+		return data ? escapeHtml(data) : '<span class="empty-cell">-</span>';
 	}
 	function renderCount(data) {
 		const v = data == null ? 0 : data;

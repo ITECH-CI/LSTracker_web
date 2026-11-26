@@ -131,7 +131,7 @@
 
 	<script>
 	$(function() {
-		$('.select2').select2({ width: '100%', allowClear: true, placeholder: '— Sélectionner —' });
+		$('.select2').select2({ width: '100%', allowClear: true, placeholder: 'Sélectionner' });
 		$(document).on('select2:open', function() {
 			const el = document.querySelector('.select2-search__field');
 			if (el) el.focus();

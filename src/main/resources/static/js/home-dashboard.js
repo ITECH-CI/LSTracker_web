@@ -37,7 +37,7 @@
 					sourceHeight: 500,
 					chartOptions: {
 						title: { style: { fontSize: '14px' } },
-						subtitle: { text: 'LSTracker — ' + new Date().toLocaleDateString('fr-FR'), style: { fontSize: '10px', color: '#9ca3af' } }
+						subtitle: { text: 'LSTracker · ' + new Date().toLocaleDateString('fr-FR'), style: { fontSize: '10px', color: '#9ca3af' } }
 					},
 					buttons: {
 						contextButton: {
@@ -359,7 +359,7 @@
 		$.get('dashboard/data/funnel', currentFilters(), function(curr) {
 			updateKpis(curr || {});
 		}).fail(function() {
-			$('[data-kpi]').text('—');
+			$('[data-kpi]').text('-');
 		});
 	}
 
@@ -398,7 +398,7 @@
 	function loadTypeBreakdown() {
 		const f = currentFilters();
 		$.get('dashboard/data/type-breakdown', f, function(rows) {
-			const data = (rows || []).map(r => ({ name: r.sample_type || '—', y: num(r.total), color: typeColor(r.sample_type) }))
+			const data = (rows || []).map(r => ({ name: r.sample_type || '-', y: num(r.total), color: typeColor(r.sample_type) }))
 				.sort((x, y) => y.y - x.y);
 			Highcharts.chart('type-breakdown-chart', {
 				chart: { type: 'bar', backgroundColor: 'transparent', spacing: [0, 0, 0, 0] },
@@ -458,7 +458,7 @@
 		});
 	}
 
-	// Parcours par type : les types sans aucun échantillon sont masqués ; le
+	// Étapes par type : les types sans aucun échantillon sont masqués ; le
 	// mode « % des collectés » rend lisibles les petits types face à CV.
 	function renderStatusByType() {
 		const data = window._statusByType || {};
@@ -478,7 +478,7 @@
 			chart: { type: 'column' },
 			title: { text: null },
 			credits: { enabled: false },
-			exporting: { chartOptions: { title: { text: "Parcours par type d'échantillon" } } },
+			exporting: { chartOptions: { title: { text: "Étapes des échantillons par type" } } },
 			xAxis: { categories: keep.map(i => cats[i]), crosshair: { color: 'rgba(99,102,241,.12)' },
 				labels: { useHTML: true, formatter: function() { return typeDot(this.value); } } },
 			yAxis: { title: { text: pct ? '% des collectés' : "Nombre d'échantillons" }, allowDecimals: pct, min: 0,
@@ -491,7 +491,7 @@
 				{ name: 'Collectés', data: pick(data.collected), color: STAGE.collected },
 				{ name: 'Déposés', data: pick(data.delivered), color: STAGE.deposited },
 				{ name: 'Analysés', data: pick(data.analysisDone), color: STAGE.analysed },
-				{ name: 'Résultats collectés', data: pick(data.resultCollected), color: STAGE.resultCollected },
+				{ name: 'Résultats récupérés au laboratoire', data: pick(data.resultCollected), color: STAGE.resultCollected },
 				{ name: 'Résultats livrés', data: pick(data.resultOnSite), color: STAGE.delivered },
 				{ name: 'Non-conformités', data: pick(data.nonConform), color: STATUS_CRITICAL }
 			]
@@ -518,7 +518,7 @@
 			chart: { type: 'line' },
 			title: { text: null },
 			credits: { enabled: false },
-			exporting: { chartOptions: { title: { text: "Évolution dans le temps (granularité : " + granularity + ")" } } },
+			exporting: { chartOptions: { title: { text: "Évolution des échantillons dans le temps (granularité : " + granularity + ")" } } },
 			xAxis: { type: 'datetime', crosshair: { color: '#a5b4fc', width: 1, dashStyle: 'Solid' } },
 			yAxis: { title: { text: 'Nombre' }, allowDecimals: false, min: 0 },
 			legend: { enabled: true },
@@ -592,7 +592,7 @@
 		types.forEach(t => steps.forEach(st => { max = Math.max(max, num(byType[t][st])); }));
 		const lo = [255, 241, 230], hi = [194, 65, 12]; // #fff1e6 → #c2410c
 		const cell = v => {
-			if (v === undefined || v === null) return '<td class="empty">—</td>';
+			if (v === undefined || v === null) return '<td class="empty">-</td>';
 			const t = max > 0 ? v / max : 0;
 			const rgb = lo.map((c, k) => Math.round(c + (hi[k] - c) * t));
 			const ink = t > 0.5 ? '#ffffff' : '#1f2937'; // texte lisible selon la luminance
@@ -672,7 +672,7 @@
 		// Inutile d'afficher la pagination quand tout tient sur une page.
 		if (total <= 25 && window._drillPageSize === 25) { $p.hide(); return; }
 		$p.css('display', 'flex');
-		$p.find('[data-pager-info]').text((from + 1) + '–' + to + ' sur ' + formatNumber(total));
+		$p.find('[data-pager-info]').text((from + 1) + ' à ' + to + ' sur ' + formatNumber(total));
 		$p.find('[data-pager-page]').text(window._drillPage + ' / ' + pages);
 		$p.find('[data-page-nav="-1"]').prop('disabled', window._drillPage <= 1);
 		$p.find('[data-page-nav="1"]').prop('disabled', window._drillPage >= pages);
@@ -761,7 +761,7 @@
 		const now = new Date();
 		const pad = n => String(n).padStart(2, '0');
 		const header = [
-			cell('LSTracker — Répartition par zone géographique (' + DRILL_LEVELS[lvl].name + ')'),
+			cell('LSTracker : Répartition par zone géographique (' + DRILL_LEVELS[lvl].name + ')'),
 			cell('Période : ' + (f0.startDate ? frFromIso(f0.startDate) : 'début') + ' au ' + (f0.endDate ? frFromIso(f0.endDate) : "aujourd'hui")),
 			cell('Périmètre : ' + perimetre + (labo ? ' · Laboratoire : ' + labo : '')
 				+ (typeEch ? " · Type d'échantillon : " + typeEch : '')),
@@ -808,8 +808,8 @@
 			: '<span class="expander" data-toggle="' + level + '" data-id="' + id + '" onclick="toggleDrill(this)">▶</span>';
 		const indentCls = indent === 1 ? 'indent-1' : (indent === 2 ? 'indent-2' : '');
 		return '<tr class="' + cls + '" data-row-id="' + level + '-' + id + '">'
-			+ '<td class="num drill-id">' + (id != null ? id : '—') + '</td>'
-			+ '<td><span class="' + indentCls + '">' + expander + ' ' + escapeHtml(name || '—')
+			+ '<td class="num drill-id">' + (id != null ? id : '-') + '</td>'
+			+ '<td><span class="' + indentCls + '">' + expander + ' ' + escapeHtml(name || '-')
 			+   (parent && (window._drillLevel || 'region') !== 'region'
 					? ' <span class="drill-parent">' + escapeHtml(parent) + '</span>' : '')
 			+ '</span></td>'
@@ -873,7 +873,7 @@
 
 	// TAT affiché sans couleur : les cibles de délai ne sont pas paramétrées.
 	function renderTat(days, total) {
-		if (!total || num(total) === 0) return '<span class="text-muted-sm">—</span>';
+		if (!total || num(total) === 0) return '<span class="text-muted-sm">-</span>';
 		return formatNumber(num(days)) + ' j';
 	}
 
@@ -971,7 +971,7 @@
 		const medians = {};
 		(d.durations || []).forEach(r => { medians[r.step] = r.median_days; });
 		const stepRows = STEP_ORDER.map(st => '<tr><td>' + escapeHtml((STEP_DEFS[st] || {}).label || st) + '</td>'
-			+ '<td class="num">' + (medians[st] == null ? '<span class="text-muted-sm">·</span>' : formatNumber(medians[st]) + ' j')
+			+ '<td class="num">' + (medians[st] == null ? '<span class="text-muted-sm">-</span>' : formatNumber(medians[st]) + ' j')
 			+ '</td></tr>').join('');
 		const durations = '<div><h4>Durée médiane par étape</h4><table><tbody>' + stepRows + '</tbody></table></div>';
 
@@ -1001,7 +1001,7 @@
 		$.get('dashboard/data/top-performers', Object.assign({}, f, { limit: 5 }), function(resp) {
 			renderRanking('#topRejectionSites', resp.rejection_sites, function(r) {
 				return {
-					name: r.site || '—',
+					name: r.site || '-',
 					sub: (r.district || '') + ' · ' + (r.region || '') + (r.by_type ? ' · ' + r.by_type : ''),
 					metric: r.non_conform_rate + '% (' + r.non_conform + '/' + r.total + ')',
 					value: r.non_conform_rate
@@ -1009,8 +1009,8 @@
 			});
 			renderRanking('#slowestLabs', resp.slowest_labs, function(r) {
 				return {
-					name: r.lab || '—',
-					sub: 'TAT labo médian (dépôt → validation) · ' + formatNumber(r.total) + ' échantillons',
+					name: r.lab || '-',
+					sub: 'Délai médian au laboratoire (dépôt → validation) · ' + formatNumber(r.total) + ' échantillons',
 					metric: r.avg_tat_days + ' j',
 					value: r.avg_tat_days
 				};

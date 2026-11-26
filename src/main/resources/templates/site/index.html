@@ -213,7 +213,7 @@ table#tab_sites tbody tr:hover { background: #fafcff; }
 
 	<script th:inline="none">
 	$(function () {
-		$('.select2-single').select2({ width: '100%', allowClear: true, placeholder: '— Tous —' });
+		$('.select2-single').select2({ width: '100%', allowClear: true, placeholder: 'Tous' });
 
 		// Cascade Région → District
 		$('#filter_region').on('change', function() {
@@ -263,7 +263,7 @@ table#tab_sites tbody tr:hover { background: #fafcff; }
 			language: {
 				processing: '<i class="fas fa-spinner fa-spin"></i> Chargement...',
 				lengthMenu: 'Afficher _MENU_',
-				info: '_START_–_END_ sur _TOTAL_',
+				info: '_START_ à _END_ sur _TOTAL_',
 				infoEmpty: 'Aucun site',
 				zeroRecords: 'Aucun site trouvé',
 				emptyTable: 'Aucun site',
@@ -284,14 +284,14 @@ table#tab_sites tbody tr:hover { background: #fafcff; }
 	});
 
 	function renderText(data) {
-		return data ? escapeHtml(data) : '<span class="empty-cell">—</span>';
+		return data ? escapeHtml(data) : '<span class="empty-cell">-</span>';
 	}
 	function renderCode(data) {
-		return data ? '<span class="code-pill">' + escapeHtml(data) + '</span>' : '<span class="empty-cell">—</span>';
+		return data ? '<span class="code-pill">' + escapeHtml(data) + '</span>' : '<span class="empty-cell">-</span>';
 	}
 	function renderCoords(data, type, row) {
 		if (row.longitude == null && row.latitude == null) {
-			return '<span class="empty-cell">—</span>';
+			return '<span class="empty-cell">-</span>';
 		}
 		return '<span class="coords">' + (row.latitude ?? '?') + ', ' + (row.longitude ?? '?') + '</span>';
 	}

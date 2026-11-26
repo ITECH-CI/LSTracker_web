@@ -149,10 +149,10 @@
 				<div class="period-banner" id="periodBanner">
 					<span class="period-main"><i class="far fa-calendar-alt"></i>
 						<span class="period-label" data-period-name>Période</span>
-						<strong data-period-range>—</strong></span>
+						<strong data-period-range>-</strong></span>
 				</div>
 
-				<!-- ============ PARCOURS DE L'ÉCHANTILLON ============ -->
+				<!-- ============ ÉTAPES DE L'ÉCHANTILLON ============ -->
 				<!-- Les étapes se lisent de gauche à droite ; la teinte fonce avec
 				     l'avancement (échelle ordinale bleu clair → violet foncé, validée). Chaque étape
 				     compte les échantillons dont CETTE étape a eu lieu dans la période :
@@ -161,12 +161,12 @@
 				<div class="section flow-section">
 					<div class="section-header">
 						<div>
-							<h3><i class="fas fa-route"></i> Parcours de l'échantillon</h3>
-							<div class="section-sub">Activité de chaque étape sur la période — les étapes ne portent pas sur les mêmes échantillons.</div>
+							<h3><i class="fas fa-route"></i> Étapes de l'échantillon</h3>
+							<div class="section-sub">Activité de chaque étape sur la période : les étapes ne portent pas sur les mêmes échantillons.</div>
 						</div>
 						<div class="flow-live" title="Snapshot temps réel, non lié à la période">
 							<span class="live-dot"></span>
-							<strong data-kpi="in_transit">0</strong> en cours d'acheminement maintenant
+							<strong data-kpi="in_transit">0</strong> en cours d'acheminement actuellement
 							<span class="help-tip" data-tip="Échantillons collectés mais pas encore déposés au laboratoire, à cet instant. Ce chiffre ne dépend pas de la période choisie : il ne se compare donc pas aux étapes ci-dessous.">i</span>
 						</div>
 					</div>
@@ -188,7 +188,7 @@
 						</div>
 						<div class="flow-arrow" aria-hidden="true"><i class="fas fa-chevron-right"></i></div>
 						<div class="flow-step step-4">
-							<div class="flow-label"><i class="fas fa-clipboard-check"></i> Résultats collectés<span class="help-tip" data-tip="Résultats récupérés au laboratoire par un convoyeur pendant la période.">i</span></div>
+							<div class="flow-label"><i class="fas fa-clipboard-check"></i> Résultats récupérés au laboratoire<span class="help-tip" data-tip="Résultats récupérés au laboratoire par un convoyeur pendant la période.">i</span></div>
 							<div class="flow-value" data-kpi="result_collected">0</div>
 						</div>
 						<div class="flow-arrow" aria-hidden="true"><i class="fas fa-chevron-right"></i></div>
@@ -281,7 +281,7 @@
 
 					<div class="section">
 						<div class="section-header">
-							<h3><i class="fas fa-vial"></i> Répartition par type<span class="help-tip" data-tip="Nombre d'échantillons collectés sur la période, par type d'échantillon.">i</span></h3>
+							<h3><i class="fas fa-vial"></i> Échantillons collectés par type<span class="help-tip" data-tip="Nombre d'échantillons collectés sur la période, par type d'échantillon.">i</span></h3>
 							<span class="text-muted-sm">Collectés · <span data-period-short>sur la période</span></span>
 						</div>
 						<div class="section-body">
@@ -294,7 +294,7 @@
 				<div class="chart-grid">
 					<div class="chart-card">
 						<div class="chart-header">
-							<span><i class="fas fa-chart-bar"></i> Parcours par type d'échantillon<span class="help-tip" data-tip="Contrairement au parcours du haut de page, ce graphique suit les MÊMES échantillons : ceux collectés sur la période, et combien d'entre eux ont atteint chaque étape. « % des collectés » rapporte chaque étape à ce nombre de départ.">i</span></span>
+							<span><i class="fas fa-chart-bar"></i> Étapes des échantillons par type<span class="help-tip" data-tip="Contrairement aux étapes du haut de page, ce graphique suit les MÊMES échantillons : ceux collectés sur la période, et combien d'entre eux ont atteint chaque étape. « % des collectés » rapporte chaque étape à ce nombre de départ.">i</span></span>
 							<div class="btn-group btn-group-sm chart-toggle" role="group" aria-label="Unité">
 								<button type="button" class="btn btn-outline-secondary active" data-status-mode="count">Nombre</button>
 								<button type="button" class="btn btn-outline-secondary" data-status-mode="pct" title="Chaque étape en % des échantillons collectés du même type">% des collectés</button>
@@ -306,7 +306,7 @@
 					</div>
 					<div class="chart-card">
 						<div class="chart-header">
-							<span><i class="fas fa-chart-line"></i> Évolution dans le temps<span class="help-tip" data-tip="Nombre d'échantillons ayant franchi chaque étape, par jour, semaine ou mois, à la date de l'étape (mêmes dates que le parcours du haut de page).">i</span></span>
+							<span><i class="fas fa-chart-line"></i> Évolution des échantillons dans le temps<span class="help-tip" data-tip="Nombre d'échantillons ayant franchi chaque étape, par jour, semaine ou mois, à la date de l'étape (mêmes dates que les étapes du haut de page).">i</span></span>
 							<select id="granularitySelect" class="form-select form-select-sm" style="width: auto;">
 								<option value="day" selected>Jour</option>
 								<option value="week">Semaine</option>
@@ -322,7 +322,7 @@
 				<div class="section">
 					<div class="section-header">
 						<div>
-							<h3><i class="fas fa-hourglass-half"></i> Durée médiane par étape (jours)</h3>
+							<h3><i class="fas fa-hourglass-half"></i> Durée médiane par étape, en jours (échantillons de la période)</h3>
 							<div class="section-sub">Délai médian en jours entre deux étapes successives, par type d'échantillon : la moitié des échantillons franchit l'étape en moins de ce délai. Plus la case est foncée, plus l'étape est longue. Survolez une étape pour les dates utilisées.</div>
 						</div>
 					</div>
@@ -409,11 +409,11 @@
 					<div class="section-body">
 						<div class="top-grid">
 							<div class="top-card">
-								<div class="top-card-header"><i class="fas fa-ban text-danger"></i> Taux de non-conformité par site<span class="help-tip" data-tip="Part des échantillons refusés par le laboratoire parmi ceux collectés sur la période, par site, avec le détail par type d'échantillon. Les échecs d'analyse ne sont pas comptés. Les sites ayant collecté moins de 5 échantillons sont écartés : un seul refus y donnerait un taux trompeur (1 sur 1 = 100 %).">i</span></div>
+								<div class="top-card-header"><i class="fas fa-ban text-danger"></i> Échantillons non conformes par site (taux)<span class="help-tip" data-tip="Part des échantillons refusés par le laboratoire parmi ceux collectés sur la période, par site, avec le détail par type d'échantillon. Les échecs d'analyse ne sont pas comptés. Les sites ayant collecté moins de 5 échantillons sont écartés : un seul refus y donnerait un taux trompeur (1 sur 1 = 100 %).">i</span></div>
 								<ol id="topRejectionSites"><li class="text-muted-sm">Chargement...</li></ol>
 							</div>
 							<div class="top-card">
-								<div class="top-card-header"><i class="fas fa-clock text-warning"></i> Laboratoires les plus lents · TAT labo<span class="help-tip" data-tip="TAT labo : délai médian entre le dépôt de l'échantillon au laboratoire et la validation biologique du résultat. Ce n'est pas le TAT complet (collecte → remise au site). Les laboratoires ayant traité moins de 5 échantillons sur la période sont écartés : un seul cas y fausserait le classement.">i</span></div>
+								<div class="top-card-header"><i class="fas fa-clock text-warning"></i> Laboratoires les plus lents (délai au laboratoire)<span class="help-tip" data-tip="Délai au laboratoire : délai médian entre le dépôt de l'échantillon au laboratoire et la validation biologique du résultat. Ce n'est pas le TAT complet (collecte → remise au site). Les laboratoires ayant traité moins de 5 échantillons sur la période sont écartés : un seul cas y fausserait le classement.">i</span></div>
 								<ol id="slowestLabs"><li class="text-muted-sm">Chargement...</li></ol>
 							</div>
 							<div class="top-card">

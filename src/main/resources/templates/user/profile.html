@@ -175,12 +175,12 @@
 						<div th:if="${lastLogin}">
 							<i class="fas fa-clock"></i>
 							Dernière connexion :
-							<strong th:text="${#dates.format(lastLogin, 'dd/MM/yyyy à HH:mm')}">—</strong>
+							<strong th:text="${#dates.format(lastLogin, 'dd/MM/yyyy à HH:mm')}">-</strong>
 						</div>
 						<div th:if="${passwordExpireAt}">
 							<i class="fas fa-key"></i>
 							Mot de passe expire le :
-							<strong th:text="${#dates.format(passwordExpireAt, 'dd/MM/yyyy')}">—</strong>
+							<strong th:text="${#dates.format(passwordExpireAt, 'dd/MM/yyyy')}">-</strong>
 						</div>
 					</div>
 				</div>

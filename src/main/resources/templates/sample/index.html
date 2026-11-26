@@ -951,7 +951,7 @@
                           Résultats disponibles
                         </th>
                         <th data-col="result_collection_date">
-                          Collecte résultats
+                          Récupération des résultats
                         </th>
                         <th data-col="result_delivery_date">
                           Réception sur site
@@ -1061,12 +1061,12 @@
         $(".select2-single").select2({
           width: "100%",
           allowClear: true,
-          placeholder: "— Tous —",
+          placeholder: "Tous",
         });
         $(".select2-multi").select2({
           width: "100%",
           allowClear: true,
-          placeholder: "— Sélectionner —",
+          placeholder: "Sélectionner",
         });
 
         // Type de labo : la liste des laboratoires ne garde que ce type ; un
@@ -1276,7 +1276,7 @@
           language: {
             processing: '<i class="fas fa-spinner fa-spin"></i> Chargement...',
             lengthMenu: "Afficher _MENU_",
-            info: "_START_–_END_ sur _TOTAL_",
+            info: "_START_ à _END_ sur _TOTAL_",
             infoEmpty: "Aucun élément",
             infoFiltered: " (filtré sur _MAX_)",
             zeroRecords: "Aucun échantillon trouvé",
@@ -1381,12 +1381,12 @@
       }
 
       function renderSla(data, type, row) {
-        const days = row.tat_days != null ? row.tat_days : "—";
+        const days = row.tat_days != null ? row.tat_days : "-";
         const color = row.sla_color || "green";
         return (
           '<span class="sla-badge sla-' +
           color +
-          '" title="TAT — jours depuis la collecte">' +
+          '" title="TAT : jours depuis la collecte">' +
           days +
           " j</span>"
         );
@@ -1555,7 +1555,7 @@
               ["Acceptation labo", renderDateTime(s.acceptedAtLabDate)],
               ["Analyse terminée", renderDateTime(s.analysisCompletedDate)],
               ["Résultat disponible", renderDateTime(s.analysisReleasedDate)],
-              ["Collecte résultat", renderDateTime(s.resultCollectionDate)],
+              ["Récupération des résultats", renderDateTime(s.resultCollectionDate)],
               ["Livraison résultat", renderDateTime(s.resultDeliveryDate)],
               ["Date de rejet", renderDateTime(s.rejectionDate)],
             ],
@@ -1668,7 +1668,7 @@
           ACCEPT_SAMPLE_AT_LAB: "Acceptation au laboratoire",
           REJECT_SAMPLE_AT_HUB: "Rejet au hub",
           REJECT_SAMPLE_AT_LAB: "Rejet au laboratoire",
-          COLLECT_RESULT_AT_LAB: "Collecte du résultat",
+          COLLECT_RESULT_AT_LAB: "Récupération des résultats",
           DELIVER_RESULT_AT_FACILITY: "Livraison du résultat au site",
         };
         return map[t] || t;
