@@ -56,7 +56,7 @@ public class DashboardNativeRepository {
 				+ "FROM sample s "
 				+ "  JOIN sample_status ss ON ss.id = s.sample_status_id "
 				+ "  LEFT JOIN sample_retrieving sr ON sr.id = s.sample_retrieving_id "
-				+ "  LEFT JOIN site st ON st.id = sr.site_id LEFT JOIN district d ON d.id = st.district_id "
+				+ "  LEFT JOIN site st ON st.id = COALESCE(sr.site_id, s.requester_site_id) LEFT JOIN district d ON d.id = st.district_id "
 				+ "WHERE 1=1 "
 				+ "  AND (CAST(:labId AS INT) IS NULL OR s.destination_lab_id = CAST(:labId AS INT)) "
 				+ "  AND (CAST(:siteId AS INT) IS NULL OR st.id = CAST(:siteId AS INT)) "
@@ -66,6 +66,39 @@ public class DashboardNativeRepository {
 				+ DashboardFilter.SAMPLE_FILTER_SQL;
 
 		return jdbc.queryForMap(sql, f.params());
+	}
+
+	/**
+	 * Étapes atteintes par les échantillons collectés dans la période, par
+	 * type d'échantillon (dates d'étape persistantes, pas le statut courant,
+	 * qui change à chaque transition). Sans filtre de zone, les échantillons
+	 * sans zone exploitable sont comptés : le total égale celui des cartes.
+	 */
+	public List<Map<String, Object>> stepsByType(DashboardFilter f) {
+		final String sql = "SELECT typ.name AS sample_type, "
+				+ "  COUNT(*) AS sample_collected, "
+				+ "  COUNT(COALESCE(s.deliver_at_lab_date, s.deliver_at_hub_date)) AS sample_received, "
+				+ "  COUNT(COALESCE(s.accepted_at_lab_date, s.accepted_at_hub_date)) AS sample_accepted, "
+				+ "  COUNT(s.analysis_released_date) AS analysis_done, "
+				+ "  COUNT(s.result_collection_date) AS result_collected, "
+				+ "  COUNT(s.result_delivery_date) AS result_on_site, "
+				+ "  SUM(CASE WHEN ss.status = 'NON_CONFORM' AND s.rejection_date IS NOT NULL THEN 1 ELSE 0 END) AS non_conform, "
+				+ "  SUM(CASE WHEN ss.status = 'ANALYSIS_FAILED' AND s.analysis_completed_date IS NOT NULL THEN 1 ELSE 0 END) AS failed "
+				+ "FROM sample s "
+				+ "  JOIN sample_status ss ON ss.id = s.sample_status_id "
+				+ "  LEFT JOIN sample_type typ ON typ.id = s.sample_type_id "
+				+ "  LEFT JOIN sample_retrieving sr ON sr.id = s.sample_retrieving_id "
+				+ "  LEFT JOIN site st ON st.id = COALESCE(sr.site_id, s.requester_site_id) "
+				+ "  LEFT JOIN district d ON d.id = st.district_id "
+				+ "WHERE s.collection_date >= CAST(:startDate AS DATE) AND s.collection_date < CAST(:endDate AS DATE) + 1 "
+				+ "  AND (CAST(:labId AS INT) IS NULL OR s.destination_lab_id = CAST(:labId AS INT)) "
+				+ "  AND (CAST(:siteId AS INT) IS NULL OR st.id = CAST(:siteId AS INT)) "
+				+ "  AND (CAST(:districtId AS INT) IS NULL OR st.district_id = CAST(:districtId AS INT)) "
+				+ "  AND (CAST(:regionId AS INT) IS NULL OR d.region_id = CAST(:regionId AS INT))"
+				+ SCOPE_FILTER
+				+ DashboardFilter.SAMPLE_FILTER_SQL
+				+ "GROUP BY typ.name";
+		return jdbc.queryForList(sql, f.params());
 	}
 
 	public List<Map<String, Object>> tsCollected(DashboardFilter f) {
@@ -82,7 +115,7 @@ public class DashboardNativeRepository {
 				+ "  SELECT CAST(s.collection_date AS DATE) AS day, COUNT(*) AS cnt "
 				+ "  FROM sample s "
 				+ "  LEFT JOIN sample_retrieving sr ON sr.id = s.sample_retrieving_id "
-				+ "  LEFT JOIN site st ON st.id = sr.site_id "
+				+ "  LEFT JOIN site st ON st.id = COALESCE(sr.site_id, s.requester_site_id) "
 				+ "  LEFT JOIN district dis ON dis.id = st.district_id "
 				+ "  WHERE s.collection_date >= CAST(:startDate AS DATE) AND s.collection_date < CAST(:endDate AS DATE) + 1 "
 				+ "    AND (CAST(:labId AS INT) IS NULL OR s.destination_lab_id = CAST(:labId AS INT)) "
@@ -106,7 +139,7 @@ public class DashboardNativeRepository {
 				+ "  SELECT CAST(s.deliver_at_lab_date AS DATE) AS day, COUNT(*) AS cnt "
 				+ "  FROM sample s "
 				+ "  LEFT JOIN sample_retrieving sr ON sr.id = s.sample_retrieving_id "
-				+ "  LEFT JOIN site st ON st.id = sr.site_id "
+				+ "  LEFT JOIN site st ON st.id = COALESCE(sr.site_id, s.requester_site_id) "
 				+ "  LEFT JOIN district dis ON dis.id = st.district_id "
 				+ "  WHERE s.deliver_at_lab_date >= CAST(:startDate AS DATE) AND s.deliver_at_lab_date < CAST(:endDate AS DATE) + 1 "
 				+ "    AND (CAST(:labId AS INT) IS NULL OR s.destination_lab_id = CAST(:labId AS INT)) "
@@ -128,7 +161,7 @@ public class DashboardNativeRepository {
 				+ "  SELECT CAST(s.analysis_released_date AS DATE) AS day, COUNT(*) AS cnt "
 				+ "  FROM sample s "
 				+ "  LEFT JOIN sample_retrieving sr ON sr.id = s.sample_retrieving_id "
-				+ "  LEFT JOIN site st ON st.id = sr.site_id "
+				+ "  LEFT JOIN site st ON st.id = COALESCE(sr.site_id, s.requester_site_id) "
 				+ "  LEFT JOIN district dis ON dis.id = st.district_id "
 				+ "  WHERE (s.analysis_released_date >= CAST(:startDate AS DATE) AND s.analysis_released_date < CAST(:endDate AS DATE) + 1) "
 				+ "    AND (CAST(:labId AS INT) IS NULL OR s.destination_lab_id = CAST(:labId AS INT)) "
@@ -150,7 +183,7 @@ public class DashboardNativeRepository {
 				+ "  SELECT CAST(s.result_delivery_date AS DATE) AS day, COUNT(*) AS cnt "
 				+ "  FROM sample s "
 				+ "  LEFT JOIN sample_retrieving sr ON sr.id = s.sample_retrieving_id "
-				+ "  LEFT JOIN site st ON st.id = sr.site_id "
+				+ "  LEFT JOIN site st ON st.id = COALESCE(sr.site_id, s.requester_site_id) "
 				+ "  LEFT JOIN district dis ON dis.id = st.district_id "
 				+ "  WHERE (s.result_delivery_date >= CAST(:startDate AS DATE) AND s.result_delivery_date < CAST(:endDate AS DATE) + 1) "
 				+ "    AND (CAST(:labId AS INT) IS NULL OR s.destination_lab_id = CAST(:labId AS INT)) "
@@ -173,7 +206,7 @@ public class DashboardNativeRepository {
 			+ "         COALESCE(s.deliver_at_lab_date, s.deliver_at_hub_date)  AS deposit_dt, "
 			+ "         COALESCE(s.accepted_at_lab_date, s.accepted_at_hub_date) AS accepted_dt "
 			+ "  FROM sample s  LEFT JOIN sample_retrieving sr ON sr.id = s.sample_retrieving_id "
-			+ "  LEFT JOIN site st ON st.id  = sr.site_id LEFT JOIN district dis ON dis.id = st.district_id "
+			+ "  LEFT JOIN site st ON st.id = COALESCE(sr.site_id, s.requester_site_id) LEFT JOIN district dis ON dis.id = st.district_id "
 			+ "  WHERE (CAST(:startDate AS DATE) IS NULL OR s.collection_date >= CAST(:startDate AS DATE)) "
 			+ "    AND (CAST(:endDate AS DATE) IS NULL OR s.collection_date < CAST(:endDate AS DATE) + 1) "
 			+ "    AND (CAST(:labId AS INT) IS NULL OR s.destination_lab_id = CAST(:labId AS INT)) "

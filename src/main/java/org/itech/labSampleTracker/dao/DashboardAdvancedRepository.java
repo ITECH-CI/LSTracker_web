@@ -71,7 +71,7 @@ public class DashboardAdvancedRepository {
 				+ "FROM sample s "
 				+ "JOIN sample_status ss ON ss.id = s.sample_status_id "
 				+ "LEFT JOIN sample_retrieving sr ON sr.id = s.sample_retrieving_id "
-				+ "LEFT JOIN site st ON st.id = sr.site_id "
+				+ "LEFT JOIN site st ON st.id = COALESCE(sr.site_id, s.requester_site_id) "
 				+ "LEFT JOIN district d ON d.id = st.district_id "
 				+ "WHERE 1=1 "
 				+ "AND (CAST(:labId AS INT) IS NULL OR s.destination_lab_id = CAST(:labId AS INT)) "
@@ -114,9 +114,9 @@ public class DashboardAdvancedRepository {
 				+ "JOIN sample_status ss ON ss.id = s.sample_status_id "
 				+ "JOIN sample_type st_type ON st_type.id = s.sample_type_id "
 				+ "LEFT JOIN sample_retrieving sr ON sr.id = s.sample_retrieving_id "
-				+ "JOIN site st ON st.id = sr.site_id "
-				+ "JOIN district d ON d.id = st.district_id "
-				+ "JOIN region reg ON reg.id = d.region_id "
+				+ "LEFT JOIN site st ON st.id = COALESCE(sr.site_id, s.requester_site_id) "
+				+ "LEFT JOIN district d ON d.id = st.district_id "
+				+ "LEFT JOIN region reg ON reg.id = d.region_id "
 				+ "WHERE ss.status NOT IN ('RESULT_ON_SITE','NON_CONFORM','ANALYSIS_FAILED') "
 				+ "AND (CAST(:startDate AS DATE) IS NULL OR s.collection_date >= CAST(:startDate AS DATE)) "
 				+ "AND (CAST(:endDate AS DATE) IS NULL OR s.collection_date < CAST(:endDate AS DATE) + 1) "
@@ -165,9 +165,9 @@ public class DashboardAdvancedRepository {
 				+ "    " + TatSql.MEDIAN + " AS tat_avg_days "
 				+ "  FROM sample s "
 				+ "  JOIN sample_status ss ON ss.id = s.sample_status_id "
-				+ "  JOIN sample_retrieving sr ON sr.id = s.sample_retrieving_id "
-				+ "  JOIN site st ON st.id = sr.site_id "
-				+ "  JOIN district d ON d.id = st.district_id "
+				+ "  LEFT JOIN sample_retrieving sr ON sr.id = s.sample_retrieving_id "
+				+ "  LEFT JOIN site st ON st.id = COALESCE(sr.site_id, s.requester_site_id) "
+				+ "  LEFT JOIN district d ON d.id = st.district_id "
 				+ "  WHERE (CAST(:startDate AS DATE) IS NULL OR s.collection_date >= CAST(:startDate AS DATE)) "
 				+ "  AND (CAST(:endDate AS DATE) IS NULL OR s.collection_date < CAST(:endDate AS DATE) + 1) "
 				+ "  AND (CAST(:labId AS INT) IS NULL OR s.destination_lab_id = CAST(:labId AS INT)) "
@@ -187,13 +187,29 @@ public class DashboardAdvancedRepository {
 			+ "COALESCE(a.non_conform, 0) AS non_conform, COALESCE(a.failed, 0) AS failed, "
 			+ "CAST(COALESCE(a.tat_avg_days, 0) AS NUMERIC(10,1)) AS tat_avg_days ";
 
+	/** Libellé de la ligne des échantillons sans zone exploitable (ni site de collecte, ni site demandeur). */
+	public static final String UNKNOWN_ZONE = "Zone non renseignée";
+
+	/**
+	 * Ligne « Zone non renseignée » de la répartition : échantillons de
+	 * l'agrégat sans zone ({@code gid} null). Elle n'existe que sans filtre
+	 * de zone ni périmètre restreint (ces filtres exigent une zone), pour que
+	 * le total de la répartition égale celui des cartes.
+	 */
+	private static String unknownZoneRow(String nullColumns) {
+		return "UNION ALL SELECT " + nullColumns + DISTRIBUTION_COLUMNS + "FROM agg a WHERE a.gid IS NULL ";
+	}
+
+	private static final String UNKNOWN = "'" + UNKNOWN_ZONE + "'";
+
 	/**
 	 * Répartition par région. Toutes les régions de la sélection sont renvoyées,
-	 * y compris sans activité (total = 0). Pour un utilisateur restreint : les
-	 * régions où il a au moins un site.
+	 * y compris sans activité (total = 0), puis la ligne « Zone non renseignée ».
+	 * Pour un utilisateur restreint : les régions où il a au moins un site.
 	 */
 	public List<Map<String, Object>> statsByRegion(DashboardFilter f) {
 		final String sql = distributionAgg("d.region_id")
+				+ "SELECT * FROM ( "
 				+ "SELECT reg.id AS region_id, reg.name AS region, " + DISTRIBUTION_COLUMNS
 				+ "FROM region reg LEFT JOIN agg a ON a.gid = reg.id "
 				+ "WHERE (CAST(:regionId AS INT) IS NULL OR reg.id = CAST(:regionId AS INT)) "
@@ -203,7 +219,8 @@ public class DashboardAdvancedRepository {
 				+ "     WHERE fs.id = CAST(:siteId AS INT) AND fd.region_id = reg.id)) "
 				+ "AND (:accessibleSiteIdsActive = FALSE OR EXISTS (SELECT 1 FROM site fs JOIN district fd ON fd.id = fs.district_id "
 				+ "     WHERE fd.region_id = reg.id AND fs.id IN (:accessibleSiteIds))) "
-				+ "ORDER BY reg.name";
+				+ unknownZoneRow("CAST(NULL AS INT), " + UNKNOWN + ", ")
+				+ ") z ORDER BY (z.region_id IS NULL), z.region";
 		return jdbc.queryForList(sql, f.params());
 	}
 
@@ -216,6 +233,7 @@ public class DashboardAdvancedRepository {
 	 */
 	public List<Map<String, Object>> statsByDistrict(DashboardFilter f) {
 		final String sql = distributionAgg("d.id")
+				+ "SELECT * FROM ( "
 				+ "SELECT d.id AS district_id, d.name AS district, r.name AS region, " + DISTRIBUTION_COLUMNS
 				+ "FROM district d JOIN region r ON r.id = d.region_id LEFT JOIN agg a ON a.gid = d.id "
 				+ "WHERE (CAST(:regionId AS INT) IS NULL OR d.region_id = CAST(:regionId AS INT)) "
@@ -224,7 +242,8 @@ public class DashboardAdvancedRepository {
 				+ "     WHERE fs.id = CAST(:siteId AS INT) AND fs.district_id = d.id)) "
 				+ "AND (:accessibleSiteIdsActive = FALSE OR EXISTS (SELECT 1 FROM site fs "
 				+ "     WHERE fs.district_id = d.id AND fs.id IN (:accessibleSiteIds))) "
-				+ "ORDER BY r.name, d.name";
+				+ unknownZoneRow("CAST(NULL AS INT), " + UNKNOWN + ", " + UNKNOWN + ", ")
+				+ ") z ORDER BY (z.district_id IS NULL), z.region, z.district";
 		return jdbc.queryForList(sql, f.params());
 	}
 
@@ -237,6 +256,7 @@ public class DashboardAdvancedRepository {
 	 */
 	public List<Map<String, Object>> statsBySite(DashboardFilter f) {
 		final String sql = distributionAgg("st.id")
+				+ "SELECT * FROM ( "
 				+ "SELECT st.id AS site_id, st.name AS site, d.name AS district, r.name AS region, " + DISTRIBUTION_COLUMNS
 				+ "FROM site st JOIN district d ON d.id = st.district_id JOIN region r ON r.id = d.region_id "
 				+ "LEFT JOIN agg a ON a.gid = st.id "
@@ -244,7 +264,8 @@ public class DashboardAdvancedRepository {
 				+ "AND (CAST(:regionId AS INT) IS NULL OR d.region_id = CAST(:regionId AS INT)) "
 				+ "AND (CAST(:siteId AS INT) IS NULL OR st.id = CAST(:siteId AS INT)) "
 				+ "AND (:accessibleSiteIdsActive = FALSE OR st.id IN (:accessibleSiteIds)) "
-				+ "ORDER BY r.name, d.name, st.name";
+				+ unknownZoneRow("CAST(NULL AS INT), " + UNKNOWN + ", " + UNKNOWN + ", " + UNKNOWN + ", ")
+				+ ") z ORDER BY (z.site_id IS NULL), z.region, z.district, z.site";
 		return jdbc.queryForList(sql, f.params());
 	}
 
@@ -277,7 +298,7 @@ public class DashboardAdvancedRepository {
 				+ "  JOIN sample_status ss ON ss.id = s.sample_status_id "
 				+ "  LEFT JOIN sample_type typ ON typ.id = s.sample_type_id "
 				+ "  LEFT JOIN sample_retrieving sr ON sr.id = s.sample_retrieving_id "
-				+ "  JOIN site st ON st.id = sr.site_id "
+				+ "  JOIN site st ON st.id = COALESCE(sr.site_id, s.requester_site_id) "
 				+ "  JOIN district d ON d.id = st.district_id "
 				+ "  JOIN region reg ON reg.id = d.region_id "
 				+ "  WHERE (CAST(:startDate AS DATE) IS NULL OR s.collection_date >= CAST(:startDate AS DATE)) "
@@ -321,7 +342,7 @@ public class DashboardAdvancedRepository {
 				+ "FROM sample s "
 				+ "JOIN lab ON lab.id = s.reference_lab_id "
 				+ "LEFT JOIN sample_retrieving sr ON sr.id = s.sample_retrieving_id "
-				+ "LEFT JOIN site st ON st.id = sr.site_id "
+				+ "LEFT JOIN site st ON st.id = COALESCE(sr.site_id, s.requester_site_id) "
 				+ "WHERE s.deliver_at_lab_date IS NOT NULL AND s.analysis_released_date IS NOT NULL "
 				+ "AND s.analysis_released_date > s.deliver_at_lab_date "
 				+ "AND (CAST(:startDate AS DATE) IS NULL OR s.collection_date >= CAST(:startDate AS DATE)) "
@@ -349,9 +370,9 @@ public class DashboardAdvancedRepository {
 				+ "  SELECT r.circuit_id, s.collection_date, "
 				+ "         COALESCE(s.deliver_at_hub_date, s.deliver_at_lab_date) AS first_deposit "
 				+ "  FROM sample s "
-				+ "  JOIN sample_retrieving sr ON sr.id = s.sample_retrieving_id "
+				+ "  LEFT JOIN sample_retrieving sr ON sr.id = s.sample_retrieving_id "
 				+ "  LEFT JOIN ride r ON r.id = sr.ride_id "
-				+ "  LEFT JOIN site st ON st.id = sr.site_id "
+				+ "  LEFT JOIN site st ON st.id = COALESCE(sr.site_id, s.requester_site_id) "
 				+ "  WHERE (CAST(:startDate AS DATE) IS NULL OR s.collection_date >= CAST(:startDate AS DATE)) "
 				+ "  AND (CAST(:endDate AS DATE) IS NULL OR s.collection_date < CAST(:endDate AS DATE) + 1) "
 				+ "  AND (:accessibleSiteIdsActive = FALSE OR st.id IN (:accessibleSiteIds)) "
@@ -402,9 +423,9 @@ public class DashboardAdvancedRepository {
 	private static final String ZONE_FROM = " FROM sample s "
 			+ "JOIN sample_status ss ON ss.id = s.sample_status_id "
 			+ "LEFT JOIN sample_type typ ON typ.id = s.sample_type_id "
-			+ "JOIN sample_retrieving sr ON sr.id = s.sample_retrieving_id "
-			+ "JOIN site st ON st.id = sr.site_id "
-			+ "JOIN district d ON d.id = st.district_id ";
+			+ "LEFT JOIN sample_retrieving sr ON sr.id = s.sample_retrieving_id "
+			+ "LEFT JOIN site st ON st.id = COALESCE(sr.site_id, s.requester_site_id) "
+			+ "LEFT JOIN district d ON d.id = st.district_id ";
 
 	private static final String ZONE_WHERE = "WHERE (CAST(:startDate AS DATE) IS NULL OR s.collection_date >= CAST(:startDate AS DATE)) "
 			+ "AND (CAST(:endDate AS DATE) IS NULL OR s.collection_date < CAST(:endDate AS DATE) + 1) "
@@ -436,7 +457,7 @@ public class DashboardAdvancedRepository {
 				+ "         s.destination_lab_id, s.reference_lab_id, s.hub_id "
 				+ "  FROM sample s "
 				+ "  LEFT JOIN sample_retrieving sr ON sr.id = s.sample_retrieving_id "
-				+ "  LEFT JOIN site st ON st.id = sr.site_id "
+				+ "  LEFT JOIN site st ON st.id = COALESCE(sr.site_id, s.requester_site_id) "
 				+ "  LEFT JOIN district d ON d.id = st.district_id "
 				+ "  WHERE (CAST(:startDate AS DATE) IS NULL OR s.collection_date >= CAST(:startDate AS DATE)) "
 				+ "  AND (CAST(:endDate AS DATE) IS NULL OR s.collection_date < CAST(:endDate AS DATE) + 1) "
@@ -514,11 +535,11 @@ public class DashboardAdvancedRepository {
 	 * mini-chart on the dashboard coverage section.
 	 */
 	public List<Map<String, Object>> typeBreakdown(DashboardFilter f) {
-		final String sql = "SELECT st_type.name AS sample_type, COUNT(s.id) AS total "
+		final String sql = "SELECT COALESCE(st_type.name, 'Autre') AS sample_type, COUNT(s.id) AS total "
 				+ "FROM sample s "
-				+ "JOIN sample_type st_type ON st_type.id = s.sample_type_id "
+				+ "LEFT JOIN sample_type st_type ON st_type.id = s.sample_type_id "
 				+ "LEFT JOIN sample_retrieving sr ON sr.id = s.sample_retrieving_id "
-				+ "LEFT JOIN site st ON st.id = sr.site_id "
+				+ "LEFT JOIN site st ON st.id = COALESCE(sr.site_id, s.requester_site_id) "
 				+ "LEFT JOIN district d ON d.id = st.district_id "
 				+ "WHERE (CAST(:startDate AS DATE) IS NULL OR s.collection_date >= CAST(:startDate AS DATE)) "
 				+ "AND (CAST(:endDate AS DATE) IS NULL OR s.collection_date < CAST(:endDate AS DATE) + 1) "

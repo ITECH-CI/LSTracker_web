@@ -103,8 +103,5 @@ public interface SampleService {
 
 	Map<String, Map<String, Integer>> getSampleStatusBySampleType();
 
-	/** Étapes atteintes par les échantillons collectés dans la période, par type d'échantillon. */
-	Map<String, Map<String, Integer>> getSampleStatusBySampleType(
-			org.itech.labSampleTracker.dto.DashboardFilter filter);
 
 }

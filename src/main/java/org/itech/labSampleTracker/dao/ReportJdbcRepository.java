@@ -16,7 +16,7 @@ public class ReportJdbcRepository {
 	}
 
 	private static final String SCOPE_JOIN = " LEFT JOIN sample_retrieving sr ON sr.id = s.sample_retrieving_id "
-			+ " LEFT JOIN site st ON st.id = sr.site_id LEFT JOIN district dis ON dis.id = st.district_id ";
+			+ " LEFT JOIN site st ON st.id = COALESCE(sr.site_id, s.requester_site_id) LEFT JOIN district dis ON dis.id = st.district_id ";
 
 	private static final String SCOPE_WHERE = " AND (CAST(:siteId AS INT) IS NULL OR st.id = CAST(:siteId AS INT)) "
 			+ " AND (CAST(:districtId AS INT) IS NULL OR dis.id = CAST(:districtId AS INT)) "

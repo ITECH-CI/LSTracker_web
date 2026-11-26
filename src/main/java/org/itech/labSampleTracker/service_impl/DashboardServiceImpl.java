@@ -72,6 +72,35 @@ public class DashboardServiceImpl implements DashboardService {
 		return out2;
 	}
 
+	/** Types toujours présents dans la réponse, à 0 s'ils n'ont aucun échantillon. */
+	private static final String[] KNOWN_TYPES = { "BI", "BS", "CV", "EID", "TB", "HPV", "PrEP", "IVSA", "Autre" };
+
+	private static final String[][] STEP_COLUMNS = { { "SAMPLE_COLLECTED", "sample_collected" },
+			{ "SAMPLE_RECEIVED", "sample_received" }, { "SAMPLE_ACCEPTED", "sample_accepted" },
+			{ "ANALYSIS_DONE", "analysis_done" }, { "RESULT_COLLECTED", "result_collected" },
+			{ "RESULT_ON_SITE", "result_on_site" }, { "NON_CONFORM", "non_conform" }, { "FAILED", "failed" } };
+
+	@Override
+	public Map<String, Map<String, Integer>> stepsByType(DashboardFilter filter) {
+		Map<String, Map<String, Integer>> response = new LinkedHashMap<>();
+		for (String type : KNOWN_TYPES) {
+			Map<String, Integer> empty = new LinkedHashMap<>();
+			for (String[] c : STEP_COLUMNS) {
+				empty.put(c[0], 0);
+			}
+			response.put(type, empty);
+		}
+		for (Map<String, Object> row : repo.stepsByType(filter)) {
+			// Type absent ou inattendu (donnée ancienne) : « Autre » ou ajouté tel quel.
+			String type = row.get("sample_type") != null ? row.get("sample_type").toString() : "Autre";
+			Map<String, Integer> counts = response.computeIfAbsent(type, k -> new LinkedHashMap<>());
+			for (String[] c : STEP_COLUMNS) {
+				counts.merge(c[0], toLong(row.get(c[1])).intValue(), Integer::sum);
+			}
+		}
+		return response;
+	}
+
 	@Override
 	public List<DayCountDTO> seriesCollected(DashboardFilter filter) {
 		return mapDayCount(repo.tsCollected(filter));

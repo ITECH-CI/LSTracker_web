@@ -11,6 +11,13 @@ public interface DashboardService {
 
 	public Map<String, Object> getSummary(DashboardFilter filter);
 
+	/**
+	 * Étapes atteintes par type d'échantillon (« Étapes des échantillons par
+	 * type ») : type → SAMPLE_COLLECTED, SAMPLE_RECEIVED, SAMPLE_ACCEPTED,
+	 * ANALYSIS_DONE, RESULT_COLLECTED, RESULT_ON_SITE, NON_CONFORM, FAILED.
+	 */
+	public Map<String, Map<String, Integer>> stepsByType(DashboardFilter filter);
+
 	public List<DayCountDTO> seriesCollected(DashboardFilter filter);
 
 	public List<DayCountDTO> seriesDeposited(DashboardFilter filter);

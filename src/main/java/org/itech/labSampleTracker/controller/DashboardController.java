@@ -17,7 +17,6 @@ import org.itech.labSampleTracker.service.DashboardService;
 import org.itech.labSampleTracker.service.DistrictService;
 import org.itech.labSampleTracker.service.LabService;
 import org.itech.labSampleTracker.service.RegionService;
-import org.itech.labSampleTracker.service.SampleService;
 import org.itech.labSampleTracker.service.SampleTypeService;
 import org.itech.labSampleTracker.service.SiteService;
 import org.itech.labSampleTracker.service.security.UserScopeService;
@@ -44,8 +43,6 @@ import lombok.RequiredArgsConstructor;
 public class DashboardController {
 
 	private final DashboardService service;
-
-	private final SampleService sampleService;
 
 	private final SiteService siteService;
 
@@ -128,7 +125,7 @@ public class DashboardController {
 
 	@GetMapping(value = "/sample_status_by_sample_type", produces = "application/json")
 	public ResponseEntity<Map<String, Object>> getSampleStatusBySampleType(DashboardQuery q) {
-		Map<String, Map<String, Integer>> sampleCount = scoped(q).map(sampleService::getSampleStatusBySampleType)
+		Map<String, Map<String, Integer>> sampleCount = scoped(q).map(service::stepsByType)
 				.orElseGet(Map::of);
 		Set<String> categories = sampleCount.keySet();
 		List<Integer> collected = new ArrayList<Integer>();

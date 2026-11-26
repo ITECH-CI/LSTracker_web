@@ -97,7 +97,8 @@ class DashboardFilterSqlTest {
 		repo.tsDelivered(F);
 		repo.stepDurationsDays(F);
 		repo.stepMedians(F);
-		assertAllFiltered(jdbc, 7);
+		repo.stepsByType(F);
+		assertAllFiltered(jdbc, 8);
 	}
 
 	@Test

@@ -11,7 +11,6 @@ import org.itech.labSampleTracker.dao.ReportJdbcRepository;
 import org.itech.labSampleTracker.dto.DashboardFilter;
 import org.itech.labSampleTracker.dto.DayCountDTO;
 import org.itech.labSampleTracker.service.DashboardService;
-import org.itech.labSampleTracker.service.SampleService;
 import org.springframework.stereotype.Service;
 
 /**
@@ -46,14 +45,12 @@ public class ConsistencyCheckService {
 
 	private final DashboardAdvancedRepository dashboard;
 	private final DashboardService series;
-	private final SampleService samples;
 	private final ReportJdbcRepository reports;
 
 	public ConsistencyCheckService(DashboardAdvancedRepository dashboard, DashboardService series,
-			SampleService samples, ReportJdbcRepository reports) {
+			ReportJdbcRepository reports) {
 		this.dashboard = dashboard;
 		this.series = series;
-		this.samples = samples;
 		this.reports = reports;
 	}
 
@@ -73,7 +70,7 @@ public class ConsistencyCheckService {
 		out.add(new Check("Collectés", collected, "Évolution des échantillons dans le temps (somme)",
 				days(series.seriesCollected(f))));
 		out.add(new Check("Collectés", collected, "Étapes des échantillons par type (somme)",
-				samples.getSampleStatusBySampleType(f).values().stream()
+				series.stepsByType(f).values().stream()
 						.mapToLong(m -> m.getOrDefault("SAMPLE_COLLECTED", 0)).sum()));
 		out.add(new Check("Collectés", collected, "Rapport PDF (somme par type)",
 				sum(reports.collectedByType(f, null), "cnt")));

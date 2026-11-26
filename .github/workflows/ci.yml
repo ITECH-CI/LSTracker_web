@@ -4,6 +4,8 @@
 # LabSampleTrackerApplicationTests (contextLoads) est exclu : il démarre
 # tout le contexte Spring et a besoin d'une base PostgreSQL. Les tests
 # métier (ex. DashboardPreviousPeriodTest) n'en ont pas besoin.
+# SampleWithoutCollectionTest démarre une base PostgreSQL dans Docker
+# (Testcontainers) ; il est ignoré là où Docker est absent.
 # =====================================================================
 
 name: CI — tests unitaires

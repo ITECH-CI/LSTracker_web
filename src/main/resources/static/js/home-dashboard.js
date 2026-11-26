@@ -704,6 +704,9 @@
 			: num(r[sort.key]);
 		const dir = sort.dir === 'asc' ? 1 : -1;
 		return rows.slice().sort(function(a, b) {
+			// « Zone non renseignée » (sans identifiant) reste en dernier.
+			const na = drillId(a, lvl) == null, nb = drillId(b, lvl) == null;
+			if (na !== nb) return na ? 1 : -1;
 			const va = val(a), vb = val(b);
 			const c = typeof va === 'string' ? va.localeCompare(vb, 'fr', { sensitivity: 'base' }) : va - vb;
 			return c * dir;
@@ -803,14 +806,16 @@
 		// La cascade n'existe qu'en vue "Régions" : les vues à plat
 		// (Districts / Sites) listent deja tout le niveau demande.
 		const flat = (window._drillLevel || 'region') !== 'region';
-		const expander = (level === 'site' || flat)
+		// Ligne « Zone non renseignée » : pas de zone à déplier ni à détailler.
+		const unknown = id == null;
+		const expander = (level === 'site' || flat || unknown)
 			? '<span class="expander placeholder">·</span>'
 			: '<span class="expander" data-toggle="' + level + '" data-id="' + id + '" onclick="toggleDrill(this)">▶</span>';
 		const indentCls = indent === 1 ? 'indent-1' : (indent === 2 ? 'indent-2' : '');
 		return '<tr class="' + cls + '" data-row-id="' + level + '-' + id + '">'
 			+ '<td class="num drill-id">' + (id != null ? id : '-') + '</td>'
 			+ '<td><span class="' + indentCls + '">' + expander + ' ' + escapeHtml(name || '-')
-			+   (parent && (window._drillLevel || 'region') !== 'region'
+			+   (parent && !unknown && (window._drillLevel || 'region') !== 'region'
 					? ' <span class="drill-parent">' + escapeHtml(parent) + '</span>' : '')
 			+ '</span></td>'
 			+ totalCell(r.total)
@@ -820,7 +825,7 @@
 			+ '<td class="num">' + formatNumber(r.failed) + '</td>'
 			+ '<td class="num">' + formatNumber(r.delivered) + '</td>'
 			+ '<td class="num">' + renderTat(r.tat_avg_days, r.total) + '</td>'
-			+ '<td class="num">' + (num(r.total) > 0
+			+ '<td class="num">' + (num(r.total) > 0 && !unknown
 				? '<button type="button" class="btn btn-outline-secondary btn-details" data-zone-level="' + level
 					+ '" data-zone-id="' + id + '" aria-expanded="false">Détails</button>'
 				: '') + '</td>'
