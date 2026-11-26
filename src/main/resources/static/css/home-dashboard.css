@@ -569,7 +569,7 @@
 .top-card .rank-bar span { display: block; height: 100%; border-radius: 2px; background: var(--rank-color); }
 #topRejectionSites { --rank-color: #dc2626; }
 #slowestLabs       { --rank-color: #ea580c; }
-#topConveyors      { --rank-color: #5048e0; }
+#topCircuits       { --rank-color: #5048e0; }
 
 .text-muted-sm { font-size: .75rem; color: #9ca3af; }
 .empty-state {
