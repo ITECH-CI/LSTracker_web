@@ -38,7 +38,14 @@ public class HomeController {
 	}
 
 	@GetMapping("/login")
-	public String login() {
+	public String login(Model model, jakarta.servlet.http.HttpServletRequest request) {
+		// Message du dernier échec (tentatives restantes, blocage), affiché une fois.
+		jakarta.servlet.http.HttpSession session = request.getSession(false);
+		if (session != null) {
+			Object message = session.getAttribute(org.itech.labSampleTracker.config.SecurityConfig.LOGIN_ERROR_ATTRIBUTE);
+			session.removeAttribute(org.itech.labSampleTracker.config.SecurityConfig.LOGIN_ERROR_ATTRIBUTE);
+			model.addAttribute("loginError", message);
+		}
 		return "login";
 	}
 

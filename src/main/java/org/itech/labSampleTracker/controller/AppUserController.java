@@ -78,6 +78,9 @@ public class AppUserController extends BaseController {
 	private org.itech.labSampleTracker.service.security.UserSessionManagementService userSessionManagementService;
 
 	@Autowired
+	private org.itech.labSampleTracker.security.LoginAttemptListener loginAttempts;
+
+	@Autowired
 	private org.itech.labSampleTracker.service.security.UserScopeService userScopeService;
 
 	@Autowired
@@ -307,6 +310,9 @@ public class AppUserController extends BaseController {
 		appuserService.update(u, false);
 		if (!wasLocked) {
 			userSessionManagementService.revokeSessionsFor(u.getLogin());
+		} else {
+			// Déverrouillé : il n'est plus annoncé bloqué à la connexion.
+			loginAttempts.reset(u.getLogin());
 		}
 		return java.util.Map.of("id", id, "isLocked", !wasLocked);
 	}
@@ -475,6 +481,9 @@ public class AppUserController extends BaseController {
 			// its password — so the new state takes effect immediately.
 			boolean nowInactive = !userDTO.isActive() && wasActive;
 			boolean nowLocked = userDTO.isLocked() && !wasLocked;
+			if (wasLocked && !userDTO.isLocked()) {
+				loginAttempts.reset(previousLogin);
+			}
 			boolean roleChanged = previousRole != null
 					&& !previousRole.equals(userDTO.getRole().getRole());
 			boolean passwordChanged = passwordMustBeCrypt;

@@ -302,7 +302,7 @@ body {
 
 							<div th:if="${param.error}" class="alert-modern is-error">
 								<i class="fas fa-exclamation-triangle"></i>
-								<span>Identifiant ou mot de passe invalide.</span>
+								<span th:text="${loginError} ?: 'Identifiant ou mot de passe incorrect.'">Identifiant ou mot de passe incorrect.</span>
 							</div>
 
 							<div th:if="${param.logout}" class="alert-modern is-success">

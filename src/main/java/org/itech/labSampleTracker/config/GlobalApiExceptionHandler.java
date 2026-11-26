@@ -99,6 +99,14 @@ public class GlobalApiExceptionHandler {
 		return build(HttpStatus.CONFLICT, "Violation d'intégrité de données", req);
 	}
 
+	/** Connexion mobile refusée : message de tentatives restantes ou de blocage, comme sur le web. */
+	@ExceptionHandler(org.itech.labSampleTracker.api.auth.LoginRefusedException.class)
+	public ResponseEntity<ErrorMessage> handleLoginRefused(org.itech.labSampleTracker.api.auth.LoginRefusedException ex,
+			HttpServletRequest req) {
+		log.info("Login refused on {} {}", req.getMethod(), req.getRequestURI());
+		return build(HttpStatus.UNAUTHORIZED, ex.getMessage(), req);
+	}
+
 	@ExceptionHandler(BadCredentialsException.class)
 	public ResponseEntity<ErrorMessage> handleBadCredentials(BadCredentialsException ex, HttpServletRequest req) {
 		log.info("BadCredentials on {} {}", req.getMethod(), req.getRequestURI());

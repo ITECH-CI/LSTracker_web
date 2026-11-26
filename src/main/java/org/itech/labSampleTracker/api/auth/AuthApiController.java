@@ -41,11 +41,19 @@ public class AuthApiController {
 	private RefreshTokenService refreshTokenService;
 	@Autowired
 	private AppUserService appUserService;
+	@Autowired
+	private org.itech.labSampleTracker.security.LoginAttemptListener loginAttempts;
 
 	@PostMapping(value = "/login", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
 	public LoginResponse login(@Valid @RequestBody LoginRequest req, HttpServletRequest http) {
-		var auth = authenticationManager
-				.authenticate(new UsernamePasswordAuthenticationToken(req.username(), req.password()));
+		org.springframework.security.core.Authentication auth;
+		try {
+			auth = authenticationManager
+					.authenticate(new UsernamePasswordAuthenticationToken(req.username(), req.password()));
+		} catch (org.springframework.security.core.AuthenticationException ex) {
+			// Échec déjà compté (LoginAttemptListener) : même message que sur le web.
+			throw new LoginRefusedException(loginAttempts.failureMessage(req.username()));
+		}
 		var username = auth.getName();
 		AppUser appUser = appUserService.findUserByLogin(username);
 		var role = appUser.getRole();

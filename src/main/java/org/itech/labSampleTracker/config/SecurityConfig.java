@@ -40,6 +40,9 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 @Configuration
 public class SecurityConfig {
 
+	/** Attribut de session : message du dernier échec de connexion web, lu par /login. */
+	public static final String LOGIN_ERROR_ATTRIBUTE = "LST_LOGIN_ERROR";
+
 	@Autowired
 	private UserDetailsService userDetailsService;
 
@@ -92,11 +95,23 @@ public class SecurityConfig {
 
 	@Bean
 	@Order(2)
-	public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+	public SecurityFilterChain filterChain(HttpSecurity http,
+			org.itech.labSampleTracker.security.LoginAttemptListener loginAttempts) throws Exception {
 		http.authorizeHttpRequests(
-				request -> request.requestMatchers("/admin/**").hasAnyAuthority("ADMIN").anyRequest().authenticated()
+				// GET /login quel que soit le paramètre (?error, ?logout, ?expired) :
+				// avec un gestionnaire d'échec propre, Spring n'autorise plus de
+				// lui-même l'adresse d'échec « /login?error ».
+				request -> request.requestMatchers(HttpMethod.GET, "/login").permitAll()
+						.requestMatchers("/admin/**").hasAnyAuthority("ADMIN").anyRequest().authenticated()
 
-		).formLogin(form -> form.loginPage("/login").successForwardUrl("/").permitAll().defaultSuccessUrl("/", false))
+		).formLogin(form -> form.loginPage("/login").successForwardUrl("/").permitAll().defaultSuccessUrl("/", false)
+				// Message de l'échec (tentatives restantes, blocage) pour la page de
+				// connexion ; l'échec est déjà compté par LoginAttemptListener.
+				.failureHandler((request, response, exception) -> {
+					request.getSession().setAttribute(LOGIN_ERROR_ATTRIBUTE,
+							loginAttempts.failureMessage(request.getParameter("username")));
+					response.sendRedirect(request.getContextPath() + "/login?error");
+				}))
 				.logout((logout) -> logout
 						.addLogoutHandler(new HeaderWriterLogoutHandler(new ClearSiteDataHeaderWriter(Directive.CACHE,
 								Directive.COOKIES, Directive.EXECUTION_CONTEXTS, Directive.STORAGE)))
