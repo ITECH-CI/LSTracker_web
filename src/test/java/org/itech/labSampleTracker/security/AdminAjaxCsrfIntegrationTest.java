@@ -67,7 +67,7 @@ class AdminAjaxCsrfIntegrationTest {
 	@BeforeEach
 	void loggedInAsAdmin() throws Exception {
 		cookies = new CookieManager();
-		http = HttpClient.newBuilder().cookieHandler(cookies).followRedirects(HttpClient.Redirect.NEVER).build();
+		http = HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1).cookieHandler(cookies).followRedirects(HttpClient.Redirect.NEVER).build();
 		get("/login");
 		HttpResponse<String> login = form("/login",
 				Map.of("username", "admin", "password", ADMIN_PASSWORD, "_csrf", xsrfCookie()));
