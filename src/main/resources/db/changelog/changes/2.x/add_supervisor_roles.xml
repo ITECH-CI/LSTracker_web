@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+	xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.1.xsd">
+
+	<!--
+		Profils de supervision régionale et de district : consultation et export
+		limités aux régions ou districts affectés, sans écriture dans
+		l'administration (cf. UserRole, UserScopeService.isNational).
+
+		app_role a été chargé avec des id explicites (init_db.xml), ce qui
+		n'avance pas sa séquence : l'id est donc calculé ici, puis la séquence
+		est recalée pour les créations faites depuis l'écran des rôles.
+		Sans effet si le rôle existe déjà.
+	-->
+	<changeSet id="009-supervisor-roles" author="lstracker">
+		<preConditions onFail="MARK_RAN" onFailMessage="app_role table missing">
+			<tableExists tableName="app_role" schemaName="sample_tracker" />
+		</preConditions>
+		<sql dbms="postgresql">
+			INSERT INTO sample_tracker.app_role (id, name, is_active)
+			SELECT (SELECT COALESCE(MAX(id), 0) + 1 FROM sample_tracker.app_role), 'SUPERVISEUR_REGION', true
+			WHERE NOT EXISTS (SELECT 1 FROM sample_tracker.app_role WHERE name = 'SUPERVISEUR_REGION');
+
+			INSERT INTO sample_tracker.app_role (id, name, is_active)
+			SELECT (SELECT COALESCE(MAX(id), 0) + 1 FROM sample_tracker.app_role), 'SUPERVISEUR_DISTRICT', true
+			WHERE NOT EXISTS (SELECT 1 FROM sample_tracker.app_role WHERE name = 'SUPERVISEUR_DISTRICT');
+
+			SELECT setval(
+				pg_get_serial_sequence('sample_tracker.app_role', 'id'),
+				(SELECT MAX(id) FROM sample_tracker.app_role)
+			);
+		</sql>
+	</changeSet>
+
+</databaseChangeLog>

@@ -18,6 +18,7 @@ import org.itech.labSampleTracker.exception.ResourceNotFoundException;
 import org.itech.labSampleTracker.helper.ExportUtils;
 import org.itech.labSampleTracker.helper.SampleDateValidator;
 import org.itech.labSampleTracker.security.ActivityLogService;
+import org.itech.labSampleTracker.security.AdminWrite;
 import org.itech.labSampleTracker.service.DistrictService;
 import org.itech.labSampleTracker.service.LabService;
 import org.itech.labSampleTracker.service.RegionService;
@@ -115,7 +116,11 @@ public class SampleController {
 		binder.registerCustomEditor(Date.class, new CustomDateEditor(dateFormat, true));
 	}
 
+	// Saisie web des échantillons : administrateurs seulement, comme le bouton
+	// « Modifier » de la liste (canEditSamples). La saisie de terrain passe par
+	// le mobile (SampleWrite).
 	@PostMapping(value = "")
+	@AdminWrite
 	public String createSample(@Valid Sample model) {
 
 		SampleDateValidator.validate(model);
@@ -267,6 +272,7 @@ public class SampleController {
 	}
 
 	@PostMapping(value = "/delete/{id}")
+	@AdminWrite
 	public String deleteSample(@PathVariable("id") Integer id, RedirectAttributes redirectAttributes) {
 		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 		UserDetails userDetails = (UserDetails) authentication.getPrincipal();
@@ -336,6 +342,7 @@ public class SampleController {
 	}
 
 	@PostMapping(value = "/update/{id}")
+	@AdminWrite
 	public String updateSample(@PathVariable("id") Integer id, @ModelAttribute SampleUpdateDTO sampleToUpdate,
 			Model model) {
 		Sample updatedSample = new Sample();

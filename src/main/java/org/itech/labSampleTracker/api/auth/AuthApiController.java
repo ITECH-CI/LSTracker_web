@@ -1,12 +1,14 @@
 package org.itech.labSampleTracker.api.auth;
 
 import java.util.List;
+import java.util.Set;
 
 import org.itech.labSampleTracker.api.auth.AuthDtos.LoginRequest;
 import org.itech.labSampleTracker.api.auth.AuthDtos.LoginResponse;
 import org.itech.labSampleTracker.api.auth.AuthDtos.RefreshRequest;
 import org.itech.labSampleTracker.api.auth.AuthDtos.RefreshResponse;
 import org.itech.labSampleTracker.entities.AppUser;
+import org.itech.labSampleTracker.enums.UserRole;
 import org.itech.labSampleTracker.enums.UserType;
 import org.itech.labSampleTracker.security.JwtService;
 import org.itech.labSampleTracker.security.RefreshToken;
@@ -27,6 +29,9 @@ import jakarta.validation.Valid;
 @RestController
 @RequestMapping("/api_v2/auth")
 public class AuthApiController {
+
+	private static final Set<String> CONSULTATION_ROLES = Set.of(UserRole.MANAGER.getRole(),
+			UserRole.SUPERVISEUR_REGION.getRole(), UserRole.SUPERVISEUR_DISTRICT.getRole());
 
 	@Autowired
 	private AuthenticationManager authenticationManager;
@@ -58,8 +63,16 @@ public class AuthApiController {
 	 * user_type (ex. CONVOYEUR) : sans cela, un convoyeur tombait sur le tableau
 	 * de bord générique, sans action de collecte. Le JWT garde le rôle brut.
 	 * Même logique « role OU user_type » que MetaService.isType.
+	 *
+	 * Les profils de consultation (pilotage national, superviseurs régional et
+	 * de district) reçoivent USER : le mobile n'a pas d'écran propre à ces
+	 * rôles et afficherait « Rôle non reconnu » ; USER ouvre le tableau de bord
+	 * de consultation, sans action de collecte ni de dépôt.
 	 */
-	private static String appRole(AppUser user) {
+	static String appRole(AppUser user) {
+		if (CONSULTATION_ROLES.contains(String.valueOf(user.getRole()).toUpperCase())) {
+			return UserRole.USER.getRole();
+		}
 		for (UserType type : List.of(UserType.ADMIN, UserType.RIDER, UserType.BIOLOGIST)) {
 			String t = type.getType();
 			if (t.equalsIgnoreCase(user.getRole()) || t.equalsIgnoreCase(user.getUserType())) {

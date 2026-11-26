@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="fr" xmlns="http://www.w3.org/1999/xhtml"
+	xmlns:th="http://www.thymeleaf.org">
+<body>
+
+<!--
+	Formulaire de compte (création et modification) : un superviseur régional
+	est affecté à au moins une région, un superviseur de district à au moins un
+	district. Le niveau d'organisation et le type suivent le rôle. Le serveur
+	applique les mêmes règles (AppUserController.applySupervisorRules).
+	S'insère dans un formulaire th:object="${userDTO}" qui fournit les listes
+	${regions} et ${districts}.
+-->
+<th:block th:fragment="supervisorZoneFields">
+	<div class="row mt-2">
+		<div class="col-md-12 field" id="fieldSupervisorRegions" style="display:none">
+			<label for="inputSupervisorRegions">Régions affectées <span class="req">*</span></label>
+			<select id="inputSupervisorRegions" th:field="*{regions}" multiple="multiple"
+				class="form-select form-select-sm select2" disabled>
+				<option th:each="r : ${regions}" th:value="${r.id}" th:text="${r.name}"></option>
+			</select>
+			<span class="hint">Le superviseur régional consulte et exporte les données de ces régions uniquement.</span>
+		</div>
+		<div class="col-md-12 field" id="fieldSupervisorDistricts" style="display:none">
+			<label for="inputSupervisorDistricts">Districts affectés <span class="req">*</span></label>
+			<select id="inputSupervisorDistricts" th:field="*{districts}" multiple="multiple"
+				class="form-select form-select-sm select2" disabled>
+				<option th:each="d : ${districts}" th:value="${d.id}" th:text="${d.name}"></option>
+			</select>
+			<span class="hint">Le superviseur de district consulte et exporte les données de ces districts uniquement.</span>
+		</div>
+	</div>
+</th:block>
+
+<script th:fragment="supervisorZoneScript" th:inline="none">
+	/* eslint-disable */
+	$(function() {
+		// Rôle de superviseur -> niveau imposé (valeurs de l'enum UserLevel).
+		const SUPERVISOR_LEVEL = { SUPERVISEUR_REGION: 'REGION_LEVEL', SUPERVISEUR_DISTRICT: 'DISTRICT_LEVEL' };
+
+		function toggleZone(fieldId, selectId, on) {
+			$('#' + fieldId).toggle(on);
+			$('#' + selectId).prop('disabled', !on).prop('required', on);
+		}
+
+		function applyRoleRules() {
+			const role = $('#inputRole').val();
+			const level = SUPERVISOR_LEVEL[role];
+			const $level = $('#inputUserLevel');
+			const $type = $('#inputUserType');
+			if (level) {
+				$level.val(level).trigger('change.select2');
+				$type.val('OTHER').trigger('change.select2');
+			}
+			// Champs verrouillés : le serveur fixe lui-même niveau et type d'un superviseur.
+			$level.prop('disabled', !!level);
+			$type.prop('disabled', !!level);
+			toggleZone('fieldSupervisorRegions', 'inputSupervisorRegions', role === 'SUPERVISEUR_REGION');
+			toggleZone('fieldSupervisorDistricts', 'inputSupervisorDistricts', role === 'SUPERVISEUR_DISTRICT');
+		}
+
+		$('#inputRole').on('change', applyRoleRules);
+		applyRoleRules();
+	});
+</script>
+
+</body>
+</html>

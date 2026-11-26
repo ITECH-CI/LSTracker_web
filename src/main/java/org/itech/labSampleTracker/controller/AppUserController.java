@@ -85,13 +85,78 @@ public class AppUserController extends BaseController {
 
 	private AppUser appUser;
 
+	/**
+	 * Superviseur régional ou de district : le niveau d'organisation suit le
+	 * rôle (région ou district) et le type est « AUTRE », pour qu'aucun
+	 * traitement fondé sur le type (convoyeur, biologiste, administrateur) ne
+	 * lui ouvre plus que la consultation de ses zones. Au moins une zone doit
+	 * être affectée.
+	 *
+	 * @return le message d'erreur, ou null si le formulaire est recevable
+	 */
+	static String applySupervisorRules(UserDTO dto) {
+		UserRole role = dto.getRole();
+		if (role == null || !role.isZoneSupervisor()) {
+			return null;
+		}
+		dto.setUserLevel(role.getRequiredLevel());
+		dto.setUserType(UserType.OTHER);
+		if (supervisorZones(dto).isEmpty()) {
+			return role == UserRole.SUPERVISEUR_REGION
+					? "Un superviseur régional doit être affecté à au moins une région."
+					: "Un superviseur de district doit être affecté à au moins un district.";
+		}
+		return null;
+	}
+
+	/** Zones saisies pour un superviseur : ses régions ou ses districts selon le rôle. */
+	static List<Integer> supervisorZones(UserDTO dto) {
+		List<Integer> zones = dto.getRole() == UserRole.SUPERVISEUR_REGION ? dto.getRegions() : dto.getDistricts();
+		return zones == null ? List.of() : zones.stream().filter(Objects::nonNull).distinct().toList();
+	}
+
+	/**
+	 * Le rôle Administrateur système ne s'attribue ni ne se retire que par un
+	 * administrateur système.
+	 *
+	 * @return le message d'erreur, ou null si le changement est permis
+	 */
+	static String superAdminRuleError(boolean currentIsSuperAdmin, String previousRole, UserRole requested) {
+		if (currentIsSuperAdmin || requested == null) {
+			return null;
+		}
+		String superAdmin = UserRole.SUPER_ADMIN.getRole();
+		boolean grants = requested == UserRole.SUPER_ADMIN && !superAdmin.equals(previousRole);
+		boolean revokes = superAdmin.equals(previousRole) && requested != UserRole.SUPER_ADMIN;
+		return grants || revokes ? "Seul un administrateur système peut attribuer ou retirer ce rôle." : null;
+	}
+
+	private boolean currentIsSuperAdmin() {
+		return this.getUserRoles().contains("ROLE_SUPER_ADMIN");
+	}
+
+	/** Listes du formulaire de compte ; editedRole : rôle actuel du compte modifié, null à la création. */
+	private void prepareUserForm(Model model, String editedRole) {
+		model.addAttribute("userTypes", UserType.values());
+		model.addAttribute("userRoles", UserRole.assignable(currentIsSuperAdmin(), editedRole));
+		model.addAttribute("userLevels", UserLevel.values());
+		model.addAttribute("regions", regionService.getRegionIdAndName());
+		model.addAttribute("districts", districtService.getDistrictIdAndNames());
+	}
+
 	@PostMapping(value = "/new")
 	public String createAppUser(@Valid UserDTO userDTO, BindingResult result, Model model) {
-		model.addAttribute("userTypes", UserType.values());
-		model.addAttribute("userRoles", UserRole.values());
-		model.addAttribute("userLevels", UserLevel.values());
+		prepareUserForm(model, null);
 		if (result.hasErrors()) {
 			model.addAttribute("message_error", result.getAllErrors());
+			return "user/new";
+		}
+		String ruleError = superAdminRuleError(currentIsSuperAdmin(), null, userDTO.getRole());
+		if (ruleError == null) {
+			ruleError = applySupervisorRules(userDTO);
+		}
+		if (ruleError != null) {
+			model.addAttribute("message_error", ruleError);
 			return "user/new";
 		}
 		String login = userDTO.getLogin();
@@ -128,9 +193,13 @@ public class AppUserController extends BaseController {
 		u.setIsLocked(userDTO.isLocked());
 		try {
 			u = appuserService.create(u, true);
-
+			if (userDTO.getRole().isZoneSupervisor()) {
+				appuserService.replaceZoneSupervisorAssignments(u.getId(), userDTO.getRole(),
+						supervisorZones(userDTO));
+			}
 		} catch (Exception e) {
 			model.addAttribute("message_error", e.getMessage());
+			return "user/new";
 		}
 		model.addAttribute("message_success", "Ajout effectué avec succès");
 
@@ -141,9 +210,7 @@ public class AppUserController extends BaseController {
 	@GetMapping(value = "/new")
 	public String newAppUser(Model model) {
 		model.addAttribute("userDTO", new UserDTO());
-		model.addAttribute("userTypes", UserType.values());
-		model.addAttribute("userRoles", UserRole.values());
-		model.addAttribute("userLevels", UserLevel.values());
+		prepareUserForm(model, null);
 		return "user/new";
 	}
 
@@ -153,6 +220,7 @@ public class AppUserController extends BaseController {
 		// Filter options for the redesigned admin index. The actual user list
 		// is loaded asynchronously via /appuser/data (DataTables server-side).
 		model.addAttribute("userRoles", UserRole.values());
+		model.addAttribute("roleLabels", UserRole.labels());
 		model.addAttribute("userTypes", UserType.values());
 		model.addAttribute("regions", regionService.getRegionIdAndName());
 		model.addAttribute("districts", districtService.getDistrictIdAndNames());
@@ -303,9 +371,7 @@ public class AppUserController extends BaseController {
 	public String getOneAppUser(@PathVariable("id") Integer id, Model model) {
 		appUser = new AppUser();
 		UserDTO userDTO = new UserDTO();
-		model.addAttribute("userTypes", UserType.values());
-		model.addAttribute("userRoles", UserRole.values());
-		model.addAttribute("userLevels", UserLevel.values());
+		prepareUserForm(model, null);
 		try {
 			appUser = accountService.getOne(id);
 			if (ObjectUtils.isEmpty(appUser)) {
@@ -315,10 +381,14 @@ public class AppUserController extends BaseController {
 			model.addAttribute("message_error", ex.getMessage());
 			return "user/edit";
 		}
+		prepareUserForm(model, appUser.getRole());
 		BeanUtils.copyProperties(appUser, userDTO);
 		userDTO.setRole(UserRole.get(appUser.getRole()));
 		userDTO.setUserType(UserType.get(appUser.getUserType()));
 		userDTO.setUserLevel(UserLevel.get(appUser.getUserLevel()));
+		userDTO.setRegions(appuserService.getUserRegions(id).stream().map(AppUserHasRegion::getRegionId).toList());
+		userDTO.setDistricts(
+				appuserService.getUserDistricts(id).stream().map(AppUserHasDistrict::getDistrictId).toList());
 		userDTO.setRepassword(null);
 		model.addAttribute("userDTO", userDTO);
 		return "user/edit";
@@ -326,15 +396,14 @@ public class AppUserController extends BaseController {
 
 	@PostMapping(value = "/update/{id}")
 	public String updateAppUser(@PathVariable("id") Integer id, Model model, UserDTO userDTO) {
-		model.addAttribute("userTypes", UserType.values());
-		model.addAttribute("userRoles", UserRole.values());
-		model.addAttribute("userLevels", UserLevel.values());
+		prepareUserForm(model, null);
 		try {
 			AppUser updatedUser = appuserService.findUserById(id).orElse(null);
 			if (ObjectUtils.isEmpty(updatedUser)) {
 				model.addAttribute("message_error", "Utilisateur non trouvé");
 				return "user/edit";
 			}
+			prepareUserForm(model, updatedUser.getRole());
 			// Snapshot of state BEFORE update — used to detect changes that
 			// should trigger session revocation (deactivation, lock, role change).
 			boolean wasActive = Boolean.TRUE.equals(updatedUser.getIsActive());
@@ -344,6 +413,14 @@ public class AppUserController extends BaseController {
 			// Le champ Identifiant est désactivé dans le formulaire, donc jamais
 			// soumis : on le reprend de la base (il n'est pas modifiable).
 			userDTO.setLogin(previousLogin);
+			String ruleError = superAdminRuleError(currentIsSuperAdmin(), previousRole, userDTO.getRole());
+			if (ruleError == null) {
+				ruleError = applySupervisorRules(userDTO);
+			}
+			if (ruleError != null) {
+				model.addAttribute("message_error", ruleError);
+				return "user/edit";
+			}
 			appUser = new AppUser();
 			AppUser u = appuserService.findUserByLogin(userDTO.getLogin());
 			if (u != null && !userDTO.getLogin().equalsIgnoreCase(u.getLogin())) {
@@ -383,6 +460,9 @@ public class AppUserController extends BaseController {
 			updatedUser.setUserType(userDTO.getUserType().getType());
 			updatedUser.setUserLevel(userDTO.getUserLevel().getLevel());
 			appUser = appuserService.create(updatedUser, passwordMustBeCrypt);
+			if (userDTO.getRole().isZoneSupervisor()) {
+				appuserService.replaceZoneSupervisorAssignments(id, userDTO.getRole(), supervisorZones(userDTO));
+			}
 
 			// Force-logout the user from any active web session when an admin
 			// deactivates the account, locks it, changes its role or resets
@@ -418,7 +498,7 @@ public class AppUserController extends BaseController {
 				model.addAttribute("user", userDTO);
 
 				// Extra read-only info displayed on the profile page
-				model.addAttribute("currentRole", currentUser.getRole());
+				model.addAttribute("currentRole", UserRole.labelOf(currentUser.getRole()));
 				model.addAttribute("currentUserType", currentUser.getUserType());
 				model.addAttribute("currentUserLevel", currentUser.getUserLevel());
 				model.addAttribute("isActive", currentUser.getIsActive());
@@ -557,6 +637,23 @@ public class AppUserController extends BaseController {
 				throw new ResourceNotFoundException("Utilisateur non trouvé");
 			}
 			model.addAttribute("user", appUser);
+			UserRole role = UserRole.get(appUser.getRole());
+			if (role != null && role.isZoneSupervisor()) {
+				// Mêmes règles que le formulaire de compte : au moins une zone,
+				// et aucune affectation d'un autre niveau.
+				UserDTO zones = new UserDTO();
+				zones.setRole(role);
+				zones.setRegions(userOrg.getRegions());
+				zones.setDistricts(userOrg.getDistricts());
+				String ruleError = applySupervisorRules(zones);
+				if (ruleError != null) {
+					model.addAttribute("message_error", ruleError);
+					return "user/edit_user_org";
+				}
+				appuserService.replaceZoneSupervisorAssignments(userId, role, supervisorZones(zones));
+				model.addAttribute("message_success", "Opération effectuée avec succès");
+				return "user/edit_user_org";
+			}
 			if (appUser.getUserLevel().equals("REGION")) {
 				appuserService.addRegionsToUser(userId, userOrg.getRegions());
 			} else if (appUser.getUserLevel().equals("DISTRICT")) {

@@ -7,6 +7,7 @@ import java.util.Set;
 
 import org.itech.labSampleTracker.dao.UserScopeRepository;
 import org.itech.labSampleTracker.entities.AppUser;
+import org.itech.labSampleTracker.enums.UserRole;
 import org.itech.labSampleTracker.service.AppUserService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -47,9 +48,15 @@ public class UserScopeService {
 	private final AppUserService appUserService;
 
 	@Getter
-	@Builder
+	@Builder(toBuilder = true)
 	public static class Scope {
 		private final boolean global;
+		/**
+		 * Superviseur régional ou de district : il ne voit que les échantillons
+		 * collectés dans ses zones. Un labo de sa zone ne lui ouvre pas les
+		 * échantillons venus d'ailleurs (pas d'accès par le labo destinataire).
+		 */
+		private final boolean collectionSitesOnly;
 		private final List<Integer> regionIds;
 		private final List<Integer> districtIds;
 		private final List<Integer> siteIds;
@@ -89,7 +96,11 @@ public class UserScopeService {
 		if (global) {
 			return Scope.builder().global(true).build();
 		}
-		return resolve(user.getId());
+		Scope scope = resolve(user.getId());
+		if (UserRole.isZoneSupervisor(user.getRole())) {
+			return scope.toBuilder().collectionSitesOnly(true).build();
+		}
+		return scope;
 	}
 
 	public Scope resolve(Integer userId) {
@@ -170,7 +181,10 @@ public class UserScopeService {
 		// les données hors périmètre ne doivent pas apparaître dans ses totaux).
 		// Seul un filtre labo, sans filtre géographique, la lève : un labo
 		// autorisé voit ce qui lui est destiné, quel que soit le site d'origine.
-		boolean labOnly = requestedLab != null && requestedRegion == null
+		// Un superviseur de zone garde toujours la restriction aux sites de ses
+		// zones, même avec un filtre labo seul.
+		boolean labOnly = !scope.isCollectionSitesOnly()
+				&& requestedLab != null && requestedRegion == null
 				&& requestedDistrict == null && requestedSite == null;
 		boolean noNarrowFilter = requestedRegion == null && requestedDistrict == null
 				&& requestedSite == null && requestedLab == null;
@@ -201,6 +215,9 @@ public class UserScopeService {
 		if (collectionSiteId != null && scope.getSiteIds().contains(collectionSiteId)) {
 			return true;
 		}
+		if (scope.isCollectionSitesOnly()) {
+			return false;
+		}
 		for (Integer lab : labIds) {
 			if (lab != null && scope.getLabIds().contains(lab)) {
 				return true;
@@ -217,9 +234,15 @@ public class UserScopeService {
 	 * Accès national, sans restriction de zone : rôle global (ADMIN, SUPPORT,
 	 * MANAGER) ou utilisateur de niveau central. Règle unique, utilisée aussi
 	 * par l'API mobile (métadonnées, synchronisation).
+	 *
+	 * Un superviseur régional ou de district n'est jamais national, même sur
+	 * un compte de niveau central : son périmètre vient de ses affectations.
 	 */
 	public static boolean isNational(org.itech.labSampleTracker.entities.AppUser user) {
 		if (user == null) {
+			return false;
+		}
+		if (UserRole.isZoneSupervisor(user.getRole())) {
 			return false;
 		}
 		if (user.getRole() != null && GLOBAL_ROLES.contains(user.getRole().toUpperCase())) {

@@ -33,5 +33,9 @@ public class UserDTO {
 	private boolean locked = false;
 	@DateTimeFormat(pattern="dd/MM/YYYY")
 	private Date passwordExpireAt;
-	
+	/** Régions affectées, saisies dans le formulaire pour un superviseur régional. */
+	private java.util.List<Integer> regions;
+	/** Districts affectés, saisis dans le formulaire pour un superviseur de district. */
+	private java.util.List<Integer> districts;
+
 }

@@ -58,6 +58,14 @@ public interface AppUserService {
 	
 	public List<AppUserHasSite> getUserSites(Integer userId);
 
+	/**
+	 * Superviseur régional ou de district : ses affectations deviennent ces
+	 * régions (ou districts), et celles des autres niveaux sont retirées pour
+	 * que son périmètre ne vienne que de là (web et synchronisation mobile).
+	 */
+	public void replaceZoneSupervisorAssignments(Integer userId, org.itech.labSampleTracker.enums.UserRole role,
+			List<Integer> zoneIds);
+
 	public void addRegionsToUser(Integer userId, List<Integer> regionIds);
 
 	public void removeAllUserRegions(Integer userId);

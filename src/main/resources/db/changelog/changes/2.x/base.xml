@@ -32,6 +32,8 @@
 		relativeToChangelogFile="true" />
 	<include file="./add_mesh_is_active.xml"
 		relativeToChangelogFile="true" />
+	<include file="./add_supervisor_roles.xml"
+		relativeToChangelogFile="true" />
 
 
 

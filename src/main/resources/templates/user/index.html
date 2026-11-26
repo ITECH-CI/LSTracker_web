@@ -164,7 +164,7 @@ table#tab_users tbody tr:hover { background: #fafcff; }
 							<div class="filter-group">
 								<label class="form-label" for="filter_role">Rôles (multi)</label>
 								<select class="form-select form-select-sm select2-multi" id="filter_role" multiple>
-									<option th:each="r : ${userRoles}" th:value="${r.role}" th:text="${r.role}"></option>
+									<option th:each="r : ${userRoles}" th:value="${r.role}" th:text="${r.label}"></option>
 								</select>
 							</div>
 
@@ -301,6 +301,9 @@ table#tab_users tbody tr:hover { background: #fafcff; }
 	<script th:src="@{/webjars/select2/4.0.13/js/select2.min.js}"></script>
 	<script th:src="@{/DataTables/datatables.min.js}"></script>
 
+	<script th:inline="javascript">
+	window.ROLE_LABELS = /*[[${roleLabels}]]*/ {};
+	</script>
 	<script th:inline="none">
 	/* eslint-disable */
 	$(function () {
@@ -394,7 +397,9 @@ table#tab_users tbody tr:hover { background: #fafcff; }
 		return data ? escapeHtml(data) : '<span class="empty-cell">—</span>';
 	}
 	function renderRole(data) {
-		return data ? '<span class="role-pill">' + escapeHtml(data) + '</span>' : '<span class="empty-cell">—</span>';
+		if (!data) return '<span class="empty-cell">—</span>';
+		const label = (window.ROLE_LABELS || {})[data] || data;
+		return '<span class="role-pill" title="' + escapeHtml(data) + '">' + escapeHtml(label) + '</span>';
 	}
 	function renderDateTime(data) {
 		if (!data) return '<span class="empty-cell">jamais</span>';

@@ -254,6 +254,24 @@ public class AppUserServiceImpl implements AppUserService, ApplicationListener<A
 	}
 
 	@Override
+	public void replaceZoneSupervisorAssignments(Integer userId, org.itech.labSampleTracker.enums.UserRole role,
+			List<Integer> zoneIds) {
+		if (role == null || !role.isZoneSupervisor()) {
+			throw new IllegalArgumentException("Rôle de superviseur de zone attendu : " + role);
+		}
+		removeAllUserRegions(userId);
+		removeAllUserDistricts(userId);
+		removeAllUserSites(userId);
+		removeAllUserLabs(userId);
+		removeAllUserCircuits(userId);
+		if (role == org.itech.labSampleTracker.enums.UserRole.SUPERVISEUR_REGION) {
+			addRegionsToUser(userId, zoneIds);
+		} else {
+			addDistrictsToUser(userId, zoneIds);
+		}
+	}
+
+	@Override
 	public void addRegionsToUser(Integer userId, List<Integer> regionIds) {
 		try {
 			removeAllUserRegions(userId);

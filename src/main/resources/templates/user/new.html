@@ -264,10 +264,13 @@
 									<select id="inputRole" th:field="*{role}"
 										class="form-select form-select-sm select2" required>
 										<option value=""></option>
-										<option th:each="r : ${userRoles}" th:value="${r}" th:text="${r.role}"></option>
+										<option th:each="r : ${userRoles}" th:value="${r}" th:text="${r.label}"></option>
 									</select>
 								</div>
 							</div>
+
+							<!-- Superviseur de zone : affectation obligatoire, niveau et type imposés par le rôle -->
+							<th:block th:replace="~{fragments/supervisor-zones :: supervisorZoneFields}"></th:block>
 
 							<div class="row mt-2">
 								<div class="col-md-6 field">
@@ -461,6 +464,7 @@
 		}
 	});
 	</script>
+	<script th:replace="~{fragments/supervisor-zones :: supervisorZoneScript}"></script>
 
 </body>
 </html>

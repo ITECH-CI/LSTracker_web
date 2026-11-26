@@ -44,6 +44,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import org.itech.labSampleTracker.security.SampleWrite;
+
 import lombok.extern.slf4j.Slf4j;
 
 @RestController
@@ -98,6 +100,7 @@ public class TrackingController extends BaseController {
 	}
 
 	@PostMapping("/collect_sample_on_site")
+	@SampleWrite
 	public ResponseEntity<SampleCollectedDTO> collectSampleAtFacility(@jakarta.validation.Valid @RequestBody SampleCollectedDTO collectedSample) {
 		SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy HH:mm");
 		Site requester = siteService.getOne(collectedSample.getSiteId());
@@ -164,6 +167,7 @@ public class TrackingController extends BaseController {
 	}
 
 	@PostMapping("/deliver_sample_at_hub")
+	@SampleWrite
 	public ResponseEntity<SampleCollectedDTO> deliverSampleAtHub(@jakarta.validation.Valid @RequestBody SampleCollectedDTO collectedSample) {
 		SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy HH:mm");
 		try {
@@ -197,6 +201,7 @@ public class TrackingController extends BaseController {
 	}
 
 	@PostMapping("/transfer_sample")
+	@SampleWrite
 	public ResponseEntity<SampleCollectedDTO> transferSample(@jakarta.validation.Valid @RequestBody SampleCollectedDTO collectedSample) {
 		try {
 			Lab destinationLab = labService.getOne(collectedSample.getDestinationLabId());
@@ -218,6 +223,7 @@ public class TrackingController extends BaseController {
 	}
 
 	@PostMapping("/accept_sample_at_hub")
+	@SampleWrite
 	public ResponseEntity<SampleCollectedDTO> acceptSampleAtHub(@jakarta.validation.Valid @RequestBody SampleCollectedDTO collectedSample) {
 		SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy HH:mm");
 		try {
@@ -239,6 +245,7 @@ public class TrackingController extends BaseController {
 	}
 
 	@PostMapping("/reject_sample")
+	@SampleWrite
 	public ResponseEntity<SampleCollectedDTO> rejectSample(@jakarta.validation.Valid @RequestBody SampleCollectedDTO collectedSample) {
 		try {
 			// get the sample
@@ -264,6 +271,7 @@ public class TrackingController extends BaseController {
 	}
 
 	@PostMapping("/collect_sample_at_hub")
+	@SampleWrite
 	public ResponseEntity<SampleCollectedDTO> collectSampleAtHub(@jakarta.validation.Valid @RequestBody SampleCollectedDTO collectedSample) {
 		try {
 			Sample sample = new Sample();
@@ -325,6 +333,7 @@ public class TrackingController extends BaseController {
 	}
 
 	@PostMapping("/deliver_sample_at_lab")
+	@SampleWrite
 	public ResponseEntity<SampleCollectedDTO> deliverSampleAtLab(@jakarta.validation.Valid @RequestBody SampleCollectedDTO collectedSample) {
 		try {
 			// get lab
@@ -368,6 +377,7 @@ public class TrackingController extends BaseController {
 	}
 
 	@PostMapping("/accept_sample_at_lab")
+	@SampleWrite
 	public ResponseEntity<SampleCollectedDTO> acceptSampleAtLab(@jakarta.validation.Valid @RequestBody SampleCollectedDTO collectedSample) {
 		SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy HH:mm");
 		try {
@@ -402,6 +412,7 @@ public class TrackingController extends BaseController {
 	}
 
 	@PostMapping("/collect_result")
+	@SampleWrite
 	public ResponseEntity<SampleCollectedDTO> collectResult(@jakarta.validation.Valid @RequestBody SampleCollectedDTO collectedSample) {
 		SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy HH:mm");
 		try {
@@ -433,6 +444,7 @@ public class TrackingController extends BaseController {
 	}
 
 	@PostMapping("/deliver_result")
+	@SampleWrite
 	public ResponseEntity<SampleCollectedDTO> deliverResult(@jakarta.validation.Valid @RequestBody SampleCollectedDTO collectedSample) {
 		SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy HH:mm");
 		try {
@@ -465,6 +477,7 @@ public class TrackingController extends BaseController {
 	}
 
 	@PostMapping("/analysis_done")
+	@SampleWrite
 	public ResponseEntity<SampleCollectedDTO> analysisDone(@jakarta.validation.Valid @RequestBody SampleCollectedDTO collectedSample) {
 		SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy HH:mm");
 		try {
@@ -487,6 +500,7 @@ public class TrackingController extends BaseController {
 	}
 
 	@PostMapping("/analysis_failed")
+	@SampleWrite
 	public ResponseEntity<SampleCollectedDTO> analysisFailed(@jakarta.validation.Valid @RequestBody SampleCollectedDTO collectedSample) {
 		SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy HH:mm");
 		try {
@@ -506,6 +520,7 @@ public class TrackingController extends BaseController {
 	}
 
 	@PostMapping(value = "delete_sample/{sampleId}", produces = "application/json")
+	@SampleWrite
 	public ResponseEntity<Boolean> deleteSample(@PathVariable Integer sampleId) {
 		Sample sampleToDelete = sampleService.getOne(sampleId);
 		if (ObjectUtils.isNotEmpty(sampleToDelete)) {
