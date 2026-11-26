@@ -365,37 +365,43 @@ public class DashboardAdvancedRepository {
 	 *
 	 * <p>Rattachement : le circuit du trajet de la collecte quand il existe ;
 	 * sinon les circuits dont le site de l'échantillon (collecte, à défaut site
-	 * demandeur) est membre actif. Un échantillon d'un site partagé compte dans
-	 * chacun de ses circuits : les lignes ne s'additionnent pas. La ligne
-	 * {@code circuit_id} null (« Non rattaché ») garde les échantillons sans
-	 * trajet dont le site n'est dans aucun circuit, ou sans site.
+	 * demandeur) est membre actif. Seuls les circuits actifs reçoivent des
+	 * échantillons : un trajet sur un circuit inactif est ignoré. Un
+	 * échantillon d'un site partagé compte dans chacun de ses circuits : les
+	 * lignes ne s'additionnent pas. La ligne {@code circuit_id} null (« Non
+	 * rattaché ») garde les échantillons sans circuit actif, ou sans site.
 	 */
 	public List<Map<String, Object>> circuits(DashboardFilter f) {
 		final String sql = "WITH base AS ( "
-				+ "  SELECT r.circuit_id AS ride_circuit_id, st.id AS site_id, s.collection_date, "
+				+ "  SELECT CASE WHEN rc.is_active THEN r.circuit_id END AS ride_circuit_id, st.id AS site_id, s.collection_date, "
 				+ "         COALESCE(s.deliver_at_hub_date, s.deliver_at_lab_date) AS first_deposit "
 				+ "  FROM sample s "
 				+ "  LEFT JOIN sample_retrieving sr ON sr.id = s.sample_retrieving_id "
 				+ "  LEFT JOIN ride r ON r.id = sr.ride_id "
+				+ "  LEFT JOIN circuit rc ON rc.id = r.circuit_id "
 				+ "  LEFT JOIN site st ON st.id = COALESCE(sr.site_id, s.requester_site_id) "
 				+ "  WHERE (CAST(:startDate AS DATE) IS NULL OR s.collection_date >= CAST(:startDate AS DATE)) "
 				+ "  AND (CAST(:endDate AS DATE) IS NULL OR s.collection_date < CAST(:endDate AS DATE) + 1) "
 				+ "  AND (:accessibleSiteIdsActive = FALSE OR st.id IN (:accessibleSiteIds)) "
 				+ "  " + RANKING_FILTER
+				+ "), site_circuit AS ( "
+				// Appartenances actives à un circuit actif.
+				+ "  SELECT cs.site_id, cs.circuit_id FROM circuit_site cs "
+				+ "  JOIN circuit c ON c.id = cs.circuit_id AND c.is_active WHERE cs.is_active "
 				+ "), attached AS ( "
 				// 1) Circuit du trajet.
 				+ "  SELECT b.ride_circuit_id AS circuit_id, b.collection_date, b.first_deposit "
 				+ "  FROM base b WHERE b.ride_circuit_id IS NOT NULL "
 				+ "  UNION ALL "
-				// 2) Sans trajet : chaque circuit dont le site est membre actif.
-				+ "  SELECT cs.circuit_id, b.collection_date, b.first_deposit "
-				+ "  FROM base b JOIN circuit_site cs ON cs.site_id = b.site_id AND cs.is_active "
+				// 2) Sans trajet : chaque circuit actif dont le site est membre actif.
+				+ "  SELECT sc.circuit_id, b.collection_date, b.first_deposit "
+				+ "  FROM base b JOIN site_circuit sc ON sc.site_id = b.site_id "
 				+ "  WHERE b.ride_circuit_id IS NULL "
 				+ "  UNION ALL "
 				// 3) Sans trajet ni circuit pour le site : « Non rattaché ».
 				+ "  SELECT CAST(NULL AS INT), b.collection_date, b.first_deposit "
 				+ "  FROM base b WHERE b.ride_circuit_id IS NULL AND NOT EXISTS ( "
-				+ "    SELECT 1 FROM circuit_site cs WHERE cs.site_id = b.site_id AND cs.is_active) "
+				+ "    SELECT 1 FROM site_circuit sc WHERE sc.site_id = b.site_id) "
 				+ ") "
 				+ "SELECT a.circuit_id, c.circuit_number AS circuit, "
 				+ "  COUNT(*) AS collected, COUNT(a.first_deposit) AS deposited, "

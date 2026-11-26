@@ -56,7 +56,7 @@ class SampleWithoutCollectionTest {
 	private static DashboardServiceImpl series;
 	private static ConsistencyCheckService checks;
 	private static int regionA, regionB, siteA, siteB;
-	private static int circuitA, circuitAB, circuitRide, circuitInactive;
+	private static int circuitA, circuitAB, circuitRide, circuitInactive, circuitClosed;
 
 	@BeforeAll
 	static void schemaAndData() throws Exception {
@@ -109,6 +109,9 @@ class SampleWithoutCollectionTest {
 				+ ", true)", Map.of());
 		circuitRide = insertCircuit("CIRC-TRAJET", null, true);
 		circuitInactive = insertCircuit("CIRC-INACTIF", siteB, false);
+		// Circuit fermé : appartenances restées actives (site A), mais circuit inactif.
+		circuitClosed = insertCircuit("CIRC-FERME", siteA, true);
+		jdbc.update("UPDATE circuit SET is_active = false WHERE id = " + circuitClosed, Map.of());
 		int siteC = insertSite("Site C", districtA);
 		int ride = jdbc.queryForObject("INSERT INTO ride (app_user_id, circuit_id, start_date) VALUES (" + user
 				+ ", " + circuitRide + ", '2025-11-06') RETURNING id", Map.of(), Integer.class);
@@ -249,6 +252,8 @@ class SampleWithoutCollectionTest {
 		assertEquals(1, num(byCircuit.get(circuitRide).get("collected")));
 		// Appartenance inactive : non comptée.
 		assertTrue(!byCircuit.containsKey(circuitInactive));
+		// Circuit inactif : aucun échantillon, même avec des appartenances actives.
+		assertTrue(!byCircuit.containsKey(circuitClosed));
 		// Sans zone et site hors circuit.
 		assertEquals(2, num(byCircuit.get(null).get("collected")));
 		assertEquals(1, num(byCircuit.get(circuitA).get("sites_served")));
